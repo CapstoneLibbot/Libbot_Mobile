@@ -1,22 +1,45 @@
 {
   "name": "libot-mobile",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "@microsoft/signalr": "^10.0.11",
+    "@react-native-community/netinfo": "^12.0.1",
+    "@tanstack/react-query": "^5.104.0",
+    "axios": "^1.20.0",
     "expo": "~57.0.26",
+    "expo-constants": "^57.0.20",
+    "expo-linking": "^57.0.11",
+    "expo-router": "^57.0.24",
+    "expo-secure-store": "^57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-hook-form": "^7.89.0",
+    "react-native": "0.86.3",
+    "react-native-maps": "^1.29.11",
+    "react-native-safe-area-context": "^5.10.1",
+    "react-native-screens": "^4.28.0",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "babel-preset-expo": "~57.0.2",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.2",
+    "prettier": "^3.9.9",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "expo lint",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured yet\""
   },
   "private": true
 }

@@ -1,3 +1,11 @@
+.env
+.env.local
+.env.*.local
+node_modules
+.expo
+dist
+build
+
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies

@@ -29,6 +29,18 @@ Run lint and typecheck before declaring any task done.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
 
+## Responsive UI: mobile and tablet are first-class
+
+Every UI feature and screen must work from a compact phone viewport through tablet portrait and landscape **in its first implementation**. Do not treat tablet support as a later, screen-by-screen retrofit.
+
+- Use the current window's logical dimensions (dp) and safe-area insets; never branch on device model, platform alone, physical pixels, or a hard-coded screen resolution.
+- Treat width classes as a shared layout contract: compact `< 600dp`, medium `600–839dp`, expanded `≥ 840dp`. Centralize this logic, responsive spacing/type tokens, and reusable layout primitives in `src/shared`; do not reimplement breakpoints per screen.
+- Screens must have one route and one feature composition across size classes. Adapt composition (for example: one/two columns, list/grid, sidebar/drawer, inline/sticky actions), rather than creating duplicate phone and tablet screens or navigation trees.
+- Prefer fluid containers (`flex`, `min/maxWidth`, `gap`, `flexWrap`) over fixed widths/heights. Cap readable content width on expanded displays and keep primary actions reachable in both portrait and landscape.
+- Support orientation changes without losing input, selected data, scroll position, or active mission/workflow state. Account for safe areas, keyboard overlap, split-screen/resized windows where supported, and text scaling.
+- Keep touch targets at least 44 × 44dp and do not rely on hover, mouse, or a particular tablet orientation for a core action.
+- For every UI change, verify at minimum: a compact phone portrait width (~360dp), tablet portrait (~768dp), and tablet landscape/expanded (~1024dp). Check loading, empty, error, long localized text, keyboard-visible forms, and active guidance states—not only the happy-path screen.
+
 ## Building with EAS
 
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.

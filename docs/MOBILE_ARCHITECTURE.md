@@ -189,6 +189,20 @@ The actual screen implementation is found in src/screens/
 
 These screens consume real or mock data through feature hooks and APIs, then render reusable cards and controls.
 
+## 8.1 Responsive Screen Contract
+
+Each screen is implemented once and adapts its composition to the available logical window width (dp), including safe-area insets and orientation changes. The shared layout layer owns the breakpoints and responsive tokens:
+
+| Class | Window width | Expected composition |
+| --- | --- | --- |
+| Compact | `< 600dp` | Single-column content, stacked actions, list-first presentation. |
+| Medium | `600–839dp` | One primary flow; two columns only where both remain readable. |
+| Expanded | `≥ 840dp` | Centered/max-width content and optional two-pane detail/map or grid layout. |
+
+Feature screens must consume common responsive layout primitives from `src/shared`; they must not duplicate a phone route, tablet route, or per-screen breakpoint implementation. Fixed viewport dimensions are prohibited except where a visual asset has an explicit aspect ratio. Layouts use fluid flex sizing, min/max constraints, wrapping, scrolling and safe-area-aware padding.
+
+Responsive QA is part of a screen's definition of done: verify phone portrait (~360dp), tablet portrait (~768dp), and tablet landscape (~1024dp), including keyboard-visible inputs, text scaling, loading/empty/error states, long Vietnamese content, and preserving workflow state during rotation or resize.
+
 ## 9. API Architecture
 
 The app uses a centralized Axios client at src/services/api/axiosClient.ts.

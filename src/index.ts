@@ -1,1 +1,1 @@
-export * from './core/store/appStore';
+export * from './core/store/kioskStore';

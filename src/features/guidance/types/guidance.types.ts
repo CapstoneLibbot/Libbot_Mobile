@@ -1,3 +1,10 @@
+export type GuidanceMissionStatus =
+  | 'creating'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'failed';
+
 export interface RobotPose {
   x: number;
   y: number;
@@ -7,9 +14,21 @@ export interface RobotPose {
 export interface GuidanceMission {
   id: string;
   bookId: string;
-  robotId?: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  bookTitle?: string;
+  shelf?: string;
+  targetFacilityId?: string;
+  robotId: string;
+  status: GuidanceMissionStatus;
+  progress: number;
+  currentPose?: RobotPose;
   destination?: RobotPose;
   path?: RobotPose[];
-  progress: number;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMissionRequest {
+  bookId: string;
+  kioskSessionId: string;
 }

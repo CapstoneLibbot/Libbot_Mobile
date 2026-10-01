@@ -1,5 +1,8 @@
-import { Book, BookSearchFilter } from '../../features/catalog/types/catalog.types';
-import { booksMock } from '../../mocks/books.mock';
+import {
+  Book,
+  BookSearchFilter,
+} from "../../features/catalog/types/catalog.types";
+import { booksMock } from "../../mocks/books.mock";
 
 export interface CatalogRepository {
   search(filter?: BookSearchFilter): Promise<Book[]>;
@@ -23,7 +26,7 @@ export class MockCatalogRepository implements CatalogRepository {
     await this.sleep();
     let results = [...booksMock];
 
-    if (filter?.category && filter.category !== 'All') {
+    if (filter?.category && filter.category !== "All") {
       results = results.filter(
         (b) => b.category.toLowerCase() === filter.category!.toLowerCase(),
       );
@@ -52,7 +55,7 @@ export class MockCatalogRepository implements CatalogRepository {
   async getCategories(): Promise<string[]> {
     await this.sleep();
     const categories = new Set(booksMock.map((b) => b.category));
-    return ['All', ...Array.from(categories)];
+    return ["All", ...Array.from(categories)];
   }
 }
 

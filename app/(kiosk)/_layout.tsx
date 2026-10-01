@@ -1,7 +1,7 @@
-import { useKeepAwake } from 'expo-keep-awake';
-import { router, Stack } from 'expo-router';
-import React from 'react';
-import { useIdleTimeout } from '../../src/core/hooks/useIdleTimeout';
+import { useKeepAwake } from "expo-keep-awake";
+import { router, Stack } from "expo-router";
+import React from "react";
+import { useIdleTimeout } from "../../src/core/hooks/useIdleTimeout";
 
 export default function KioskLayout(): React.ReactElement {
   // Keep tablet screen awake for robot kiosk operations
@@ -10,7 +10,7 @@ export default function KioskLayout(): React.ReactElement {
   // Reset session and return to idle when kiosk is inactive and no mission is active
   useIdleTimeout({
     onTimeout: () => {
-      router.replace('/(kiosk)/idle');
+      router.replace("/(kiosk)/idle");
     },
   });
 

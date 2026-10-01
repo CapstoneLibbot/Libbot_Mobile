@@ -1,14 +1,14 @@
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
   FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
-} from 'react-native';
-import { useKioskStore } from '../../../core/store/kioskStore';
-import { useNetworkStatus } from '../../../infrastructure/network/useNetworkStatus';
+} from "react-native";
+import { useKioskStore } from "../../../core/store/kioskStore";
+import { useNetworkStatus } from "../../../infrastructure/network/useNetworkStatus";
 import {
   AppButton,
   AppCard,
@@ -19,25 +19,26 @@ import {
   AppLoading,
   AppText,
   StatusBadge,
-} from '../../../shared/components';
-import { useDebounce } from '../../../shared/hooks/useDebounce';
-import { useResponsiveLayout } from '../../../shared/hooks/useResponsiveLayout';
-import { colors, spacing } from '../../../shared/theme';
-import { useBookSearch } from '../hooks/useBookSearch';
-import { useCategories } from '../hooks/useCategories';
-import { Book } from '../types/catalog.types';
+} from "../../../shared/components";
+import { useDebounce } from "../../../shared/hooks/useDebounce";
+import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
+import { colors, spacing } from "../../../shared/theme";
+import { useBookSearch } from "../hooks/useBookSearch";
+import { useCategories } from "../hooks/useCategories";
+import { Book } from "../types/catalog.types";
 
 export function CatalogSearchScreen(): React.ReactElement {
-  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } =
+    useResponsiveLayout();
   const isTablet = isExpandedWidth;
 
-  const [searchInput, setSearchInput] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const debouncedQuery = useDebounce(searchInput, 300);
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const { isConnected } = useNetworkStatus();
 
-  const { data: categories = ['All'] } = useCategories();
+  const { data: categories = ["All"] } = useCategories();
   const {
     data: books = [],
     isLoading,
@@ -62,12 +63,12 @@ export function CatalogSearchScreen(): React.ReactElement {
   const renderBookItem = ({ item }: { item: Book }) => (
     <AppCard
       style={styles.bookCard}
-      padding={isCompactWidth ? 'compact' : 'normal'}
+      padding={isCompactWidth ? "compact" : "normal"}
     >
       <View style={styles.cardHeader}>
         <StatusBadge
-          label={item.available ? 'Có sẵn tại kệ' : 'Đang được mượn'}
-          tone={item.available ? 'success' : 'danger'}
+          label={item.available ? "Có sẵn tại kệ" : "Đang được mượn"}
+          tone={item.available ? "success" : "danger"}
         />
         <AppText variant="caption" color={colors.subtext}>
           Tầng {item.floor} • Kệ {item.shelf}
@@ -105,13 +106,13 @@ export function CatalogSearchScreen(): React.ReactElement {
         title="Tra cứu sách thư viện"
         subtitle={
           isConnected
-            ? 'Tìm theo tên sách, tác giả, ISBN hoặc thể loại'
-            : 'Đang ngoại tuyến'
+            ? "Tìm theo tên sách, tác giả, ISBN hoặc thể loại"
+            : "Đang ngoại tuyến"
         }
         backLabel="Màn hình chờ"
         onBack={() => {
           recordInteraction();
-          router.replace('/(kiosk)/idle');
+          router.replace("/(kiosk)/idle");
         }}
       />
 
@@ -126,11 +127,11 @@ export function CatalogSearchScreen(): React.ReactElement {
         ]}
       >
         <AppInput
-          label={isCompactWidth ? undefined : 'Từ khóa tìm kiếm'}
+          label={isCompactWidth ? undefined : "Từ khóa tìm kiếm"}
           placeholder="Tìm tên sách, tác giả hoặc ISBN..."
           value={searchInput}
           onChangeText={handleSearchChange}
-          onClear={() => handleSearchChange('')}
+          onClear={() => handleSearchChange("")}
         />
 
         {/* Category Filter Chips */}
@@ -150,14 +151,14 @@ export function CatalogSearchScreen(): React.ReactElement {
                   isSelected && styles.categoryChipSelected,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={`Lọc thể loại ${cat === 'All' ? 'Tất cả' : cat}`}
+                accessibilityLabel={`Lọc thể loại ${cat === "All" ? "Tất cả" : cat}`}
               >
                 <AppText
                   variant="caption"
                   color={isSelected ? colors.surface : colors.textSecondary}
                   style={isSelected ? styles.categoryTextSelected : undefined}
                 >
-                  {cat === 'All' ? 'Tất cả thể loại' : cat}
+                  {cat === "All" ? "Tất cả thể loại" : cat}
                 </AppText>
               </Pressable>
             );
@@ -180,7 +181,10 @@ export function CatalogSearchScreen(): React.ReactElement {
         ) : isError ? (
           <AppErrorState
             title="Lỗi tra cứu sách"
-            message={error?.message ?? 'Không thể tải danh sách sách. Vui lòng thử lại.'}
+            message={
+              error?.message ??
+              "Không thể tải danh sách sách. Vui lòng thử lại."
+            }
             onRetry={() => refetch()}
           />
         ) : books.length === 0 ? (
@@ -188,11 +192,11 @@ export function CatalogSearchScreen(): React.ReactElement {
             title="Không tìm thấy sách phù hợp"
             message={`Không có kết quả nào khớp với "${searchInput}". Bạn hãy thử tìm với từ khóa khác.`}
             actionTitle="Xóa tìm kiếm"
-            onAction={() => handleSearchChange('')}
+            onAction={() => handleSearchChange("")}
           />
         ) : (
           <FlatList
-            key={isTablet ? 'books-tablet-2' : 'books-phone-1'}
+            key={isTablet ? "books-tablet-2" : "books-phone-1"}
             data={books}
             keyExtractor={(item) => item.id}
             renderItem={renderBookItem}
@@ -201,7 +205,10 @@ export function CatalogSearchScreen(): React.ReactElement {
             contentContainerStyle={[
               styles.listContent,
               {
-                paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+                paddingBottom: Math.max(
+                  insets.bottom + spacing.xl,
+                  spacing.xxl,
+                ),
                 gap: tokens.contentGap,
               },
             ]}
@@ -239,8 +246,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     minHeight: 44,
     minWidth: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     flexShrink: 0,
   },
   categoryChipSelected: {
@@ -248,7 +255,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   categoryTextSelected: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   resultsSection: {
     flex: 1,
@@ -262,18 +269,18 @@ const styles = StyleSheet.create({
   bookCard: {
     flex: 1,
     gap: spacing.xs + 2,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: spacing.xs,
     marginBottom: 2,
   },
   bookTitle: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   cardFooter: {
     marginTop: spacing.xs + 2,
@@ -282,7 +289,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   detailButton: {
-    width: '100%',
+    width: "100%",
     minHeight: 44,
   },
 });

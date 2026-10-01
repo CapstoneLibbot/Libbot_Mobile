@@ -1,9 +1,5 @@
 export type GuidanceMissionStatus =
-  | 'creating'
-  | 'active'
-  | 'completed'
-  | 'cancelled'
-  | 'failed';
+  "creating" | "active" | "completed" | "cancelled" | "failed";
 
 export interface RobotPose {
   x: number;
@@ -31,10 +27,7 @@ export interface GuidanceMission {
 }
 
 export type GuidanceDemoState =
-  | 'navigating'
-  | 'replanning'
-  | 'arrived'
-  | 'cancelled';
+  "navigating" | "replanning" | "arrived" | "cancelled";
 
 export interface CreateMissionRequest {
   bookId: string;

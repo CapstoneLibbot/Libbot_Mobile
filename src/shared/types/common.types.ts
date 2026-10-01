@@ -1,4 +1,4 @@
-export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+export type LoadingState = "idle" | "loading" | "success" | "error";
 
 export interface PaginationMeta {
   page: number;

@@ -20,13 +20,13 @@ Không để Expo app gọi ROS 2, Nav2, LiDAR hoặc motor trực tiếp. Khôn
 
 `docs/maps/library_map.yaml` tham chiếu tới `library_map.pgm`. Đây là một ROS static occupancy map:
 
-| Thuộc tính | Giá trị |
-| --- | --- |
-| Kích thước ảnh | 278 × 198 cells |
-| Resolution | 0.05 m/cell |
-| Kích thước vật lý xấp xỉ | 13.9 × 9.9 m |
-| Origin map frame | `[0.0539, 0.028, 0]` |
-| Chế độ | `trinary` |
+| Thuộc tính               | Giá trị              |
+| ------------------------ | -------------------- |
+| Kích thước ảnh           | 278 × 198 cells      |
+| Resolution               | 0.05 m/cell          |
+| Kích thước vật lý xấp xỉ | 13.9 × 9.9 m         |
+| Origin map frame         | `[0.0539, 0.028, 0]` |
+| Chế độ                   | `trinary`            |
 
 PGM biểu diễn ô trống, vật cản và vùng chưa biết. YAML mô tả cách chuyển pixel sang tọa độ mét trong frame `map`. Nó **không** là costmap, **không** là bản đồ GPS và không nên được tải xuống mobile để điều hướng.
 
@@ -59,12 +59,12 @@ Không đưa robot vào khu vực công cộng trước khi thử goal success, 
 
 ## Phân chia trách nhiệm
 
-| Thành phần | Sở hữu và thực hiện | Không thực hiện |
-| --- | --- | --- |
-| Robot + ROS2/Nav2 | Static map, TF, LiDAR, localization, global/local costmap, planning, control, replanning, recovery và dừng an toàn | Tin cậy trực tiếp lệnh UI hay render giao diện người dùng |
-| Robot bridge | Nhận lệnh đã xác thực từ backend, chuyển thành Nav2 goal/cancel, theo dõi feedback/result, phát pose/route/status chuẩn hoá | Expose ROS graph, LiDAR hoặc costmap trực tiếp ra internet/app |
-| ASP.NET Core backend | Map version, mission persistence, idempotency, phân quyền, destination lookup, dispatch, audit, REST và SignalR | Tự điều khiển motor hoặc giả lập costmap |
-| Expo kiosk | Tải/cached floor-plan thân thiện, vẽ robot/đích/route, hiển thị trạng thái và gửi yêu cầu tạo/hủy mission | Gọi ROS2, tính global path, xử lý PGM/costmap hoặc quyết định recovery |
+| Thành phần           | Sở hữu và thực hiện                                                                                                         | Không thực hiện                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Robot + ROS2/Nav2    | Static map, TF, LiDAR, localization, global/local costmap, planning, control, replanning, recovery và dừng an toàn          | Tin cậy trực tiếp lệnh UI hay render giao diện người dùng              |
+| Robot bridge         | Nhận lệnh đã xác thực từ backend, chuyển thành Nav2 goal/cancel, theo dõi feedback/result, phát pose/route/status chuẩn hoá | Expose ROS graph, LiDAR hoặc costmap trực tiếp ra internet/app         |
+| ASP.NET Core backend | Map version, mission persistence, idempotency, phân quyền, destination lookup, dispatch, audit, REST và SignalR             | Tự điều khiển motor hoặc giả lập costmap                               |
+| Expo kiosk           | Tải/cached floor-plan thân thiện, vẽ robot/đích/route, hiển thị trạng thái và gửi yêu cầu tạo/hủy mission                   | Gọi ROS2, tính global path, xử lý PGM/costmap hoặc quyết định recovery |
 
 ## Dữ liệu bản đồ và điểm đích
 
@@ -101,12 +101,12 @@ Không ép tọa độ indoor vào latitude/longitude. Pipeline export cần t�
 
 ### REST
 
-| Endpoint | Ý nghĩa |
-| --- | --- |
-| `POST /guidance-missions` | Tạo mission idempotent với destination ID, workflow type và kiosk session ID; backend resolve pose và dispatch bridge. |
-| `GET /guidance-missions/{missionId}` | Nguồn khôi phục sau reconnect; trả state snapshot, `mapVersion`, route revision, pose, destination và path hiển thị được. |
-| `POST /guidance-missions/{missionId}/cancel` | Yêu cầu hủy; backend authorise, bridge cancel Nav2 goal, rồi chỉ trả terminal state sau khi robot xác nhận. |
-| `GET /maps/{mapVersion}/indoor-manifest` | Trả URL SVG/PNG và coordinate transform cho kiosk. |
+| Endpoint                                     | Ý nghĩa                                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `POST /guidance-missions`                    | Tạo mission idempotent với destination ID, workflow type và kiosk session ID; backend resolve pose và dispatch bridge.    |
+| `GET /guidance-missions/{missionId}`         | Nguồn khôi phục sau reconnect; trả state snapshot, `mapVersion`, route revision, pose, destination và path hiển thị được. |
+| `POST /guidance-missions/{missionId}/cancel` | Yêu cầu hủy; backend authorise, bridge cancel Nav2 goal, rồi chỉ trả terminal state sau khi robot xác nhận.               |
+| `GET /maps/{mapVersion}/indoor-manifest`     | Trả URL SVG/PNG và coordinate transform cho kiosk.                                                                        |
 
 Tạo mission phải dùng idempotency key gắn kiosk session để double tap/retry không tạo hai goal Nav2.
 
@@ -126,7 +126,8 @@ type RobotPositionUpdated = {
 type MissionStatusChanged = {
   schemaVersion: 1;
   missionId: string;
-  status: 'queued' | 'navigating' | 'replanning' | 'arrived' | 'cancelled' | 'failed';
+  status:
+    "queued" | "navigating" | "replanning" | "arrived" | "cancelled" | "failed";
   displayMessage: string;
   occurredAt: string;
 };

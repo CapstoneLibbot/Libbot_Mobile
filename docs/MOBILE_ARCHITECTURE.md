@@ -26,21 +26,21 @@ The mobile app communicates with the ASP.NET Core backend over REST APIs and rec
 The application uses a feature-based architecture with clear responsibility boundaries.
 
 ┌───────────────────────────────┐
-│ React Native App              │
+│ React Native App │
 ├───────────────────────────────┤
-│ Expo Router                   │
-│ Reader Screens                │
-│ Features                      │
-│ Components                    │
+│ Expo Router │
+│ Reader Screens │
+│ Features │
+│ Components │
 ├───────────────────────────────┤
-│ TanStack Query                │
-│ Zustand                       │
+│ TanStack Query │
+│ Zustand │
 ├───────────────────────────────┤
-│ Axios                         │
-│ SignalR                       │
+│ Axios │
+│ SignalR │
 ├───────────────────────────────┤
-│ ASP.NET Core Backend          │
-│ Book / Mission / Map APIs     │
+│ ASP.NET Core Backend │
+│ Book / Mission / Map APIs │
 └───────────────────────────────┘
 
 Mobile -> REST API -> Backend -> Workflow / Mission / Dispatch -> Robot
@@ -104,41 +104,53 @@ libot-mobile/
 ## 5. Responsibility of Every Major Folder
 
 ### app/
+
 The app directory is reserved for routing only. It contains routes, layouts, and screen entrypoints. Business logic stays outside this folder.
 
 ### src/core/
+
 This folder contains app-level configuration, secure runtime data, and provider composition.
 
 ### src/components/
+
 Reusable UI components shared across the app: common controls, map widgets, robot status helpers, and layout wrappers.
 
 ### src/features/
+
 Each feature owns API access, types, hooks, and component data related to that business domain.
 
 ### src/screens/
+
 Screens are composed with feature components and are kept free of backend logic.
 
 ### src/services/
+
 API, secure storage, and realtime infrastructure live here.
 
 ### src/theme/
+
 Centralized color, spacing, and typography tokens.
 
 ### src/mocks/
+
 Mock data used during early project development and can be swapped for real backend calls later.
 
 ## 6. Responsibility of Every Feature
 
 ### books
+
 Book search, book details, shelf information, and availability queries.
 
 ### guidance
+
 Robot guidance mission lifecycle, progress, destination, and realtime tracking state.
 
 ### facilities
+
 Facility metadata and information screens.
 
 ### facilities
+
 Library areas such as the reading zone and their map locations.
 
 ## 7. Expo Router Architecture
@@ -193,11 +205,11 @@ These screens consume real or mock data through feature hooks and APIs, then ren
 
 Each screen is implemented once and adapts its composition to the available logical window width (dp), including safe-area insets and orientation changes. The shared layout layer owns the breakpoints and responsive tokens:
 
-| Class | Window width | Expected composition |
-| --- | --- | --- |
-| Compact | `< 600dp` | Single-column content, stacked actions, list-first presentation. |
-| Medium | `600–839dp` | One primary flow; two columns only where both remain readable. |
-| Expanded | `≥ 840dp` | Centered/max-width content and optional two-pane detail/map or grid layout. |
+| Class    | Window width | Expected composition                                                        |
+| -------- | ------------ | --------------------------------------------------------------------------- |
+| Compact  | `< 600dp`    | Single-column content, stacked actions, list-first presentation.            |
+| Medium   | `600–839dp`  | One primary flow; two columns only where both remain readable.              |
+| Expanded | `≥ 840dp`    | Centered/max-width content and optional two-pane detail/map or grid layout. |
 
 Feature screens must consume common responsive layout primitives from `src/shared`; they must not duplicate a phone route, tablet route, or per-screen breakpoint implementation. Fixed viewport dimensions are prohibited except where a visual asset has an explicit aspect ratio. Layouts use fluid flex sizing, min/max constraints, wrapping, scrolling and safe-area-aware padding.
 

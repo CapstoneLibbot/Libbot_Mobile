@@ -1,4 +1,4 @@
-export type ResponsiveWidthClass = 'compact' | 'medium' | 'expanded';
+export type ResponsiveWidthClass = "compact" | "medium" | "expanded";
 
 export interface ResponsiveLayoutTokens {
   pagePaddingHorizontal: number;
@@ -19,22 +19,22 @@ export interface ResponsiveBreakpoint {
 }
 
 export function getResponsiveTokens(
-  widthClass: ResponsiveWidthClass
+  widthClass: ResponsiveWidthClass,
 ): ResponsiveLayoutTokens {
   switch (widthClass) {
-    case 'compact':
+    case "compact":
       return {
         pagePaddingHorizontal: 16,
         cardPadding: 16,
         contentGap: 12,
       };
-    case 'medium':
+    case "medium":
       return {
         pagePaddingHorizontal: 20,
         cardPadding: 20,
         contentGap: 16,
       };
-    case 'expanded':
+    case "expanded":
     default:
       return {
         pagePaddingHorizontal: 24,
@@ -46,7 +46,7 @@ export function getResponsiveTokens(
 
 export function getResponsiveBreakpoint(
   width: number,
-  height: number
+  height: number,
 ): ResponsiveBreakpoint {
   // In landscape kiosk: Tablet if width >= 900 and height >= 520
   const isTablet = width >= 900 && height >= 520;
@@ -60,10 +60,10 @@ export function getResponsiveBreakpoint(
   const isMediumWidth = width >= 600 && width < 840;
   const isExpandedWidth = width >= 840;
   const widthClass: ResponsiveWidthClass = isExpandedWidth
-    ? 'expanded'
+    ? "expanded"
     : isMediumWidth
-      ? 'medium'
-      : 'compact';
+      ? "medium"
+      : "compact";
 
   const tokens = getResponsiveTokens(widthClass);
 

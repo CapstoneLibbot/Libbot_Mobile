@@ -1,7 +1,7 @@
 import {
   FeedbackSubmissionResult,
   SubmitFeedbackRequest,
-} from '../../features/feedback/types/feedback.types';
+} from "../../features/feedback/types/feedback.types";
 
 export interface FeedbackRepository {
   submitFeedback(req: SubmitFeedbackRequest): Promise<FeedbackSubmissionResult>;
@@ -20,17 +20,19 @@ export class MockFeedbackRepository implements FeedbackRepository {
     return new Promise((resolve) => setTimeout(resolve, this.delayMs));
   }
 
-  async submitFeedback(req: SubmitFeedbackRequest): Promise<FeedbackSubmissionResult> {
+  async submitFeedback(
+    req: SubmitFeedbackRequest,
+  ): Promise<FeedbackSubmissionResult> {
     await this.sleep();
 
     if (req.rating < 1 || req.rating > 5) {
-      throw new Error('Đánh giá phải từ 1 đến 5 sao.');
+      throw new Error("Đánh giá phải từ 1 đến 5 sao.");
     }
 
     this.submissions.push(req);
     return {
       success: true,
-      message: 'Cảm ơn quý độc giả đã gửi phản hồi!',
+      message: "Cảm ơn quý độc giả đã gửi phản hồi!",
     };
   }
 
@@ -39,4 +41,5 @@ export class MockFeedbackRepository implements FeedbackRepository {
   }
 }
 
-export const feedbackRepository: FeedbackRepository = new MockFeedbackRepository();
+export const feedbackRepository: FeedbackRepository =
+  new MockFeedbackRepository();

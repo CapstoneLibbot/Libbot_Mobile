@@ -1,7 +1,7 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useKioskStore } from '../../../core/store/kioskStore';
+import { router, useLocalSearchParams } from "expo-router";
+import React from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useKioskStore } from "../../../core/store/kioskStore";
 import {
   AppButton,
   AppCard,
@@ -12,13 +12,14 @@ import {
   AppText,
   MobileMap,
   StatusBadge,
-} from '../../../shared/components';
-import { useResponsiveLayout } from '../../../shared/hooks/useResponsiveLayout';
-import { colors, spacing } from '../../../shared/theme';
-import { useFacility } from '../hooks/useFacility';
+} from "../../../shared/components";
+import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
+import { colors, spacing } from "../../../shared/theme";
+import { useFacility } from "../hooks/useFacility";
 
 export function FacilityDetailScreen(): React.ReactElement {
-  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } =
+    useResponsiveLayout();
   const isExpanded = isExpandedWidth;
 
   const { facilityId } = useLocalSearchParams<{ facilityId: string }>();
@@ -30,7 +31,7 @@ export function FacilityDetailScreen(): React.ReactElement {
     isError,
     error,
     refetch,
-  } = useFacility(facilityId ?? '');
+  } = useFacility(facilityId ?? "");
 
   if (isLoading) {
     return (
@@ -48,7 +49,7 @@ export function FacilityDetailScreen(): React.ReactElement {
         {isError ? (
           <AppErrorState
             title="Lỗi tải sơ đồ khu vực"
-            message={error?.message ?? 'Không thể tải thông tin khu vực.'}
+            message={error?.message ?? "Không thể tải thông tin khu vực."}
             onRetry={() => refetch()}
           />
         ) : (
@@ -75,13 +76,13 @@ export function FacilityDetailScreen(): React.ReactElement {
       pinColor: colors.primary,
     },
     {
-      id: 'robot-current',
+      id: "robot-current",
       coordinate: {
         latitude: facility.location.lat - 0.0006,
         longitude: facility.location.lng - 0.0007,
       },
-      title: 'Vị trí hiện tại của LiBot',
-      description: 'Trạm kiosk tablet',
+      title: "Vị trí hiện tại của LiBot",
+      description: "Trạm kiosk tablet",
       pinColor: colors.robot,
     },
   ];
@@ -89,7 +90,7 @@ export function FacilityDetailScreen(): React.ReactElement {
   const renderMapCard = () => (
     <AppCard
       style={styles.card}
-      padding={isCompactWidth ? 'compact' : 'normal'}
+      padding={isCompactWidth ? "compact" : "normal"}
     >
       <View style={styles.mapHeaderRow}>
         <AppText variant="heading">Sơ đồ vị trí trực quan</AppText>
@@ -112,7 +113,9 @@ export function FacilityDetailScreen(): React.ReactElement {
       />
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+          <View
+            style={[styles.legendDot, { backgroundColor: colors.primary }]}
+          />
           <AppText variant="caption">Vị trí điểm đến</AppText>
         </View>
         <View style={styles.legendItem}>
@@ -155,9 +158,15 @@ export function FacilityDetailScreen(): React.ReactElement {
               <AppCard style={styles.card}>
                 <View style={styles.badgeRow}>
                   <StatusBadge label={facility.type} tone="info" />
-                  <StatusBadge label={`Tầng ${facility.floor}`} tone="neutral" />
+                  <StatusBadge
+                    label={`Tầng ${facility.floor}`}
+                    tone="neutral"
+                  />
                   {facility.shelfCode ? (
-                    <StatusBadge label={`Mã kệ: ${facility.shelfCode}`} tone="success" />
+                    <StatusBadge
+                      label={`Mã kệ: ${facility.shelfCode}`}
+                      tone="success"
+                    />
                   ) : null}
                 </View>
 
@@ -165,7 +174,11 @@ export function FacilityDetailScreen(): React.ReactElement {
                   {facility.name}
                 </AppText>
 
-                <AppText variant="body" color={colors.textSecondary} style={styles.description}>
+                <AppText
+                  variant="body"
+                  color={colors.textSecondary}
+                  style={styles.description}
+                >
                   {facility.description}
                 </AppText>
 
@@ -174,7 +187,8 @@ export function FacilityDetailScreen(): React.ReactElement {
                     Chỉ dẫn di chuyển:
                   </AppText>
                   <AppText variant="body" color={colors.textSecondary}>
-                    Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có thể dùng thang máy hoặc thang bộ khu B để đến nơi.
+                    Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có
+                    thể dùng thang máy hoặc thang bộ khu B để đến nơi.
                   </AppText>
                 </View>
 
@@ -190,22 +204,23 @@ export function FacilityDetailScreen(): React.ReactElement {
               </AppCard>
             </View>
 
-            <View style={styles.rightColumnExpanded}>
-              {renderMapCard()}
-            </View>
+            <View style={styles.rightColumnExpanded}>{renderMapCard()}</View>
           </View>
         ) : (
           /* Compact/Medium Mobile Layout: Single Ordered Column */
           <View style={styles.columnsWrapperCompact}>
             <AppCard
               style={styles.card}
-              padding={isCompactWidth ? 'compact' : 'normal'}
+              padding={isCompactWidth ? "compact" : "normal"}
             >
               <View style={styles.badgeRow}>
                 <StatusBadge label={facility.type} tone="info" />
                 <StatusBadge label={`Tầng ${facility.floor}`} tone="neutral" />
                 {facility.shelfCode ? (
-                  <StatusBadge label={`Mã kệ: ${facility.shelfCode}`} tone="success" />
+                  <StatusBadge
+                    label={`Mã kệ: ${facility.shelfCode}`}
+                    tone="success"
+                  />
                 ) : null}
               </View>
 
@@ -213,7 +228,11 @@ export function FacilityDetailScreen(): React.ReactElement {
                 {facility.name}
               </AppText>
 
-              <AppText variant="body" color={colors.textSecondary} style={styles.description}>
+              <AppText
+                variant="body"
+                color={colors.textSecondary}
+                style={styles.description}
+              >
                 {facility.description}
               </AppText>
 
@@ -222,7 +241,8 @@ export function FacilityDetailScreen(): React.ReactElement {
                   Chỉ dẫn di chuyển:
                 </AppText>
                 <AppText variant="body" color={colors.textSecondary}>
-                  Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có thể dùng thang máy hoặc thang bộ khu B để đến nơi.
+                  Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có thể
+                  dùng thang máy hoặc thang bộ khu B để đến nơi.
                 </AppText>
               </View>
             </AppCard>
@@ -259,12 +279,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   columnsWrapperExpanded: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.xl,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   columnsWrapperCompact: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: spacing.md,
   },
   leftColumnExpanded: {
@@ -277,13 +297,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
-    alignItems: 'center',
+    alignItems: "center",
   },
   facilityName: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginTop: 2,
   },
   description: {
@@ -297,9 +317,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   mapHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
   },
   mapContainer: {
     height: 320,
@@ -309,14 +329,14 @@ const styles = StyleSheet.create({
     height: 240,
   },
   legendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
     paddingTop: spacing.xs,
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
   },
   legendDot: {

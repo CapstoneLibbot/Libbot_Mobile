@@ -41,7 +41,9 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
     const glanceIndex = useRef(0);
 
     const blinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const doubleBlinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const doubleBlinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
     const glanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [isReduceMotion, setIsReduceMotion] = useState(false);
@@ -66,7 +68,7 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
           if (isMounted.current) {
             setIsReduceMotion(Boolean(enabled));
           }
-        }
+        },
       );
 
       return () => {
@@ -102,7 +104,7 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
           }
         });
       },
-      [blinkScaleY, isReduceMotion]
+      [blinkScaleY, isReduceMotion],
     );
 
     // Schedule periodic blinks (every 3-6s, with occasional double-blink)
@@ -133,7 +135,8 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
     const scheduleNextGlance = useCallback(() => {
       if (!isMounted.current || isInteracting.current || isReduceMotion) return;
 
-      const target = GLANCE_TARGETS[glanceIndex.current % GLANCE_TARGETS.length];
+      const target =
+        GLANCE_TARGETS[glanceIndex.current % GLANCE_TARGETS.length];
       glanceIndex.current += 1;
 
       Animated.parallel([
@@ -153,9 +156,12 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
         if (!finished || !isMounted.current || isInteracting.current) return;
 
         const jitter = Math.random() * 400 - 200;
-        glanceTimerRef.current = setTimeout(() => {
-          scheduleNextGlance();
-        }, Math.max(1000, target.holdMs + jitter));
+        glanceTimerRef.current = setTimeout(
+          () => {
+            scheduleNextGlance();
+          },
+          Math.max(1000, target.holdMs + jitter),
+        );
       });
     }, [gazeX, gazeY, isReduceMotion]);
 
@@ -250,7 +256,7 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
           }
         });
       },
-      [blinkScaleY, faceScale, gazeX, gazeY, isReduceMotion]
+      [blinkScaleY, faceScale, gazeX, gazeY, isReduceMotion],
     );
 
     useImperativeHandle(
@@ -258,7 +264,7 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
       () => ({
         triggerTouchReaction,
       }),
-      [triggerTouchReaction]
+      [triggerTouchReaction],
     );
 
     return (
@@ -313,7 +319,7 @@ export const RobotFace = forwardRef<RobotFaceRef, RobotFaceProps>(
         </Animated.View>
       </View>
     );
-  }
+  },
 );
 
 const styles = StyleSheet.create({

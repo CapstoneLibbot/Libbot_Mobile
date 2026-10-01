@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { colors, spacing } from '../theme';
-import { AppButton } from './AppButton';
-import { AppText } from './AppText';
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { colors, spacing } from "../theme";
+import { AppButton } from "./AppButton";
+import { AppText } from "./AppText";
 
 interface AppEmptyStateProps {
   title: string;
@@ -29,7 +29,12 @@ export function AppEmptyState({
       ) : null}
       {actionTitle && onAction ? (
         <View style={styles.actionContainer}>
-          <AppButton title={actionTitle} onPress={onAction} variant="secondary" size="md" />
+          <AppButton
+            title={actionTitle}
+            onPress={onAction}
+            variant="secondary"
+            size="md"
+          />
         </View>
       ) : null}
     </View>
@@ -39,15 +44,15 @@ export function AppEmptyState({
 const styles = StyleSheet.create({
   emptyState: {
     padding: spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   message: {
     marginTop: spacing.sm,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 400,
   },
   actionContainer: {

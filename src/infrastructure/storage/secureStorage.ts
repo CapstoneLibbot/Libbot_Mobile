@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
 const getKey = (key: string): string => `libot_kiosk:${key}`;
 
@@ -15,7 +15,8 @@ export const secureStorage = {
   },
 
   async set<T>(key: string, value: T): Promise<void> {
-    const storageValue = typeof value === 'string' ? value : JSON.stringify(value);
+    const storageValue =
+      typeof value === "string" ? value : JSON.stringify(value);
     await SecureStore.setItemAsync(getKey(key), storageValue);
   },
 

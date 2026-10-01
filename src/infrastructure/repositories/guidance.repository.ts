@@ -1,9 +1,9 @@
 import {
   CreateMissionRequest,
   GuidanceMission,
-} from '../../features/guidance/types/guidance.types';
-import { booksMock } from '../../mocks/books.mock';
-import { sampleMissionTemplate } from '../../mocks/missions.mock';
+} from "../../features/guidance/types/guidance.types";
+import { booksMock } from "../../mocks/books.mock";
+import { sampleMissionTemplate } from "../../mocks/missions.mock";
 
 export interface GuidanceRepository {
   createMission(req: CreateMissionRequest): Promise<GuidanceMission>;
@@ -30,7 +30,9 @@ export class MockGuidanceRepository implements GuidanceRepository {
 
     const book = booksMock.find((b) => b.id === req.bookId);
     if (!book) {
-      throw new Error(`Sách với mã "${req.bookId}" không tồn tại trong hệ thống.`);
+      throw new Error(
+        `Sách với mã "${req.bookId}" không tồn tại trong hệ thống.`,
+      );
     }
 
     if (!book.available) {
@@ -48,7 +50,7 @@ export class MockGuidanceRepository implements GuidanceRepository {
       bookTitle: book.title,
       shelf: book.shelf,
       robotId: sampleMissionTemplate.robotId,
-      status: 'active',
+      status: "active",
       progress: 15,
       currentPose: sampleMissionTemplate.currentPose,
       destination: sampleMissionTemplate.destination,
@@ -76,7 +78,7 @@ export class MockGuidanceRepository implements GuidanceRepository {
     }
     const updated: GuidanceMission = {
       ...mission,
-      status: 'cancelled',
+      status: "cancelled",
       updatedAt: new Date().toISOString(),
     };
     this.missions.set(missionId, updated);
@@ -91,7 +93,7 @@ export class MockGuidanceRepository implements GuidanceRepository {
     }
     const updated: GuidanceMission = {
       ...mission,
-      status: 'completed',
+      status: "completed",
       progress: 100,
       updatedAt: new Date().toISOString(),
     };
@@ -100,4 +102,5 @@ export class MockGuidanceRepository implements GuidanceRepository {
   }
 }
 
-export const guidanceRepository: GuidanceRepository = new MockGuidanceRepository();
+export const guidanceRepository: GuidanceRepository =
+  new MockGuidanceRepository();

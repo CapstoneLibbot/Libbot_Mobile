@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { appConfig } from '../config/appConfig';
-import { useKioskStore } from '../store/kioskStore';
+import { useEffect } from "react";
+import { appConfig } from "../config/appConfig";
+import { useKioskStore } from "../store/kioskStore";
 
 export function shouldResetOnIdle(
   activeMissionId: string | null,
@@ -11,7 +11,7 @@ export function shouldResetOnIdle(
   if (isVoiceActive) {
     return false;
   }
-  if (activeMissionId !== null && activeMissionId !== '') {
+  if (activeMissionId !== null && activeMissionId !== "") {
     return false;
   }
   return elapsedMs >= timeoutMs;
@@ -41,12 +41,22 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastInteractionAt;
-      if (shouldResetOnIdle(activeMissionId, elapsed, timeoutMs, isVoiceActive)) {
+      if (
+        shouldResetOnIdle(activeMissionId, elapsed, timeoutMs, isVoiceActive)
+      ) {
         resetKioskSession();
         onTimeout?.();
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [enabled, activeMissionId, isVoiceActive, lastInteractionAt, timeoutMs, resetKioskSession, onTimeout]);
+  }, [
+    enabled,
+    activeMissionId,
+    isVoiceActive,
+    lastInteractionAt,
+    timeoutMs,
+    resetKioskSession,
+    onTimeout,
+  ]);
 }

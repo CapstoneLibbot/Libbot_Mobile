@@ -1,12 +1,6 @@
 import { Mic, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { useKioskStore } from "../../../core/store/kioskStore";
 import { AppText } from "../../../shared/components";
 import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
@@ -75,7 +69,7 @@ export function VoiceListeningModal({
         duration: 1600,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
-      })
+      }),
     );
     pulseLoop.start();
 
@@ -84,7 +78,7 @@ export function VoiceListeningModal({
       anim: Animated.Value,
       min: number,
       max: number,
-      duration: number
+      duration: number,
     ) => {
       return Animated.loop(
         Animated.sequence([
@@ -100,7 +94,7 @@ export function VoiceListeningModal({
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: false,
           }),
-        ])
+        ]),
       );
     };
 
@@ -212,10 +206,7 @@ export function VoiceListeningModal({
           />
 
           <View
-            style={[
-              styles.micCircle,
-              isNarrowHeight && styles.micCircleNarrow,
-            ]}
+            style={[styles.micCircle, isNarrowHeight && styles.micCircleNarrow]}
           >
             <Mic
               color={colors.surface}

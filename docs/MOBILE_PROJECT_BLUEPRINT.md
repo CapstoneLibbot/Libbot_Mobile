@@ -130,11 +130,11 @@ Typography dùng Inter với các weight Regular, Medium, SemiBold, Bold và Ext
 
 Kiosk Android landscape vẫn là deployment ưu tiên, nhưng **mọi UI mới phải adaptive ngay lần triển khai đầu tiên** cho phone, tablet portrait và tablet landscape. Không chấp nhận kế hoạch “làm tablet sau” hoặc sửa riêng từng screen sau khi feature đã hoàn thành. iOS/iPad và Android dùng cùng một route và cùng feature composition; chỉ layout thay đổi theo không gian hiển thị.
 
-| Width class (logical dp) | Khoảng rộng | Hành vi layout mặc định |
-| --- | --- | --- |
-| Compact | `< 600` | Một cột, action xếp dọc hoặc bottom action bar, list ưu tiên hơn grid. |
-| Medium | `600–839` | Nội dung vẫn ưu tiên một luồng chính; có thể dùng hai cột khi card/field còn dễ đọc. |
-| Expanded | `≥ 840` | Container có `maxWidth`, grid hoặc detail/map hai pane, action quan trọng luôn dễ chạm. |
+| Width class (logical dp) | Khoảng rộng | Hành vi layout mặc định                                                                 |
+| ------------------------ | ----------- | --------------------------------------------------------------------------------------- |
+| Compact                  | `< 600`     | Một cột, action xếp dọc hoặc bottom action bar, list ưu tiên hơn grid.                  |
+| Medium                   | `600–839`   | Nội dung vẫn ưu tiên một luồng chính; có thể dùng hai cột khi card/field còn dễ đọc.    |
+| Expanded                 | `≥ 840`     | Container có `maxWidth`, grid hoặc detail/map hai pane, action quan trọng luôn dễ chạm. |
 
 - Đo theo window width bằng logical dp và safe-area inset; không dùng tên model máy, pixel vật lý, hay một độ phân giải cố định để quyết định layout.
 - Đặt hook/layout primitives dùng chung và responsive spacing/type tokens ở `src/shared` (ví dụ `useWindowDimensions`, safe-area-aware page/container, responsive grid). Screen chỉ chọn composition từ những primitive đó; không tự sao chép breakpoint hoặc tạo route/screen riêng cho phone và tablet.

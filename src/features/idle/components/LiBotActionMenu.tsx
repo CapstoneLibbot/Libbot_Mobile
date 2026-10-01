@@ -1,12 +1,6 @@
 import { MapPin, Menu, Search, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { useKioskStore } from "../../../core/store/kioskStore";
 import { AppText } from "../../../shared/components";
 import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
@@ -136,10 +130,7 @@ export function LiBotActionMenu({
             styles.actionsContainer,
             {
               opacity: menuOpacity,
-              transform: [
-                { translateY: menuTranslateY },
-                { scale: menuScale },
-              ],
+              transform: [{ translateY: menuTranslateY }, { scale: menuScale }],
             },
           ]}
           pointerEvents={isOpen ? "auto" : "none"}

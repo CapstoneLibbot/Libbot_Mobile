@@ -1,34 +1,34 @@
-import { describe, expect, it } from 'vitest';
-import { booksMock } from '../../../mocks/books.mock';
-import { facilitiesMock } from '../../../mocks/facilities.mock';
-import { getResponsiveTokens } from '../../utils/responsive';
+import { describe, expect, it } from "vitest";
+import { booksMock } from "../../../mocks/books.mock";
+import { facilitiesMock } from "../../../mocks/facilities.mock";
+import { getResponsiveTokens } from "../../utils/responsive";
 
-describe('Mobile Phone UI Text & Component Layout Formatting', () => {
-  describe('Header Back Label Sanitation', () => {
-    it('removes unicode arrows from backLabel to avoid duplicate icons', () => {
+describe("Mobile Phone UI Text & Component Layout Formatting", () => {
+  describe("Header Back Label Sanitation", () => {
+    it("removes unicode arrows from backLabel to avoid duplicate icons", () => {
       const dirtyLabels = [
-        '← Quay lại tra cứu',
-        '← Màn hình chờ',
-        '← Quay lại',
-        '  ← Về trang chủ  ',
+        "← Quay lại tra cứu",
+        "← Màn hình chờ",
+        "← Quay lại",
+        "  ← Về trang chủ  ",
       ];
 
       for (const label of dirtyLabels) {
-        const cleaned = label.replace(/^[←\s]+/, '').trim();
-        expect(cleaned).not.toContain('←');
+        const cleaned = label.replace(/^[←\s]+/, "").trim();
+        expect(cleaned).not.toContain("←");
         expect(cleaned.length).toBeGreaterThan(0);
       }
     });
 
-    it('preserves clean back labels without modification', () => {
-      const cleanLabel = 'Quay lại tra cứu';
-      const result = cleanLabel.replace(/^[←\s]+/, '').trim();
-      expect(result).toBe('Quay lại tra cứu');
+    it("preserves clean back labels without modification", () => {
+      const cleanLabel = "Quay lại tra cứu";
+      const result = cleanLabel.replace(/^[←\s]+/, "").trim();
+      expect(result).toBe("Quay lại tra cứu");
     });
   });
 
-  describe('Long Vietnamese Data & Typography Checks', () => {
-    it('validates all book mock titles and descriptions exist and are non-empty', () => {
+  describe("Long Vietnamese Data & Typography Checks", () => {
+    it("validates all book mock titles and descriptions exist and are non-empty", () => {
       for (const book of booksMock) {
         expect(book.title.length).toBeGreaterThan(0);
         expect(book.author.length).toBeGreaterThan(0);
@@ -39,7 +39,7 @@ describe('Mobile Phone UI Text & Component Layout Formatting', () => {
       }
     });
 
-    it('validates facility names and descriptions exist and are non-empty', () => {
+    it("validates facility names and descriptions exist and are non-empty", () => {
       for (const fac of facilitiesMock) {
         expect(fac.name.length).toBeGreaterThan(0);
         expect(fac.description.length).toBeGreaterThan(0);
@@ -48,12 +48,13 @@ describe('Mobile Phone UI Text & Component Layout Formatting', () => {
       }
     });
 
-    it('verifies compact tokens ensure at least 328dp usable width on 360dp screens', () => {
+    it("verifies compact tokens ensure at least 328dp usable width on 360dp screens", () => {
       const phoneScreenWidth = 360;
-      const compactTokens = getResponsiveTokens('compact');
+      const compactTokens = getResponsiveTokens("compact");
 
       // Total horizontal page padding = 16 * 2 = 32dp
-      const usableWidth = phoneScreenWidth - compactTokens.pagePaddingHorizontal * 2;
+      const usableWidth =
+        phoneScreenWidth - compactTokens.pagePaddingHorizontal * 2;
       expect(usableWidth).toBe(328);
 
       // Card internal content width = 328 - 16 * 2 = 296dp
@@ -66,8 +67,8 @@ describe('Mobile Phone UI Text & Component Layout Formatting', () => {
     });
   });
 
-  describe('Touch Target Compliance', () => {
-    it('ensures minimum interactive touch target is at least 44dp', () => {
+  describe("Touch Target Compliance", () => {
+    it("ensures minimum interactive touch target is at least 44dp", () => {
       const minTouchTarget = 44;
       // All AppButton sizes must be >= 44dp
       const buttonSizeMdMinHeight = 44;

@@ -46,7 +46,7 @@ export interface IndoorMapTransform {
   resolution: number;
 }
 
-export const DEFAULT_MAP_VERSION = 'library-l1-v1';
+export const DEFAULT_MAP_VERSION = "library-l1-v1";
 
 /**
  * 278 x 198 cells at 0.05m/cell ~ 13.9m x 9.9m
@@ -136,10 +136,10 @@ export function projectSvgToRos(
  */
 export function rosYawToSvgRotationDeg(
   yawRadians: number,
-  naturalHeading: 'right' | 'up' = 'right',
+  naturalHeading: "right" | "up" = "right",
 ): number {
   const baseDeg = (-yawRadians * 180) / Math.PI;
-  const angle = naturalHeading === 'up' ? baseDeg + 90 : baseDeg;
+  const angle = naturalHeading === "up" ? baseDeg + 90 : baseDeg;
   const normalized = ((angle % 360) + 360) % 360;
   return Number(normalized.toFixed(2));
 }
@@ -157,7 +157,7 @@ export function formatPolylinePoints(
       const p = projectRosToSvg(pt, bounds, viewBox);
       return `${p.x},${p.y}`;
     })
-    .join(' ');
+    .join(" ");
 }
 
 /**
@@ -173,4 +173,98 @@ export function isPoseWithinBounds(
     pose.y >= bounds.minY &&
     pose.y <= bounds.maxY
   );
+}
+
+export type IndoorMapViewportMode = "follow" | "overview";
+
+export interface ViewportCalculationParams {
+  viewportMode?: IndoorMapViewportMode;
+  robotPose?: { x: number; y: number; yaw?: number };
+  destinationPose?: { x: number; y: number };
+  path?: { x: number; y: number }[];
+  bounds?: MapBounds;
+  baseViewBox?: SvgViewBox;
+  followWidthRatio?: number;
+  followHeightRatio?: number;
+}
+
+/**
+ * Calculates the active SVG ViewBox for the indoor map.
+ * In 'overview' mode, returns the full baseViewBox.
+ * In 'follow' mode, crops a zoomed region focused on the robot and upcoming route,
+ * strictly clamped so that the viewBox NEVER exceeds the baseViewBox bounds.
+ */
+export function calculateIndoorMapViewport({
+  viewportMode = "overview",
+  robotPose = { x: 5.5, y: 4.5 },
+  destinationPose,
+  path,
+  bounds = DEFAULT_LIBRARY_BOUNDS,
+  baseViewBox = DEFAULT_LIBRARY_VIEWBOX,
+  followWidthRatio = 0.55,
+  followHeightRatio = 0.55,
+}: ViewportCalculationParams = {}): SvgViewBox {
+  if (viewportMode === "overview") {
+    return {
+      x: baseViewBox.x,
+      y: baseViewBox.y,
+      width: baseViewBox.width,
+      height: baseViewBox.height,
+    };
+  }
+
+  // Follow mode: calculate zoomed viewBox dimensions
+  const clampedRatioW = Math.max(0.2, Math.min(1.0, followWidthRatio));
+  const clampedRatioH = Math.max(0.2, Math.min(1.0, followHeightRatio));
+
+  const followWidth = Math.min(
+    Math.round(baseViewBox.width * clampedRatioW),
+    baseViewBox.width,
+  );
+  const followHeight = Math.min(
+    Math.round(baseViewBox.height * clampedRatioH),
+    baseViewBox.height,
+  );
+
+  const robotSvg = projectRosToSvg(robotPose, bounds, baseViewBox);
+  let targetCenterX = robotSvg.x;
+  let targetCenterY = robotSvg.y;
+
+  // Bias focus slightly towards upcoming path waypoints ahead of the robot
+  if (path && path.length > 0) {
+    const upcomingPoints = path.filter((pt) => {
+      const dist = Math.hypot(pt.x - robotPose.x, pt.y - robotPose.y);
+      return dist > 0.4 && dist < 3.5;
+    });
+
+    if (upcomingPoints.length > 0) {
+      const nextSvg = projectRosToSvg(upcomingPoints[0], bounds, baseViewBox);
+      targetCenterX = robotSvg.x * 0.75 + nextSvg.x * 0.25;
+      targetCenterY = robotSvg.y * 0.75 + nextSvg.y * 0.25;
+    } else if (destinationPose) {
+      const destSvg = projectRosToSvg(destinationPose, bounds, baseViewBox);
+      targetCenterX = robotSvg.x * 0.8 + destSvg.x * 0.2;
+      targetCenterY = robotSvg.y * 0.8 + destSvg.y * 0.2;
+    }
+  }
+
+  // Desired top-left corner
+  let vx = targetCenterX - followWidth / 2;
+  let vy = targetCenterY - followHeight / 2;
+
+  // Enforce strict map bounds: viewBox must remain entirely inside baseViewBox
+  const minX = baseViewBox.x;
+  const maxX = baseViewBox.x + baseViewBox.width - followWidth;
+  const minY = baseViewBox.y;
+  const maxY = baseViewBox.y + baseViewBox.height - followHeight;
+
+  vx = Math.max(minX, Math.min(maxX, vx));
+  vy = Math.max(minY, Math.min(maxY, vy));
+
+  return {
+    x: Number(vx.toFixed(2)),
+    y: Number(vy.toFixed(2)),
+    width: followWidth,
+    height: followHeight,
+  };
 }

@@ -4,14 +4,14 @@ import {
   AxiosRequestConfig,
   AxiosResponse,
   create as createAxios,
-} from 'axios';
-import { env } from '../../core/config/env';
-import { secureStorage } from '../storage/secureStorage';
+} from "axios";
+import { env } from "../../core/config/env";
+import { secureStorage } from "../storage/secureStorage";
 
 const DEFAULT_TIMEOUT = 15000;
 
 const getKioskToken = async (): Promise<string | null> => {
-  const token = await secureStorage.get<string>('kiosk_token');
+  const token = await secureStorage.get<string>("kiosk_token");
   return token;
 };
 
@@ -19,8 +19,8 @@ const apiClient: AxiosInstance = createAxios({
   baseURL: env.apiUrl,
   timeout: DEFAULT_TIMEOUT,
   headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
@@ -43,14 +43,16 @@ apiClient.interceptors.response.use(
 );
 
 export const api = {
-  get: <T>(url: string, config?: AxiosRequestConfig) => apiClient.get<T>(url, config),
+  get: <T>(url: string, config?: AxiosRequestConfig) =>
+    apiClient.get<T>(url, config),
   post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     apiClient.post<T>(url, data, config),
   put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     apiClient.put<T>(url, data, config),
   patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     apiClient.patch<T>(url, data, config),
-  delete: <T>(url: string, config?: AxiosRequestConfig) => apiClient.delete<T>(url, config),
+  delete: <T>(url: string, config?: AxiosRequestConfig) =>
+    apiClient.delete<T>(url, config),
 };
 
 export default apiClient;

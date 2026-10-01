@@ -1,20 +1,20 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { colors, spacing } from '../theme';
-import { AppText } from './AppText';
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { colors, spacing } from "../theme";
+import { AppText } from "./AppText";
 
-export type StatusTone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+export type StatusTone = "success" | "warning" | "danger" | "neutral" | "info";
 
 interface StatusBadgeProps {
   label: string;
   tone?: StatusTone;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
 }
 
 export function StatusBadge({
   label,
-  tone = 'neutral',
-  size = 'md',
+  tone = "neutral",
+  size = "md",
 }: StatusBadgeProps): React.ReactElement {
   const toneColors = {
     success: { background: colors.successSoft, text: colors.success },
@@ -30,12 +30,12 @@ export function StatusBadge({
     <View
       style={[
         styles.badge,
-        size === 'sm' ? styles.badgeSm : styles.badgeMd,
+        size === "sm" ? styles.badgeSm : styles.badgeMd,
         { backgroundColor: chosen.background },
       ]}
     >
       <AppText
-        variant={size === 'sm' ? 'caption' : 'body'}
+        variant={size === "sm" ? "caption" : "body"}
         color={chosen.text}
         style={styles.text}
       >
@@ -48,9 +48,9 @@ export function StatusBadge({
 const styles = StyleSheet.create({
   badge: {
     borderRadius: 999,
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: "flex-start",
+    alignItems: "center",
+    justifyContent: "center",
   },
   badgeMd: {
     paddingHorizontal: spacing.md,
@@ -61,6 +61,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   text: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

@@ -1,5 +1,5 @@
-import { FacilityArea } from '../../features/facilities/types/facility.types';
-import { facilitiesMock } from '../../mocks/facilities.mock';
+import { FacilityArea } from "../../features/facilities/types/facility.types";
+import { facilitiesMock } from "../../mocks/facilities.mock";
 
 export interface FacilitiesRepository {
   getAll(): Promise<FacilityArea[]>;
@@ -37,4 +37,5 @@ export class MockFacilitiesRepository implements FacilitiesRepository {
   }
 }
 
-export const facilitiesRepository: FacilitiesRepository = new MockFacilitiesRepository();
+export const facilitiesRepository: FacilitiesRepository =
+  new MockFacilitiesRepository();

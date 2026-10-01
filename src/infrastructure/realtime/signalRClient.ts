@@ -1,10 +1,10 @@
-import * as signalR from '@microsoft/signalr';
-import { env } from '../../core/config/env';
+import * as signalR from "@microsoft/signalr";
+import { env } from "../../core/config/env";
 import {
   RealtimeEventMap,
   RealtimeEventName,
   validateRealtimePayload,
-} from './realtimeEvents';
+} from "./realtimeEvents";
 
 export type RealtimeCallback<T extends RealtimeEventName> = (
   payload: RealtimeEventMap[T],
@@ -86,7 +86,7 @@ export class SignalRClient {
 
   async invoke(methodName: string, ...args: unknown[]): Promise<unknown> {
     if (!this.connection) {
-      throw new Error('SignalR connection is not established.');
+      throw new Error("SignalR connection is not established.");
     }
 
     return this.connection.invoke(methodName, ...args);

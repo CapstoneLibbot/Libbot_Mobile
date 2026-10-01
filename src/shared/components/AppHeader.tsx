@@ -81,10 +81,7 @@ export function AppHeader({
       >
         <AppText
           variant={isNarrowHeight || isCompactWidth ? "subtitle" : "heading"}
-          style={[
-            styles.title,
-            isCompactWidth && styles.titleCompact,
-          ]}
+          style={[styles.title, isCompactWidth && styles.titleCompact]}
           numberOfLines={2}
         >
           {title}
@@ -94,10 +91,7 @@ export function AppHeader({
             variant="caption"
             color={colors.subtext}
             numberOfLines={1}
-            style={[
-              styles.subtitle,
-              isCompactWidth && styles.subtitleCompact,
-            ]}
+            style={[styles.subtitle, isCompactWidth && styles.subtitleCompact]}
           >
             {subtitle}
           </AppText>

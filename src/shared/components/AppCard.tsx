@@ -24,13 +24,7 @@ export function AppCard({
   };
 
   return (
-    <View
-      style={[
-        styles.card,
-        { padding: resolvePadding() },
-        style,
-      ]}
-    >
+    <View style={[styles.card, { padding: resolvePadding() }, style]}>
       {children}
     </View>
   );

@@ -88,7 +88,11 @@ export function RobotEye({
                   <Stop offset="0%" stopColor="#0E1E38" />
                   <Stop offset="60%" stopColor="#070C18" />
                   <Stop offset="88%" stopColor="#002966" stopOpacity="0.85" />
-                  <Stop offset="100%" stopColor={colors.primary} stopOpacity="0.9" />
+                  <Stop
+                    offset="100%"
+                    stopColor={colors.primary}
+                    stopOpacity="0.9"
+                  />
                 </RadialGradient>
 
                 {/* Primary white specular highlight gradient */}
@@ -145,13 +149,7 @@ export function RobotEye({
               />
 
               {/* Tertiary micro specular point */}
-              <Circle
-                cx={28}
-                cy={58}
-                r={3}
-                fill="#FFFFFF"
-                fillOpacity={0.45}
-              />
+              <Circle cx={28} cy={58} r={3} fill="#FFFFFF" fillOpacity={0.45} />
             </Svg>
           </Animated.View>
         </View>

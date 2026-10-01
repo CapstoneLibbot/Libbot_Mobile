@@ -1,8 +1,8 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useKioskStore } from '../../../core/store/kioskStore';
-import { useCreateGuidanceMission } from '../../../features/guidance/hooks/useCreateGuidanceMission';
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useKioskStore } from "../../../core/store/kioskStore";
+import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
   AppButton,
   AppCard,
@@ -12,20 +12,27 @@ import {
   AppLoading,
   AppText,
   StatusBadge,
-} from '../../../shared/components';
-import { useResponsiveLayout } from '../../../shared/hooks/useResponsiveLayout';
-import { colors, spacing } from '../../../shared/theme';
-import { useBookDetail } from '../hooks/useBookDetail';
+} from "../../../shared/components";
+import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
+import { colors, spacing } from "../../../shared/theme";
+import { useBookDetail } from "../hooks/useBookDetail";
 
 export function BookDetailScreen(): React.ReactElement {
-  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } =
+    useResponsiveLayout();
   const isExpanded = isExpandedWidth;
 
   const { bookId } = useLocalSearchParams<{ bookId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
 
-  const { data: book, isLoading, isError, error, refetch } = useBookDetail(bookId ?? '');
+  const {
+    data: book,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useBookDetail(bookId ?? "");
   const createMissionMutation = useCreateGuidanceMission();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -36,7 +43,7 @@ export function BookDetailScreen(): React.ReactElement {
     if (!book) return;
 
     if (!book.available) {
-      setActionError('Sách này hiện không có sẵn trên kệ để dẫn đường.');
+      setActionError("Sách này hiện không có sẵn trên kệ để dẫn đường.");
       return;
     }
 
@@ -47,14 +54,18 @@ export function BookDetailScreen(): React.ReactElement {
       });
       router.push(`/(kiosk)/guidance/${mission.id}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Không thể khởi tạo chuyến hướng dẫn.';
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Không thể khởi tạo chuyến hướng dẫn.";
       setActionError(message);
     }
   };
 
   const handleViewShelfMap = () => {
     recordInteraction();
-    const facilityId = book?.category === 'Robotics' ? 'fac-shelf-r' : 'fac-shelf-a';
+    const facilityId =
+      book?.category === "Robotics" ? "fac-shelf-r" : "fac-shelf-a";
     router.push(`/(kiosk)/facilities/${facilityId}`);
   };
 
@@ -74,7 +85,7 @@ export function BookDetailScreen(): React.ReactElement {
         {isError ? (
           <AppErrorState
             title="Lỗi tải thông tin sách"
-            message={error?.message ?? 'Không thể tải chi tiết sách.'}
+            message={error?.message ?? "Không thể tải chi tiết sách."}
             onRetry={() => refetch()}
           />
         ) : (
@@ -93,11 +104,15 @@ export function BookDetailScreen(): React.ReactElement {
   const renderActionsPanel = () => (
     <AppCard
       style={styles.card}
-      padding={isCompactWidth ? 'compact' : 'normal'}
+      padding={isCompactWidth ? "compact" : "normal"}
     >
       <AppText variant="heading">Dịch vụ Robot LiBot</AppText>
-      <AppText variant="body" color={colors.textSecondary} style={styles.robotIntro}>
-        LiBot có thể tự hành dẫn bạn đến trực tiếp kệ sách{' '}
+      <AppText
+        variant="body"
+        color={colors.textSecondary}
+        style={styles.robotIntro}
+      >
+        LiBot có thể tự hành dẫn bạn đến trực tiếp kệ sách{" "}
         <AppText variant="body" style={styles.boldText}>
           {book.shelf} (Tầng {book.floor})
         </AppText>
@@ -137,8 +152,8 @@ export function BookDetailScreen(): React.ReactElement {
         <AppButton
           title={
             createMissionMutation.isPending
-              ? 'Đang khởi tạo chuyến đi...'
-              : 'Yêu cầu LiBot dẫn đường tới kệ'
+              ? "Đang khởi tạo chuyến đi..."
+              : "Yêu cầu LiBot dẫn đường tới kệ"
           }
           variant="primary"
           size="lg"
@@ -150,7 +165,7 @@ export function BookDetailScreen(): React.ReactElement {
         <AppButton
           title="Xem sơ đồ khu vực & kệ sách"
           variant="outline"
-          size={isCompactWidth ? 'md' : 'lg'}
+          size={isCompactWidth ? "md" : "lg"}
           onPress={handleViewShelfMap}
         />
 
@@ -200,8 +215,8 @@ export function BookDetailScreen(): React.ReactElement {
               <AppCard style={styles.card}>
                 <View style={styles.badgeRow}>
                   <StatusBadge
-                    label={book.available ? 'Có sẵn trên kệ' : 'Đang được mượn'}
-                    tone={book.available ? 'success' : 'danger'}
+                    label={book.available ? "Có sẵn trên kệ" : "Đang được mượn"}
+                    tone={book.available ? "success" : "danger"}
                   />
                   <StatusBadge label={book.category} tone="info" />
                 </View>
@@ -218,27 +233,42 @@ export function BookDetailScreen(): React.ReactElement {
                 <AppText variant="heading" style={styles.sectionHeader}>
                   Tóm tắt nội dung
                 </AppText>
-                <AppText variant="body" color={colors.textSecondary} style={styles.description}>
+                <AppText
+                  variant="body"
+                  color={colors.textSecondary}
+                  style={styles.description}
+                >
                   {book.description}
                 </AppText>
 
                 <View style={styles.metadataGrid}>
                   <View style={styles.metaItem}>
-                    <AppText variant="caption" color={colors.subtext}>Mã ISBN</AppText>
+                    <AppText variant="caption" color={colors.subtext}>
+                      Mã ISBN
+                    </AppText>
                     <AppText variant="subtitle">{book.isbn}</AppText>
                   </View>
                   <View style={styles.metaItem}>
-                    <AppText variant="caption" color={colors.subtext}>Vị trí kệ</AppText>
-                    <AppText variant="subtitle" color={colors.primary}>Kệ {book.shelf}</AppText>
+                    <AppText variant="caption" color={colors.subtext}>
+                      Vị trí kệ
+                    </AppText>
+                    <AppText variant="subtitle" color={colors.primary}>
+                      Kệ {book.shelf}
+                    </AppText>
                   </View>
                   <View style={styles.metaItem}>
-                    <AppText variant="caption" color={colors.subtext}>Vị trí tầng</AppText>
+                    <AppText variant="caption" color={colors.subtext}>
+                      Vị trí tầng
+                    </AppText>
                     <AppText variant="subtitle">Tầng {book.floor}</AppText>
                   </View>
                   <View style={styles.metaItem}>
-                    <AppText variant="caption" color={colors.subtext}>Bản in khả dụng</AppText>
+                    <AppText variant="caption" color={colors.subtext}>
+                      Bản in khả dụng
+                    </AppText>
                     <AppText variant="subtitle">
-                      {book.availableCopies ?? (book.available ? 1 : 0)} / {book.totalCopies ?? 1}
+                      {book.availableCopies ?? (book.available ? 1 : 0)} /{" "}
+                      {book.totalCopies ?? 1}
                     </AppText>
                   </View>
                 </View>
@@ -255,13 +285,13 @@ export function BookDetailScreen(): React.ReactElement {
           <View style={styles.columnsWrapperCompact}>
             <AppCard
               style={styles.card}
-              padding={isCompactWidth ? 'compact' : 'normal'}
+              padding={isCompactWidth ? "compact" : "normal"}
             >
               {/* 1. Identity & Status */}
               <View style={styles.badgeRow}>
                 <StatusBadge
-                  label={book.available ? 'Có sẵn trên kệ' : 'Đang được mượn'}
-                  tone={book.available ? 'success' : 'danger'}
+                  label={book.available ? "Có sẵn trên kệ" : "Đang được mượn"}
+                  tone={book.available ? "success" : "danger"}
                 />
                 <StatusBadge label={book.category} tone="info" />
               </View>
@@ -278,19 +308,26 @@ export function BookDetailScreen(): React.ReactElement {
               {/* 2. Important Location Info Highlights */}
               <View style={styles.locationHighlightBox}>
                 <View style={styles.locationItem}>
-                  <AppText variant="caption" color={colors.subtext}>Vị trí kệ đích</AppText>
+                  <AppText variant="caption" color={colors.subtext}>
+                    Vị trí kệ đích
+                  </AppText>
                   <AppText variant="heading" color={colors.destination}>
                     Kệ {book.shelf}
                   </AppText>
                 </View>
                 <View style={styles.locationItem}>
-                  <AppText variant="caption" color={colors.subtext}>Tầng thư viện</AppText>
+                  <AppText variant="caption" color={colors.subtext}>
+                    Tầng thư viện
+                  </AppText>
                   <AppText variant="subtitle">Tầng {book.floor}</AppText>
                 </View>
                 <View style={styles.locationItem}>
-                  <AppText variant="caption" color={colors.subtext}>Bản in khả dụng</AppText>
+                  <AppText variant="caption" color={colors.subtext}>
+                    Bản in khả dụng
+                  </AppText>
                   <AppText variant="subtitle">
-                    {book.availableCopies ?? (book.available ? 1 : 0)} / {book.totalCopies ?? 1}
+                    {book.availableCopies ?? (book.available ? 1 : 0)} /{" "}
+                    {book.totalCopies ?? 1}
                   </AppText>
                 </View>
               </View>
@@ -299,19 +336,31 @@ export function BookDetailScreen(): React.ReactElement {
               <AppText variant="heading" style={styles.sectionHeader}>
                 Tóm tắt nội dung
               </AppText>
-              <AppText variant="body" color={colors.textSecondary} style={styles.description}>
+              <AppText
+                variant="body"
+                color={colors.textSecondary}
+                style={styles.description}
+              >
                 {book.description}
               </AppText>
 
               {/* 4. Secondary Metadata Grid */}
               <View style={styles.metadataGrid}>
                 <View style={styles.metaItem}>
-                  <AppText variant="caption" color={colors.subtext}>Mã ISBN</AppText>
-                  <AppText variant="caption" style={styles.metaValue}>{book.isbn}</AppText>
+                  <AppText variant="caption" color={colors.subtext}>
+                    Mã ISBN
+                  </AppText>
+                  <AppText variant="caption" style={styles.metaValue}>
+                    {book.isbn}
+                  </AppText>
                 </View>
                 <View style={styles.metaItem}>
-                  <AppText variant="caption" color={colors.subtext}>Năm xuất bản</AppText>
-                  <AppText variant="caption" style={styles.metaValue}>{book.publishedYear}</AppText>
+                  <AppText variant="caption" color={colors.subtext}>
+                    Năm xuất bản
+                  </AppText>
+                  <AppText variant="caption" style={styles.metaValue}>
+                    {book.publishedYear}
+                  </AppText>
                 </View>
               </View>
             </AppCard>
@@ -337,12 +386,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   columnsWrapperExpanded: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.xl,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   columnsWrapperCompact: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: spacing.md,
   },
   leftColumnExpanded: {
@@ -355,13 +404,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
-    alignItems: 'center',
+    alignItems: "center",
   },
   bookTitle: {
-    fontWeight: '800',
+    fontWeight: "800",
     marginTop: 2,
   },
   divider: {
@@ -377,8 +426,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   locationHighlightBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     backgroundColor: colors.surfaceAlt,
     padding: spacing.md,
     borderRadius: 12,
@@ -388,8 +437,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   metadataGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     backgroundColor: colors.surfaceAlt,
     padding: spacing.md,
@@ -402,14 +451,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   metaValue: {
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.text,
   },
   robotIntro: {
     lineHeight: 22,
   },
   boldText: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   availableNotice: {
     backgroundColor: colors.successSoft,

@@ -1,7 +1,7 @@
-import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
-import { colors } from '../theme';
+import React from "react";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import MapView, { Marker, Region } from "react-native-maps";
+import { colors } from "../theme";
 
 export interface MapMarkerItem {
   id: string;
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   mapContainer: {
     height: 260,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     backgroundColor: colors.surfaceAlt,
   },
   map: {

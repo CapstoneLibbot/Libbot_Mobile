@@ -1,4 +1,5 @@
-export const formatCurrency = (value: number): string => `${value.toFixed(2)} USD`;
+export const formatCurrency = (value: number): string =>
+  `${value.toFixed(2)} USD`;
 
 export const formatPercent = (value: number): string => `${Math.round(value)}%`;
 

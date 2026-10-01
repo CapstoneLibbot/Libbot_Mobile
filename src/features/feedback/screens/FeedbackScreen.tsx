@@ -1,37 +1,32 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useKioskStore } from '../../../core/store/kioskStore';
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useKioskStore } from "../../../core/store/kioskStore";
 import {
   AppButton,
   AppCard,
   AppHeader,
   AppInput,
   AppText,
-} from '../../../shared/components';
-import { useResponsiveLayout } from '../../../shared/hooks/useResponsiveLayout';
-import { colors, spacing } from '../../../shared/theme';
-import { useSubmitFeedback } from '../hooks/useSubmitFeedback';
+} from "../../../shared/components";
+import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
+import { colors, spacing } from "../../../shared/theme";
+import { useSubmitFeedback } from "../hooks/useSubmitFeedback";
 
 const RATING_LEVELS = [
-  { rating: 1, emoji: '😞', label: 'Rất tệ' },
-  { rating: 2, emoji: '🙁', label: 'Chưa tốt' },
-  { rating: 3, emoji: '😐', label: 'Bình thường' },
-  { rating: 4, emoji: '😊', label: 'Hài lòng' },
-  { rating: 5, emoji: '🤩', label: 'Tuyệt vời!' },
+  { rating: 1, emoji: "😞", label: "Rất tệ" },
+  { rating: 2, emoji: "🙁", label: "Chưa tốt" },
+  { rating: 3, emoji: "😐", label: "Bình thường" },
+  { rating: 4, emoji: "😊", label: "Hài lòng" },
+  { rating: 5, emoji: "🤩", label: "Tuyệt vời!" },
 ];
 
 const FEEDBACK_TAGS = [
-  'Đến đúng kệ sách',
-  'Di chuyển nhanh chóng',
-  'Màn hình dễ quan sát',
-  'Tốc độ đi vừa phải',
-  'Dễ tương tác',
+  "Đến đúng kệ sách",
+  "Di chuyển nhanh chóng",
+  "Màn hình dễ quan sát",
+  "Tốc độ đi vừa phải",
+  "Dễ tương tác",
 ];
 
 export function FeedbackScreen(): React.ReactElement {
@@ -42,8 +37,10 @@ export function FeedbackScreen(): React.ReactElement {
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
 
   const [selectedRating, setSelectedRating] = useState<number>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Đến đúng kệ sách']);
-  const [comment, setComment] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([
+    "Đến đúng kệ sách",
+  ]);
+  const [comment, setComment] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const submitFeedbackMutation = useSubmitFeedback();
@@ -66,7 +63,7 @@ export function FeedbackScreen(): React.ReactElement {
 
     try {
       await submitFeedbackMutation.mutateAsync({
-        missionId: missionId ?? 'unknown-mission',
+        missionId: missionId ?? "unknown-mission",
         rating: selectedRating,
         tags: selectedTags,
         comment: comment.trim() || undefined,
@@ -75,9 +72,10 @@ export function FeedbackScreen(): React.ReactElement {
 
       // reset session & redirect to attract screen
       resetKioskSession();
-      router.replace('/(kiosk)/idle');
+      router.replace("/(kiosk)/idle");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Không thể gửi phản hồi.';
+      const msg =
+        err instanceof Error ? err.message : "Không thể gửi phản hồi.";
       setErrorMessage(msg);
     }
   };
@@ -85,7 +83,7 @@ export function FeedbackScreen(): React.ReactElement {
   const handleSkip = () => {
     recordInteraction();
     resetKioskSession();
-    router.replace('/(kiosk)/idle');
+    router.replace("/(kiosk)/idle");
   };
 
   return (
@@ -115,7 +113,9 @@ export function FeedbackScreen(): React.ReactElement {
           </AppText>
 
           {/* Rating Emoji Buttons */}
-          <View style={[styles.ratingRow, isCompact && styles.ratingRowCompact]}>
+          <View
+            style={[styles.ratingRow, isCompact && styles.ratingRowCompact]}
+          >
             {RATING_LEVELS.map((item) => {
               const isSelected = selectedRating === item.rating;
               return (
@@ -129,12 +129,19 @@ export function FeedbackScreen(): React.ReactElement {
                   ]}
                   accessibilityRole="button"
                 >
-                  <AppText style={[styles.ratingEmoji, isNarrowHeight && styles.ratingEmojiNarrow]}>
+                  <AppText
+                    style={[
+                      styles.ratingEmoji,
+                      isNarrowHeight && styles.ratingEmojiNarrow,
+                    ]}
+                  >
                     {item.emoji}
                   </AppText>
                   <AppText
                     variant="caption"
-                    color={isSelected ? colors.primaryDark : colors.textSecondary}
+                    color={
+                      isSelected ? colors.primaryDark : colors.textSecondary
+                    }
                     style={isSelected ? styles.boldLabel : undefined}
                     numberOfLines={1}
                   >
@@ -168,7 +175,7 @@ export function FeedbackScreen(): React.ReactElement {
                     color={isSelected ? colors.surface : colors.textSecondary}
                     style={isSelected ? styles.boldLabel : undefined}
                   >
-                    {isSelected ? '✓ ' : '+ '}
+                    {isSelected ? "✓ " : "+ "}
                     {tag}
                   </AppText>
                 </Pressable>
@@ -200,8 +207,8 @@ export function FeedbackScreen(): React.ReactElement {
             <AppButton
               title={
                 submitFeedbackMutation.isPending
-                  ? 'Đang gửi đánh giá...'
-                  : 'Gửi đánh giá & Hoàn tất'
+                  ? "Đang gửi đánh giá..."
+                  : "Gửi đánh giá & Hoàn tất"
               }
               variant="primary"
               size="lg"
@@ -233,8 +240,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: spacing.xl,
     maxWidth: 800,
-    width: '100%',
-    alignSelf: 'center',
+    width: "100%",
+    alignSelf: "center",
   },
   card: {
     gap: spacing.lg,
@@ -244,11 +251,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   centeredTitle: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   ratingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: spacing.md,
     marginVertical: spacing.sm,
   },
@@ -258,15 +265,15 @@ const styles = StyleSheet.create({
   },
   ratingButton: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.sm,
     borderRadius: 16,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
     minHeight: 110,
-    justifyContent: 'center',
+    justifyContent: "center",
     gap: spacing.xs,
   },
   ratingButtonSelected: {
@@ -288,14 +295,14 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
   boldLabel: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   tagsHeading: {
     marginTop: spacing.xs,
   },
   tagWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
   },
   tagWrapCompact: {
@@ -309,7 +316,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
     minHeight: 46,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   tagChipCompact: {
     paddingHorizontal: spacing.md,

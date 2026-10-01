@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
-import { SignalRClient } from '../signalRClient';
+import { describe, expect, it, vi } from "vitest";
+import { SignalRClient } from "../signalRClient";
 
-describe('SignalR Client and Specific Cleanup Subscriptions', () => {
-  it('returns a specific cleanup callback when subscribing with on()', () => {
+describe("SignalR Client and Specific Cleanup Subscriptions", () => {
+  it("returns a specific cleanup callback when subscribing with on()", () => {
     const client = new SignalRClient();
 
     // Mock HubConnection
@@ -11,7 +11,7 @@ describe('SignalR Client and Specific Cleanup Subscriptions', () => {
     const mockConnection = {
       on: mockOn,
       off: mockOff,
-    } as unknown as import('@microsoft/signalr').HubConnection;
+    } as unknown as import("@microsoft/signalr").HubConnection;
 
     client.setConnectionForTesting(mockConnection);
 
@@ -19,11 +19,11 @@ describe('SignalR Client and Specific Cleanup Subscriptions', () => {
     const callback2 = vi.fn();
 
     // Subscribe two distinct listeners to the same event
-    const unsubscribe1 = client.on('MissionStatusChanged', callback1);
-    const unsubscribe2 = client.on('MissionStatusChanged', callback2);
+    const unsubscribe1 = client.on("MissionStatusChanged", callback1);
+    const unsubscribe2 = client.on("MissionStatusChanged", callback2);
 
-    expect(typeof unsubscribe1).toBe('function');
-    expect(typeof unsubscribe2).toBe('function');
+    expect(typeof unsubscribe1).toBe("function");
+    expect(typeof unsubscribe2).toBe("function");
     expect(mockOn).toHaveBeenCalledTimes(2);
 
     // Call first cleanup
@@ -32,7 +32,7 @@ describe('SignalR Client and Specific Cleanup Subscriptions', () => {
     // mockOff should have been called with the first wrapped handler
     expect(mockOff).toHaveBeenCalledTimes(1);
     const firstUnregisteredHandler = mockOff.mock.calls[0][1];
-    expect(typeof firstUnregisteredHandler).toBe('function');
+    expect(typeof firstUnregisteredHandler).toBe("function");
 
     // Call second cleanup
     unsubscribe2();
@@ -41,7 +41,7 @@ describe('SignalR Client and Specific Cleanup Subscriptions', () => {
     expect(secondUnregisteredHandler).not.toBe(firstUnregisteredHandler);
   });
 
-  it('validates event payloads and discards malformed data', () => {
+  it("validates event payloads and discards malformed data", () => {
     const client = new SignalRClient();
     let capturedHandler: ((payload: unknown) => void) | null = null;
 
@@ -50,24 +50,24 @@ describe('SignalR Client and Specific Cleanup Subscriptions', () => {
         capturedHandler = handler;
       },
       off: vi.fn(),
-    } as unknown as import('@microsoft/signalr').HubConnection;
+    } as unknown as import("@microsoft/signalr").HubConnection;
 
     client.setConnectionForTesting(mockConnection);
 
     const listener = vi.fn();
-    client.on('RobotPositionUpdated', listener);
+    client.on("RobotPositionUpdated", listener);
 
     expect(capturedHandler).not.toBeNull();
 
     // Send malformed payload (missing x, y, yaw, invalid types)
-    capturedHandler!({ robotId: 'R-01', invalid: true });
+    capturedHandler!({ robotId: "R-01", invalid: true });
     expect(listener).not.toHaveBeenCalled();
 
     // Send valid payload
-    capturedHandler!({ robotId: 'R-01', x: 10.5, y: 5.2, yaw: 0.1 });
+    capturedHandler!({ robotId: "R-01", x: 10.5, y: 5.2, yaw: 0.1 });
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledWith({
-      robotId: 'R-01',
+      robotId: "R-01",
       x: 10.5,
       y: 5.2,
       yaw: 0.1,

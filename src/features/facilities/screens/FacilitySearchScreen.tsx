@@ -35,7 +35,8 @@ const FACILITY_TYPES = [
 ] as const;
 
 export function FacilitySearchScreen(): React.ReactElement {
-  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } =
+    useResponsiveLayout();
   const isTablet = isExpandedWidth;
 
   const [searchInput, setSearchInput] = useState("");
@@ -61,8 +62,7 @@ export function FacilitySearchScreen(): React.ReactElement {
         fac.description.toLowerCase().includes(q) ||
         (fac.shelfCode && fac.shelfCode.toLowerCase().includes(q));
 
-      const matchesType =
-        selectedType === "All" || fac.type === selectedType;
+      const matchesType = selectedType === "All" || fac.type === selectedType;
 
       return matchesQuery && matchesType;
     });
@@ -171,10 +171,7 @@ export function FacilitySearchScreen(): React.ReactElement {
               <Pressable
                 key={type}
                 onPress={() => handleTypeSelect(type)}
-                style={[
-                  styles.typeChip,
-                  isSelected && styles.typeChipSelected,
-                ]}
+                style={[styles.typeChip, isSelected && styles.typeChipSelected]}
                 accessibilityRole="button"
                 accessibilityLabel={`Lọc theo ${type === "All" ? "Tất cả" : type}`}
               >
@@ -206,7 +203,9 @@ export function FacilitySearchScreen(): React.ReactElement {
         ) : isError ? (
           <AppErrorState
             title="Không thể tải khu vực"
-            message={error?.message ?? "Đã xảy ra lỗi khi lấy danh sách khu vực."}
+            message={
+              error?.message ?? "Đã xảy ra lỗi khi lấy danh sách khu vực."
+            }
             onRetry={refetch}
           />
         ) : filteredFacilities.length === 0 ? (
@@ -222,7 +221,7 @@ export function FacilitySearchScreen(): React.ReactElement {
           />
         ) : (
           <FlatList
-            key={isTablet ? 'fac-tablet-2' : 'fac-phone-1'}
+            key={isTablet ? "fac-tablet-2" : "fac-phone-1"}
             data={filteredFacilities}
             keyExtractor={(item) => item.id}
             renderItem={renderFacilityCard}
@@ -231,7 +230,10 @@ export function FacilitySearchScreen(): React.ReactElement {
             contentContainerStyle={[
               styles.listContent,
               {
-                paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+                paddingBottom: Math.max(
+                  insets.bottom + spacing.xl,
+                  spacing.xxl,
+                ),
                 gap: tokens.contentGap,
               },
             ]}

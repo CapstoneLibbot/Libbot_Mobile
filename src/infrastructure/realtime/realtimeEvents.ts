@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const robotPositionPayloadSchema = z.object({
   robotId: z.string(),
@@ -24,7 +24,7 @@ export const robotConnectionPayloadSchema = z.object({
 
 export const missionStatusPayloadSchema = z.object({
   missionId: z.string(),
-  status: z.enum(['creating', 'active', 'completed', 'cancelled', 'failed']),
+  status: z.enum(["creating", "active", "completed", "cancelled", "failed"]),
   progress: z.number().min(0).max(100).optional(),
 });
 
@@ -35,12 +35,12 @@ export const missionStepPayloadSchema = z.object({
 });
 
 export type RealtimeEventName =
-  | 'RobotPositionUpdated'
-  | 'RobotStatusChanged'
-  | 'RobotBatteryUpdated'
-  | 'RobotConnectionChanged'
-  | 'MissionStatusChanged'
-  | 'MissionStepChanged';
+  | "RobotPositionUpdated"
+  | "RobotStatusChanged"
+  | "RobotBatteryUpdated"
+  | "RobotConnectionChanged"
+  | "MissionStatusChanged"
+  | "MissionStepChanged";
 
 export interface RealtimeEventMap {
   RobotPositionUpdated: z.infer<typeof robotPositionPayloadSchema>;

@@ -22,7 +22,7 @@ import {
 } from "../../../shared/components";
 import { useDebounce } from "../../../shared/hooks/useDebounce";
 import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, radius, spacing } from "../../../shared/theme";
+import { colors, spacing } from "../../../shared/theme";
 import { useFacilities } from "../hooks/useFacilities";
 import { FacilityArea } from "../types/facility.types";
 
@@ -35,7 +35,9 @@ const FACILITY_TYPES = [
 ] as const;
 
 export function FacilitySearchScreen(): React.ReactElement {
-  const { isTablet, insets } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const isTablet = isExpandedWidth;
+
   const [searchInput, setSearchInput] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
   const debouncedQuery = useDebounce(searchInput, 250);
@@ -77,7 +79,10 @@ export function FacilitySearchScreen(): React.ReactElement {
   };
 
   const renderFacilityCard = ({ item }: { item: FacilityArea }) => (
-    <AppCard style={styles.facilityCard}>
+    <AppCard
+      style={styles.facilityCard}
+      padding={isCompactWidth ? "compact" : "normal"}
+    >
       <View style={styles.cardHeader}>
         <StatusBadge label={item.type} tone="info" />
         <AppText variant="caption" color={colors.subtext}>
@@ -124,72 +129,78 @@ export function FacilitySearchScreen(): React.ReactElement {
   return (
     <View style={styles.container}>
       <AppHeader
-        title="Tìm khu vực & sơ đồ thư viện"
+        title="Tìm khu vực & sơ đồ"
         subtitle={
           isConnected
-            ? "Danh sách phòng chức năng, khu vực đọc sách và hệ thống dãy kệ"
-            : "Đang hiển thị dữ liệu khu vực nội bộ"
+            ? "Phòng chức năng, khu vực đọc sách và hệ thống kệ"
+            : "Dữ liệu khu vực nội bộ"
         }
         onBack={() => {
           recordInteraction();
           router.replace("/(kiosk)/idle");
         }}
-        backLabel="← Về màn hình chờ"
+        backLabel="Màn hình chờ"
       />
 
+      {/* Top Search & Filter Bar */}
       <View
         style={[
-          styles.contentContainer,
+          styles.searchSection,
           {
-            paddingLeft: Math.max(insets.left, spacing.xl),
-            paddingRight: Math.max(insets.right, spacing.xl),
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
           },
         ]}
       >
-        {/* Search Input bar */}
-        <View style={styles.searchBarWrapper}>
-          <AppInput
-            value={searchInput}
-            onChangeText={handleSearchChange}
-            placeholder="Nhập tên khu vực, phòng tự học, số tầng hoặc mã kệ..."
-            autoFocus={false}
-          />
-        </View>
+        <AppInput
+          value={searchInput}
+          onChangeText={handleSearchChange}
+          placeholder="Nhập tên khu vực, phòng học, tầng hoặc mã kệ..."
+          onClear={() => handleSearchChange("")}
+        />
 
         {/* Type Filter Chips */}
-        <View style={styles.typesRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.typesScroll}
-          >
-            {FACILITY_TYPES.map((type) => {
-              const isSelected = selectedType === type;
-              return (
-                <Pressable
-                  key={type}
-                  onPress={() => handleTypeSelect(type)}
-                  style={[
-                    styles.typeChip,
-                    isSelected && styles.typeChipSelected,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Lọc theo ${type}`}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.typesScroll}
+        >
+          {FACILITY_TYPES.map((type) => {
+            const isSelected = selectedType === type;
+            return (
+              <Pressable
+                key={type}
+                onPress={() => handleTypeSelect(type)}
+                style={[
+                  styles.typeChip,
+                  isSelected && styles.typeChipSelected,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Lọc theo ${type === "All" ? "Tất cả" : type}`}
+              >
+                <AppText
+                  variant="caption"
+                  color={isSelected ? colors.surface : colors.text}
+                  style={styles.typeChipText}
                 >
-                  <AppText
-                    variant="caption"
-                    color={isSelected ? colors.surface : colors.text}
-                    style={styles.typeChipText}
-                  >
-                    {type === "All" ? "Tất cả khu vực" : type}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+                  {type === "All" ? "Tất cả khu vực" : type}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-        {/* Facilities List Grid */}
+      {/* Facility Grid / List */}
+      <View
+        style={[
+          styles.resultsSection,
+          {
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
+          },
+        ]}
+      >
         {isLoading ? (
           <AppLoading message="Đang tải danh sách khu vực..." />
         ) : isError ? (
@@ -217,7 +228,13 @@ export function FacilitySearchScreen(): React.ReactElement {
             renderItem={renderFacilityCard}
             numColumns={isTablet ? 2 : 1}
             columnWrapperStyle={isTablet ? styles.listColumnWrapper : undefined}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              {
+                paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+                gap: tokens.contentGap,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
           />
         )}
@@ -231,76 +248,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-  },
-  searchBarWrapper: {
-    marginBottom: spacing.md,
-  },
-  typesRow: {
-    marginBottom: spacing.md,
+  searchSection: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    gap: spacing.sm,
   },
   typesScroll: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingVertical: spacing.xs,
   },
   typeChip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
   },
   typeChipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   typeChipText: {
-    fontFamily: "InterSemiBold",
+    fontWeight: "600",
+  },
+  resultsSection: {
+    flex: 1,
   },
   listContent: {
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    paddingTop: spacing.md,
   },
   listColumnWrapper: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   facilityCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    gap: spacing.xs,
+    gap: spacing.xs + 2,
+    justifyContent: "space-between",
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.xs,
+    flexWrap: "wrap",
+    gap: spacing.xs,
   },
   cardTitle: {
-    color: colors.text,
+    fontWeight: "700",
   },
   cardDesc: {
     lineHeight: 20,
-    marginTop: spacing.xs,
   },
   shelfCodeRow: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    alignSelf: "flex-start",
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
   cardFooter: {
-    marginTop: spacing.md,
+    marginTop: spacing.xs + 2,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.sm,
   },
   detailButton: {
     width: "100%",
-    borderRadius: radius.md,
+    minHeight: 44,
   },
 });

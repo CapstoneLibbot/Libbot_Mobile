@@ -18,7 +18,9 @@ import { colors, spacing } from '../../../shared/theme';
 import { useFacility } from '../hooks/useFacility';
 
 export function FacilityDetailScreen(): React.ReactElement {
-  const { isTablet, insets } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const isExpanded = isExpandedWidth;
+
   const { facilityId } = useLocalSearchParams<{ facilityId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
 
@@ -84,6 +86,43 @@ export function FacilityDetailScreen(): React.ReactElement {
     },
   ];
 
+  const renderMapCard = () => (
+    <AppCard
+      style={styles.card}
+      padding={isCompactWidth ? 'compact' : 'normal'}
+    >
+      <View style={styles.mapHeaderRow}>
+        <AppText variant="heading">Sơ đồ vị trí trực quan</AppText>
+        <AppText variant="caption" color={colors.subtext}>
+          Tầng {facility.floor}
+        </AppText>
+      </View>
+      <MobileMap
+        markers={mapMarkers}
+        initialRegion={{
+          latitude: facility.location.lat,
+          longitude: facility.location.lng,
+          latitudeDelta: 0.003,
+          longitudeDelta: 0.003,
+        }}
+        style={[
+          styles.mapContainer,
+          isCompactWidth && styles.mapContainerCompact,
+        ]}
+      />
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+          <AppText variant="caption">Vị trí điểm đến</AppText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: colors.robot }]} />
+          <AppText variant="caption">Vị trí LiBot / Bạn đang ở đây</AppText>
+        </View>
+      </View>
+    </AppCard>
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader
@@ -93,7 +132,7 @@ export function FacilityDetailScreen(): React.ReactElement {
           recordInteraction();
           router.back();
         }}
-        backLabel="← Quay lại"
+        backLabel="Quay lại"
       />
 
       <ScrollView
@@ -101,20 +140,67 @@ export function FacilityDetailScreen(): React.ReactElement {
         contentContainerStyle={[
           styles.contentContainer,
           {
-            paddingLeft: Math.max(insets.left, spacing.xl),
-            paddingRight: Math.max(insets.right, spacing.xl),
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
+            paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+            gap: tokens.contentGap,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View
-          style={[
-            styles.columnsWrapper,
-            !isTablet && styles.columnsWrapperPhone,
-          ]}
-        >
-          <View style={[styles.leftColumn, !isTablet && styles.columnPhone]}>
-            <AppCard style={styles.card}>
+        {isExpanded ? (
+          /* Expanded Tablet Layout: 2 Columns */
+          <View style={styles.columnsWrapperExpanded}>
+            <View style={styles.leftColumnExpanded}>
+              <AppCard style={styles.card}>
+                <View style={styles.badgeRow}>
+                  <StatusBadge label={facility.type} tone="info" />
+                  <StatusBadge label={`Tầng ${facility.floor}`} tone="neutral" />
+                  {facility.shelfCode ? (
+                    <StatusBadge label={`Mã kệ: ${facility.shelfCode}`} tone="success" />
+                  ) : null}
+                </View>
+
+                <AppText variant="title" style={styles.facilityName}>
+                  {facility.name}
+                </AppText>
+
+                <AppText variant="body" color={colors.textSecondary} style={styles.description}>
+                  {facility.description}
+                </AppText>
+
+                <View style={styles.infoBox}>
+                  <AppText variant="subtitle" color={colors.primary}>
+                    Chỉ dẫn di chuyển:
+                  </AppText>
+                  <AppText variant="body" color={colors.textSecondary}>
+                    Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có thể dùng thang máy hoặc thang bộ khu B để đến nơi.
+                  </AppText>
+                </View>
+
+                <AppButton
+                  title="Quay lại danh sách"
+                  variant="secondary"
+                  size="md"
+                  onPress={() => {
+                    recordInteraction();
+                    router.back();
+                  }}
+                />
+              </AppCard>
+            </View>
+
+            <View style={styles.rightColumnExpanded}>
+              {renderMapCard()}
+            </View>
+          </View>
+        ) : (
+          /* Compact/Medium Mobile Layout: Single Ordered Column */
+          <View style={styles.columnsWrapperCompact}>
+            <AppCard
+              style={styles.card}
+              padding={isCompactWidth ? 'compact' : 'normal'}
+            >
               <View style={styles.badgeRow}>
                 <StatusBadge label={facility.type} tone="info" />
                 <StatusBadge label={`Tầng ${facility.floor}`} tone="neutral" />
@@ -139,45 +225,23 @@ export function FacilityDetailScreen(): React.ReactElement {
                   Khu vực này nằm tại Tầng {facility.floor}. Quý độc giả có thể dùng thang máy hoặc thang bộ khu B để đến nơi.
                 </AppText>
               </View>
-
-              <AppButton
-                title="Quay lại"
-                variant="secondary"
-                size="lg"
-                onPress={() => {
-                  recordInteraction();
-                  router.back();
-                }}
-              />
             </AppCard>
-          </View>
 
-          <View style={[styles.rightColumn, !isTablet && styles.columnPhone]}>
-            <AppCard style={styles.card}>
-              <AppText variant="heading">Sơ đồ vị trí trực quan</AppText>
-              <MobileMap
-                markers={mapMarkers}
-                initialRegion={{
-                  latitude: facility.location.lat,
-                  longitude: facility.location.lng,
-                  latitudeDelta: 0.003,
-                  longitudeDelta: 0.003,
-                }}
-                style={styles.mapContainer}
-              />
-              <View style={styles.legendRow}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                  <AppText variant="caption">Vị trí điểm đến</AppText>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: colors.robot }]} />
-                  <AppText variant="caption">Vị trí LiBot / Bạn đang ở đây</AppText>
-                </View>
-              </View>
-            </AppCard>
+            {/* Map Card */}
+            {renderMapCard()}
+
+            {/* Action button */}
+            <AppButton
+              title="Quay lại danh sách"
+              variant="secondary"
+              size="md"
+              onPress={() => {
+                recordInteraction();
+                router.back();
+              }}
+            />
           </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -192,53 +256,62 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: spacing.xl,
+    paddingTop: spacing.md,
   },
-  columnsWrapper: {
+  columnsWrapperExpanded: {
     flexDirection: 'row',
     gap: spacing.xl,
+    alignItems: 'flex-start',
   },
-  columnsWrapperPhone: {
+  columnsWrapperCompact: {
     flexDirection: 'column',
-    gap: spacing.lg,
+    gap: spacing.md,
   },
-  leftColumn: {
+  leftColumnExpanded: {
     flex: 2,
   },
-  rightColumn: {
+  rightColumnExpanded: {
     flex: 3,
   },
-  columnPhone: {
-    flex: undefined,
-    width: '100%',
-  },
   card: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.xs,
     alignItems: 'center',
   },
   facilityName: {
     fontWeight: '800',
+    marginTop: 2,
   },
   description: {
     lineHeight: 22,
   },
   infoBox: {
     backgroundColor: colors.surfaceAlt,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderRadius: 12,
     gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  mapHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
   },
   mapContainer: {
-    height: 340,
+    height: 320,
     borderRadius: 14,
+  },
+  mapContainerCompact: {
+    height: 240,
   },
   legendRow: {
     flexDirection: 'row',
-    gap: spacing.xl,
+    flexWrap: 'wrap',
+    gap: spacing.md,
     paddingTop: spacing.xs,
   },
   legendItem: {

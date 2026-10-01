@@ -24,9 +24,17 @@ export interface GuidanceMission {
   destination?: RobotPose;
   path?: RobotPose[];
   errorMessage?: string;
+  mapVersion?: string;
+  routeRevision?: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export type GuidanceDemoState =
+  | 'navigating'
+  | 'replanning'
+  | 'arrived'
+  | 'cancelled';
 
 export interface CreateMissionRequest {
   bookId: string;

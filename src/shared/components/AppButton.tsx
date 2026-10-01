@@ -2,20 +2,22 @@ import React from "react";
 import {
   ActivityIndicator,
   Pressable,
+  StyleProp,
   StyleSheet,
   ViewStyle,
 } from "react-native";
 import { colors, radius, spacing } from "../theme";
 import { AppText } from "./AppText";
 
-interface AppButtonProps {
+export interface AppButtonProps {
   title: string;
   onPress: () => void;
   variant?: "primary" | "secondary" | "outline" | "danger" | "success";
   size?: "md" | "lg";
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
+  numberOfLines?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function AppButton({
@@ -25,6 +27,7 @@ export function AppButton({
   size = "lg",
   disabled = false,
   loading = false,
+  numberOfLines = 1,
   style,
 }: AppButtonProps): React.ReactElement {
   const isOutline = variant === "outline";
@@ -72,6 +75,7 @@ export function AppButton({
         <AppText
           variant={size === "lg" ? "subtitle" : "body"}
           color={textColor}
+          numberOfLines={numberOfLines}
           style={styles.text}
         >
           {title}
@@ -89,14 +93,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   sizeLg: {
-    minHeight: 54,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    minHeight: 50,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
   },
   sizeMd: {
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
   },
-  text: {},
+  text: {
+    textAlign: "center",
+    flexShrink: 1,
+  },
 });

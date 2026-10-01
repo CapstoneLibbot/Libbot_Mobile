@@ -5,7 +5,7 @@ import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
 import { colors, radius, spacing } from "../theme";
 import { AppText } from "./AppText";
 
-interface AppHeaderProps {
+export interface AppHeaderProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
@@ -22,9 +22,10 @@ export function AppHeader({
   rightActionLabel,
   onRightAction,
 }: AppHeaderProps): React.ReactElement {
-  const { insets, isCompact, isNarrowHeight } = useResponsiveLayout();
+  const { insets, isNarrowHeight, isCompactWidth } = useResponsiveLayout();
 
-  const displayBackLabel = isCompact && backLabel.length > 12 ? "Quay lại" : backLabel;
+  // Strip leading unicode arrows if callers passed them (e.g. "← Quay lại")
+  const cleanBackLabel = backLabel.replace(/^[←\s]+/, "") || "Quay lại";
 
   return (
     <View
@@ -33,40 +34,58 @@ export function AppHeader({
         {
           paddingLeft: Math.max(insets.left, spacing.md),
           paddingRight: Math.max(insets.right, spacing.md),
-          paddingVertical: isNarrowHeight ? spacing.xs + 2 : spacing.sm + 4,
-          minHeight: isNarrowHeight ? 50 : 64,
+          paddingVertical: isNarrowHeight ? spacing.xs : spacing.sm,
+          minHeight: isNarrowHeight ? 50 : isCompactWidth ? 56 : 64,
         },
       ]}
     >
+      {/* Left Back action */}
       <View style={styles.leftContainer}>
         {onBack ? (
           <Pressable
             onPress={onBack}
             style={[
               styles.backButton,
+              isCompactWidth && styles.backButtonCompact,
               isNarrowHeight && styles.backButtonNarrow,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={backLabel}
+            accessibilityLabel={cleanBackLabel}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ArrowLeft color={colors.primary} size={18} strokeWidth={2.2} />
-            <AppText
-              variant="caption"
+            <ArrowLeft
               color={colors.primary}
-              numberOfLines={1}
-              style={styles.backText}
-            >
-              {displayBackLabel}
-            </AppText>
+              size={isCompactWidth ? 22 : 18}
+              strokeWidth={2.2}
+            />
+            {!isCompactWidth && (
+              <AppText
+                variant="caption"
+                color={colors.primary}
+                numberOfLines={1}
+                style={styles.backText}
+              >
+                {cleanBackLabel}
+              </AppText>
+            )}
           </Pressable>
         ) : null}
       </View>
 
-      <View style={styles.centerContainer}>
+      {/* Center / Primary Title Section */}
+      <View
+        style={[
+          styles.centerContainer,
+          isCompactWidth && styles.centerContainerCompact,
+        ]}
+      >
         <AppText
-          variant={isNarrowHeight ? "subtitle" : "heading"}
-          style={styles.title}
-          numberOfLines={1}
+          variant={isNarrowHeight || isCompactWidth ? "subtitle" : "heading"}
+          style={[
+            styles.title,
+            isCompactWidth && styles.titleCompact,
+          ]}
+          numberOfLines={2}
         >
           {title}
         </AppText>
@@ -75,23 +94,29 @@ export function AppHeader({
             variant="caption"
             color={colors.subtext}
             numberOfLines={1}
-            style={styles.subtitle}
+            style={[
+              styles.subtitle,
+              isCompactWidth && styles.subtitleCompact,
+            ]}
           >
             {subtitle}
           </AppText>
         ) : null}
       </View>
 
+      {/* Right Action */}
       <View style={styles.rightContainer}>
         {rightActionLabel && onRightAction ? (
           <Pressable
             onPress={onRightAction}
             style={[
               styles.rightButton,
+              isCompactWidth && styles.rightButtonCompact,
               isNarrowHeight && styles.rightButtonNarrow,
             ]}
             accessibilityRole="button"
             accessibilityLabel={rightActionLabel}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <AppText
               variant="caption"
@@ -116,59 +141,84 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
+    gap: spacing.sm,
   },
   leftContainer: {
     flexShrink: 0,
-    alignItems: "flex-start",
-    maxWidth: "30%",
+    justifyContent: "center",
   },
   centerContainer: {
     flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: spacing.xs,
+  },
+  centerContainerCompact: {
+    alignItems: "flex-start",
   },
   rightContainer: {
     flexShrink: 0,
+    justifyContent: "center",
     alignItems: "flex-end",
-    maxWidth: "30%",
   },
   backButton: {
-    minHeight: 40,
+    minHeight: 44,
+    minWidth: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceAlt,
     justifyContent: "center",
   },
+  backButtonCompact: {
+    paddingHorizontal: 0,
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+  },
   backButtonNarrow: {
-    minHeight: 34,
+    minHeight: 40,
+    height: 40,
     paddingVertical: 2,
-    paddingHorizontal: spacing.xs + 2,
   },
   backText: {
     fontFamily: "InterSemiBold",
   },
   title: {
     textAlign: "center",
+    fontWeight: "700",
+  },
+  titleCompact: {
+    textAlign: "left",
+    lineHeight: 20,
   },
   subtitle: {
     textAlign: "center",
+    marginTop: 2,
+  },
+  subtitleCompact: {
+    textAlign: "left",
+    marginTop: 1,
   },
   rightButton: {
-    minHeight: 40,
+    minHeight: 44,
+    minWidth: 44,
     paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.sm,
     backgroundColor: colors.primarySoft,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  rightButtonCompact: {
+    paddingHorizontal: spacing.sm,
+    minHeight: 44,
   },
   rightButtonNarrow: {
-    minHeight: 34,
+    minHeight: 40,
     paddingVertical: 2,
-    paddingHorizontal: spacing.xs + 2,
   },
   rightActionText: {
     fontFamily: "InterSemiBold",

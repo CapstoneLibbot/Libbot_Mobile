@@ -53,6 +53,8 @@ export class MockGuidanceRepository implements GuidanceRepository {
       currentPose: sampleMissionTemplate.currentPose,
       destination: sampleMissionTemplate.destination,
       path: sampleMissionTemplate.path,
+      mapVersion: sampleMissionTemplate.mapVersion,
+      routeRevision: sampleMissionTemplate.routeRevision,
       createdAt: now,
       updatedAt: now,
     };

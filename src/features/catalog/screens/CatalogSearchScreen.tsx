@@ -28,7 +28,9 @@ import { useCategories } from '../hooks/useCategories';
 import { Book } from '../types/catalog.types';
 
 export function CatalogSearchScreen(): React.ReactElement {
-  const { isTablet, insets } = useResponsiveLayout();
+  const { insets, isCompactWidth, isExpandedWidth, tokens } = useResponsiveLayout();
+  const isTablet = isExpandedWidth;
+
   const [searchInput, setSearchInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const debouncedQuery = useDebounce(searchInput, 300);
@@ -58,7 +60,10 @@ export function CatalogSearchScreen(): React.ReactElement {
   };
 
   const renderBookItem = ({ item }: { item: Book }) => (
-    <AppCard style={styles.bookCard}>
+    <AppCard
+      style={styles.bookCard}
+      padding={isCompactWidth ? 'compact' : 'normal'}
+    >
       <View style={styles.cardHeader}>
         <StatusBadge
           label={item.available ? 'Có sẵn tại kệ' : 'Đang được mượn'}
@@ -75,8 +80,8 @@ export function CatalogSearchScreen(): React.ReactElement {
       <AppText variant="body" color={colors.textSecondary} numberOfLines={1}>
         Tác giả: {item.author}
       </AppText>
-      <AppText variant="caption" color={colors.subtext}>
-        Thể loại: {item.category} • ISBN: {item.isbn}
+      <AppText variant="caption" color={colors.subtext} numberOfLines={1}>
+        {item.category} • ISBN: {item.isbn}
       </AppText>
 
       <View style={styles.cardFooter}>
@@ -100,33 +105,35 @@ export function CatalogSearchScreen(): React.ReactElement {
         title="Tra cứu sách thư viện"
         subtitle={
           isConnected
-            ? 'Tìm kiếm theo tiêu đề, tác giả, ISBN hoặc thể loại'
+            ? 'Tìm theo tên sách, tác giả, ISBN hoặc thể loại'
             : 'Đang ngoại tuyến'
         }
-        backLabel="← Màn hình chờ"
+        backLabel="Màn hình chờ"
         onBack={() => {
           recordInteraction();
           router.replace('/(kiosk)/idle');
         }}
       />
 
+      {/* Top Search & Filter Bar */}
       <View
         style={[
           styles.searchSection,
           {
-            paddingLeft: Math.max(insets.left, spacing.xl),
-            paddingRight: Math.max(insets.right, spacing.xl),
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
           },
         ]}
       >
         <AppInput
-          label="Từ khóa tìm kiếm"
-          placeholder="Nhập tên sách, tác giả hoặc mã ISBN..."
+          label={isCompactWidth ? undefined : 'Từ khóa tìm kiếm'}
+          placeholder="Tìm tên sách, tác giả hoặc ISBN..."
           value={searchInput}
           onChangeText={handleSearchChange}
           onClear={() => handleSearchChange('')}
         />
 
+        {/* Category Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -143,6 +150,7 @@ export function CatalogSearchScreen(): React.ReactElement {
                   isSelected && styles.categoryChipSelected,
                 ]}
                 accessibilityRole="button"
+                accessibilityLabel={`Lọc thể loại ${cat === 'All' ? 'Tất cả' : cat}`}
               >
                 <AppText
                   variant="caption"
@@ -157,12 +165,13 @@ export function CatalogSearchScreen(): React.ReactElement {
         </ScrollView>
       </View>
 
+      {/* Results View */}
       <View
         style={[
           styles.resultsSection,
           {
-            paddingLeft: Math.max(insets.left, spacing.xl),
-            paddingRight: Math.max(insets.right, spacing.xl),
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
           },
         ]}
       >
@@ -189,7 +198,13 @@ export function CatalogSearchScreen(): React.ReactElement {
             renderItem={renderBookItem}
             numColumns={isTablet ? 2 : 1}
             columnWrapperStyle={isTablet ? styles.rowWrapper : undefined}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              {
+                paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
+                gap: tokens.contentGap,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
           />
         )}
@@ -204,27 +219,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   searchSection: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   categoryList: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingVertical: spacing.xs,
   },
   categoryChip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
     borderRadius: 20,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    minHeight: 38,
+    minHeight: 44,
+    minWidth: 44,
     justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   categoryChipSelected: {
     backgroundColor: colors.primary,
@@ -237,33 +254,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: spacing.xl,
-    gap: spacing.lg,
+    paddingTop: spacing.md,
   },
   rowWrapper: {
     gap: spacing.lg,
   },
   bookCard: {
     flex: 1,
-    gap: spacing.sm,
+    gap: spacing.xs + 2,
     justifyContent: 'space-between',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: 2,
   },
   bookTitle: {
     fontWeight: '700',
   },
   cardFooter: {
-    marginTop: spacing.md,
+    marginTop: spacing.xs + 2,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
   detailButton: {
-    minHeight: 46,
+    width: '100%',
+    minHeight: 44,
   },
 });

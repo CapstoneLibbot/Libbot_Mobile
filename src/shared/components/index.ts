@@ -9,3 +9,4 @@ export * from "./AppErrorState";
 export * from "./StatusBadge";
 export * from "./MobileMap";
 export * from "./IndoorMap";
+export * from "./AppBackButton";

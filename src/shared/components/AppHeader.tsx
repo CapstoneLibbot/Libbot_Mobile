@@ -1,8 +1,8 @@
-import { ArrowLeft } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
 import { colors, radius, spacing } from "../theme";
+import { AppBackButton } from "./AppBackButton";
 import { AppText } from "./AppText";
 
 export interface AppHeaderProps {
@@ -24,9 +24,6 @@ export function AppHeader({
 }: AppHeaderProps): React.ReactElement {
   const { insets, isNarrowHeight, isCompactWidth } = useResponsiveLayout();
 
-  // Strip leading unicode arrows if callers passed them (e.g. "← Quay lại")
-  const cleanBackLabel = backLabel.replace(/^[←\s]+/, "") || "Quay lại";
-
   return (
     <View
       style={[
@@ -42,33 +39,7 @@ export function AppHeader({
       {/* Left Back action */}
       <View style={styles.leftContainer}>
         {onBack ? (
-          <Pressable
-            onPress={onBack}
-            style={[
-              styles.backButton,
-              isCompactWidth && styles.backButtonCompact,
-              isNarrowHeight && styles.backButtonNarrow,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={cleanBackLabel}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ArrowLeft
-              color={colors.primary}
-              size={isCompactWidth ? 22 : 18}
-              strokeWidth={2.2}
-            />
-            {!isCompactWidth && (
-              <AppText
-                variant="caption"
-                color={colors.primary}
-                numberOfLines={1}
-                style={styles.backText}
-              >
-                {cleanBackLabel}
-              </AppText>
-            )}
-          </Pressable>
+          <AppBackButton onPress={onBack} accessibilityLabel={backLabel} />
         ) : null}
       </View>
 

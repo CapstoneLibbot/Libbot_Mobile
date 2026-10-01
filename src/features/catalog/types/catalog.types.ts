@@ -12,6 +12,11 @@ export interface Book {
   publishedYear?: number;
   totalCopies?: number;
   availableCopies?: number;
+  shelfSlot?: string;
+  pages?: number;
+  publisher?: string;
+  language?: string;
+  zone?: string;
 }
 
 export interface BookSearchFilter {

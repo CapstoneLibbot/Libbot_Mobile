@@ -1,15 +1,22 @@
 import {
-  Building2,
+  BookOpen,
+  Check,
+  Compass,
+  Eye,
   Info,
   LayoutGrid,
   List,
   MapPin,
+  RotateCcw,
   Search,
+  Settings,
   X,
 } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
   FlatList,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,7 +40,7 @@ import { useCategories } from "../hooks/useCategories";
 import { Book } from "../types/catalog.types";
 
 /**
- * Returns distinct cover design colors and labels based on book category
+ * Returns distinct cover design colors, abbreviations, and labels based on book category
  */
 function getBookCoverTheme(category: string, title: string, author: string) {
   const catLower = (category || "").toLowerCase();
@@ -41,23 +48,28 @@ function getBookCoverTheme(category: string, title: string, author: string) {
   let bgColor = "#1E3A8A"; // Deep Navy
   let tagColor = "#93C5FD";
   let tag = "SOFTWARE";
+  let shortAbbr = "SE";
 
   if (catLower.includes("robot")) {
     bgColor = "#881337"; // Crimson
     tagColor = "#FECDD3";
     tag = "ROBOTICS";
+    shortAbbr = "ROB";
   } else if (catLower.includes("data") || catLower.includes("database")) {
     bgColor = "#064E3B"; // Forest
     tagColor = "#A7F3D0";
     tag = "DATA";
+    shortAbbr = "DATA";
   } else if (catLower.includes("intelligence") || catLower.includes("ai")) {
     bgColor = "#4C1D95"; // Violet
     tagColor = "#DDD6FE";
     tag = "AI";
+    shortAbbr = "AI";
   } else if (catLower.includes("literature") || catLower.includes("văn")) {
     bgColor = "#78350F"; // Amber/Bronze
     tagColor = "#FDE68A";
     tag = "LITERATURE";
+    shortAbbr = "LIT";
   }
 
   // Generate short title snippet for cover graphic to look like screenshot
@@ -84,7 +96,95 @@ function getBookCoverTheme(category: string, title: string, author: string) {
 
   const authorSnippet = author.split(",")[0].trim().split(" ").pop() ?? author;
 
-  return { bgColor, tagColor, tag, titleSnippet, authorSnippet };
+  return { bgColor, tagColor, tag, shortAbbr, titleSnippet, authorSnippet };
+}
+
+interface BookCoverThumbProps {
+  coverUrl?: string;
+  category: string;
+  title: string;
+  author: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Renders real book cover image when available with automatic fallback
+ * to a category-themed stylized mini physical book cover.
+ */
+function BookCoverThumb({
+  coverUrl,
+  category,
+  title,
+  author,
+  width,
+  height,
+}: BookCoverThumbProps): React.ReactElement {
+  const [hasError, setHasError] = useState(false);
+  const coverTheme = useMemo(
+    () => getBookCoverTheme(category, title, author),
+    [category, title, author],
+  );
+
+  const isMini = width < 52;
+
+  if (coverUrl && !hasError) {
+    return (
+      <View style={[styles.bookCoverThumbWrapper, { width, height }]}>
+        <Image
+          source={{ uri: coverUrl }}
+          style={styles.bookCoverImage}
+          resizeMode="cover"
+          onError={() => setHasError(true)}
+        />
+        <View style={styles.bookSpineSheen} />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.bookCoverThumbWrapper,
+        {
+          width,
+          height,
+          backgroundColor: coverTheme.bgColor,
+        },
+      ]}
+    >
+      <View style={styles.bookSpineSheen} />
+      <AppText
+        variant="caption"
+        style={[
+          styles.coverTagText,
+          { color: coverTheme.tagColor, fontSize: isMini ? 6.5 : 8 },
+        ]}
+      >
+        {coverTheme.tag}
+      </AppText>
+      <AppText
+        variant="caption"
+        numberOfLines={2}
+        style={[
+          styles.coverTitleText,
+          { fontSize: isMini ? 8 : 9.5, lineHeight: isMini ? 10 : 12 },
+        ]}
+      >
+        {coverTheme.titleSnippet}
+      </AppText>
+      <AppText
+        variant="caption"
+        numberOfLines={1}
+        style={[
+          styles.coverAuthorText,
+          { fontSize: isMini ? 6 : 7.5 },
+        ]}
+      >
+        {coverTheme.authorSnippet}
+      </AppText>
+    </View>
+  );
 }
 
 export interface CatalogSearchScreenProps {
@@ -98,15 +198,18 @@ export function CatalogSearchScreen({
   onStartGuidance,
   onBackToIdle,
 }: CatalogSearchScreenProps): React.ReactElement {
-  const { insets, isCompactWidth, isExpandedWidth, tokens } =
-    useResponsiveLayout();
+  const { insets, isCompactWidth, tokens } = useResponsiveLayout();
 
-  // Responsive: 2 columns on tablet / wide (medium >= 600 or expanded >= 840), 1 column on compact mobile
+  // Responsive: 2 columns on tablet / wide, 1 column on compact phone
   const isMultiColumn = !isCompactWidth;
 
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [sortBy, setSortBy] = useState<"default" | "title" | "shelf">("default");
+
   const debouncedQuery = useDebounce(searchInput, 300);
 
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
@@ -114,7 +217,7 @@ export function CatalogSearchScreen({
 
   const { data: categories = ["All"] } = useCategories();
   const {
-    data: books = [],
+    data: rawBooks = [],
     isLoading,
     isError,
     error,
@@ -160,23 +263,37 @@ export function CatalogSearchScreen({
       });
       onStartGuidance(mission.id);
     } catch {
-      // Fallback to detail page if quick guidance cannot be created
       handleViewDetail(book.id);
     }
   };
 
-  // Total count across all books when category is "All"
+  // Filter and sort books based on options
+  const books = useMemo(() => {
+    let result = [...rawBooks];
+
+    if (onlyAvailable) {
+      result = result.filter((b) => b.available);
+    }
+
+    if (sortBy === "title") {
+      result.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === "shelf") {
+      result.sort((a, b) => a.shelf.localeCompare(b.shelf));
+    }
+
+    return result;
+  }, [rawBooks, onlyAvailable, sortBy]);
+
+  // Total count for "All" category pill
   const totalCount = useMemo(() => {
-    return books.length > 0 ? books.length : 42;
-  }, [books.length]);
+    return rawBooks.length > 0 ? rawBooks.length : 7;
+  }, [rawBooks.length]);
 
-  // ── Mode 1: Detailed List Card (Horizontal) ──────────────────────────────
-  const renderListItem = (item: Book) => {
-    const coverTheme = getBookCoverTheme(item.category, item.title, item.author);
-
+  // ── Mode 1: Compact Grid Card (Referencing Cards 1 & 2 from UI) ─────────────
+  const renderGridCard = (item: Book) => {
     return (
-      <View style={styles.bookCardContainer}>
-        {/* 1. Header: Status badge & Shelf location */}
+      <View style={styles.gridCard}>
+        {/* 1. Card Header: Status Badge (Left) & Shelf Location (Right) */}
         <View style={styles.cardHeaderRow}>
           {item.available ? (
             <View style={styles.badgeAvailable}>
@@ -195,43 +312,29 @@ export function CatalogSearchScreen({
           )}
 
           <View style={styles.shelfLocationBadge}>
-            <Building2 size={13} color="#64748B" />
+            <BookOpen size={12} color="#64748B" />
             <AppText variant="caption" style={styles.shelfLocationText}>
               Tầng {item.floor} • Kệ {item.shelf}
             </AppText>
           </View>
         </View>
 
-        {/* 2. Body: Book Cover Thumbnail + Detailed Metadata */}
-        <View style={styles.cardBodyRow}>
-          {/* Book Cover Graphic Thumbnail */}
-          <View
-            style={[
-              styles.bookCoverThumb,
-              { backgroundColor: coverTheme.bgColor },
-            ]}
-          >
-            <AppText
-              variant="caption"
-              style={[styles.coverTagText, { color: coverTheme.tagColor }]}
-            >
-              {coverTheme.tag}
-            </AppText>
-            <AppText
-              variant="caption"
-              numberOfLines={2}
-              style={styles.coverTitleText}
-            >
-              {coverTheme.titleSnippet}
-            </AppText>
-            <AppText
-              variant="caption"
-              numberOfLines={1}
-              style={styles.coverAuthorText}
-            >
-              {coverTheme.authorSnippet}
-            </AppText>
-          </View>
+        {/* 2. Card Body: Book Cover Thumbnail + Detailed Metadata */}
+        <Pressable
+          onPress={() => handleViewDetail(item.id)}
+          style={styles.cardBodyRow}
+          accessibilityRole="button"
+          accessibilityLabel={`Xem chi tiết ${item.title}`}
+        >
+          {/* Mini Book Cover (Photo or Stylized Cover) */}
+          <BookCoverThumb
+            coverUrl={item.coverUrl}
+            category={item.category}
+            title={item.title}
+            author={item.author}
+            width={58}
+            height={80}
+          />
 
           {/* Book Info Text */}
           <View style={styles.bookInfoContent}>
@@ -259,24 +362,30 @@ export function CatalogSearchScreen({
               style={styles.bookMetaText}
               numberOfLines={1}
             >
-              {item.category} • ISBN: {item.isbn}
+              {item.category} • {item.isbn}
             </AppText>
 
             {/* Availability Stock */}
             <View style={styles.stockRow}>
-              {item.available && (
+              {item.available ? (
                 <AppText variant="caption" style={styles.stockInShelf}>
                   Còn {item.availableCopies ?? 1} cuốn{" "}
-                  <AppText variant="caption" style={styles.slotText}>
-                    • Vị trí: {item.shelfSlot ?? "Ngăn 3"}
-                  </AppText>
+                  {item.shelfSlot ? (
+                    <AppText variant="caption" style={styles.slotText}>
+                      • Vị trí: {item.shelfSlot}
+                    </AppText>
+                  ) : null}
+                </AppText>
+              ) : (
+                <AppText variant="caption" style={styles.stockBorrowed}>
+                  Đang mượn (0/{item.totalCopies ?? 1} cuốn tại kệ)
                 </AppText>
               )}
             </View>
           </View>
-        </View>
+        </Pressable>
 
-        {/* 3. Footer: Action Buttons */}
+        {/* 3. Card Footer: Action Buttons */}
         <View style={styles.cardFooterRow}>
           {item.available ? (
             <>
@@ -290,7 +399,7 @@ export function CatalogSearchScreen({
                   pressed && styles.btnPressed,
                 ]}
               >
-                <MapPin size={15} color="#FFFFFF" />
+                <Compass size={14} color="#FFFFFF" />
                 <AppText variant="caption" style={styles.btnLeadText}>
                   Dẫn đường kệ
                 </AppText>
@@ -312,7 +421,7 @@ export function CatalogSearchScreen({
               </Pressable>
             </>
           ) : (
-            /* Single Secondary Button when Borrowed */
+            /* Single Full-width Secondary Button when Borrowed */
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Xem chi tiết sách đang mượn"
@@ -322,9 +431,9 @@ export function CatalogSearchScreen({
                 pressed && styles.btnPressed,
               ]}
             >
-              <Info size={15} color="#64748B" />
+              <Eye size={14} color="#64748B" />
               <AppText variant="caption" style={styles.btnDetailFullText}>
-                Xem chi tiết
+                Xem chi tiết sách
               </AppText>
             </Pressable>
           )}
@@ -333,154 +442,109 @@ export function CatalogSearchScreen({
     );
   };
 
-  // ── Mode 2: E-commerce Product Card (Vertical Poster Style) ───────────────
-  const renderGridItem = (item: Book) => {
-    const coverTheme = getBookCoverTheme(item.category, item.title, item.author);
-
+  // ── Mode 2: Ultra-compact List Row (Referencing Cards 3 & 4 from UI) ────────
+  const renderListCompactItem = (item: Book) => {
     return (
-      <View style={styles.gridCardContainer}>
-        {/* Cover Poster with Floating Badges */}
-        <View
-          style={[
-            styles.gridCoverWrapper,
-            { backgroundColor: coverTheme.bgColor },
-          ]}
-        >
-          {/* Overlaid Badges */}
-          <View style={styles.gridOverlayRow}>
-            {item.available ? (
-              <View style={styles.gridBadgeAvailable}>
-                <View style={styles.dotAvailable} />
-                <AppText variant="caption" style={styles.textAvailable}>
-                  Có sẵn
-                </AppText>
-              </View>
-            ) : (
-              <View style={styles.gridBadgeBorrowed}>
-                <View style={styles.dotBorrowed} />
-                <AppText variant="caption" style={styles.textBorrowed}>
-                  Đang mượn
-                </AppText>
-              </View>
-            )}
+      <Pressable
+        onPress={() => handleViewDetail(item.id)}
+        style={({ pressed }) => [
+          styles.listRowCard,
+          pressed && styles.listRowPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Xem chi tiết ${item.title}`}
+      >
+        {/* Mini Book Cover (Photo or Stylized Cover) */}
+        <BookCoverThumb
+          coverUrl={item.coverUrl}
+          category={item.category}
+          title={item.title}
+          author={item.author}
+          width={46}
+          height={64}
+        />
 
-            <View style={styles.gridShelfBadge}>
-              <AppText variant="caption" style={styles.gridShelfText}>
-                Kệ {item.shelf}
-              </AppText>
-            </View>
-          </View>
-
-          {/* Cover Graphic Center */}
-          <View style={styles.gridCoverCenter}>
-            <AppText
-              variant="caption"
-              style={[styles.gridCoverTag, { color: coverTheme.tagColor }]}
-            >
-              {coverTheme.tag}
-            </AppText>
-            <AppText
-              variant="subtitle"
-              numberOfLines={2}
-              style={styles.gridCoverTitle}
-            >
-              {coverTheme.titleSnippet}
-            </AppText>
-            <AppText variant="caption" style={styles.gridCoverAuthor}>
-              {coverTheme.authorSnippet}
-            </AppText>
-          </View>
-        </View>
-
-        {/* Product Information Body */}
-        <View style={styles.gridCardBody}>
-          <AppText
-            variant="caption"
-            style={styles.gridCategoryText}
-            numberOfLines={1}
-          >
-            {item.category.toUpperCase()}
-          </AppText>
-
+        {/* Center: Book Metadata */}
+        <View style={styles.compactInfoContent}>
           <AppText
             variant="subtitle"
-            style={styles.gridTitleText}
-            numberOfLines={2}
+            style={styles.compactMainTitle}
+            numberOfLines={1}
           >
             {item.title}
           </AppText>
-
           <AppText
             variant="caption"
-            style={styles.gridAuthorText}
+            style={styles.compactSubtitle}
             numberOfLines={1}
           >
-            Tác giả:{" "}
-            <AppText variant="caption" style={styles.bookAuthorBold}>
-              {item.author}
-            </AppText>
+            {item.author} • Kệ {item.shelf}
           </AppText>
-
-          {/* Stock / Shelf Slot */}
-          <View style={styles.gridStockRow}>
+          <View style={styles.compactStatusRow}>
             {item.available ? (
-              <AppText variant="caption" style={styles.gridStockAvailable}>
-                Còn {item.availableCopies ?? 1} cuốn • {item.shelfSlot ?? "Ngăn 3"}
+              <AppText variant="caption" style={styles.compactAvailableText}>
+                Có sẵn ({item.availableCopies ?? 1} cuốn){item.shelfSlot ? ` • Vị trí: ${item.shelfSlot}` : ""}
               </AppText>
             ) : (
-              <AppText variant="caption" style={styles.gridStockUnavailable}>
-                Tạm hết tại kệ
+              <AppText variant="caption" style={styles.compactBorrowedText}>
+                Đang mượn (0/{item.totalCopies ?? 1} cuốn tại kệ)
               </AppText>
             )}
           </View>
+        </View>
 
-          {/* Action Button */}
+        {/* Right: Quick Action Button */}
+        <View style={styles.compactActionGroup}>
           {item.available ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Dẫn đường tới kệ ${item.shelf}`}
-              onPress={() => handleRequestGuidance(item)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleRequestGuidance(item);
+              }}
               style={({ pressed }) => [
-                styles.gridBtnLead,
+                styles.compactBtnLead,
                 pressed && styles.btnPressed,
               ]}
             >
-              <MapPin size={14} color="#FFFFFF" />
-              <AppText variant="caption" style={styles.gridBtnLeadText}>
-                Dẫn đường kệ
+              <MapPin size={12} color="#FFFFFF" />
+              <AppText variant="caption" style={styles.compactBtnLeadText}>
+                Dẫn đường
               </AppText>
             </Pressable>
           ) : (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Xem chi tiết sách"
-              onPress={() => handleViewDetail(item.id)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleViewDetail(item.id);
+              }}
               style={({ pressed }) => [
-                styles.gridBtnDetail,
+                styles.compactBtnDetail,
                 pressed && styles.btnPressed,
               ]}
             >
-              <Info size={14} color="#475569" />
-              <AppText variant="caption" style={styles.gridBtnDetailText}>
+              <Info size={12} color="#64748B" />
+              <AppText variant="caption" style={styles.compactBtnDetailText}>
                 Chi tiết
               </AppText>
             </Pressable>
           )}
         </View>
-      </View>
+      </Pressable>
     );
   };
 
-  const gridColumns = isExpandedWidth ? 3 : 2;
-  const currentColumns =
-    viewMode === "grid" ? gridColumns : isMultiColumn ? 2 : 1;
+  const currentColumns = isMultiColumn ? 2 : 1;
 
   return (
     <View style={styles.container}>
-      {/* ── 1. Top Header ──────────────────────────────────────────────────── */}
+      {/* ── 1. Unified Single-Row Top Bar ──────────────────────────────────── */}
       <View
         style={[
-          styles.headerBar,
+          styles.topBarContainer,
           {
             paddingTop: Math.max(insets.top, spacing.xs) + 4,
             paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
@@ -488,36 +552,18 @@ export function CatalogSearchScreen({
           },
         ]}
       >
-        {/* Standardized Pill Back Button */}
+        {/* Pill Back Button */}
         <AppBackButton
           onPress={() => {
             recordInteraction();
             onBackToIdle();
           }}
+          style={styles.headerBackButton}
         />
 
-        {/* Center Title */}
-        <AppText variant="subtitle" style={styles.headerTitleText}>
-          Tra cứu sách thư viện
-        </AppText>
-
-        {/* Balancing right spacer to keep title centered */}
-        <View style={styles.headerRightSpacer} />
-      </View>
-
-      {/* ── 2. Search Bar & Filter Section ─────────────────────────────────── */}
-      <View
-        style={[
-          styles.searchContainer,
-          {
-            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
-            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
-          },
-        ]}
-      >
-        {/* Search Input Bar (No mic icon) */}
+        {/* Search Input Bar with embedded "Tìm" button */}
         <View style={styles.searchInputWrapper}>
-          <Search size={18} color="#94A3B8" style={styles.searchIcon} />
+          <Search size={15} color="#94A3B8" style={styles.searchIcon} />
 
           <TextInput
             placeholder="Tìm theo tên sách, tác giả hoặc ISBN..."
@@ -538,7 +584,7 @@ export function CatalogSearchScreen({
               onPress={handleClearSearch}
               style={styles.inputClearButton}
             >
-              <X size={16} color="#94A3B8" />
+              <X size={14} color="#94A3B8" />
             </Pressable>
           )}
 
@@ -557,7 +603,39 @@ export function CatalogSearchScreen({
           </Pressable>
         </View>
 
-        {/* Category Pills Row */}
+        {/* Settings / Quick Filter Icon Button */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Bộ lọc và tùy chọn hiển thị"
+          onPress={() => {
+            recordInteraction();
+            setIsFilterModalOpen(true);
+          }}
+          style={({ pressed }) => [
+            styles.btnSettings,
+            pressed && styles.btnPressed,
+            (onlyAvailable || sortBy !== "default") && styles.btnSettingsActive,
+          ]}
+        >
+          <Settings
+            size={17}
+            color={
+              onlyAvailable || sortBy !== "default" ? "#2563EB" : "#475569"
+            }
+          />
+        </Pressable>
+      </View>
+
+      {/* ── 2. Category Filter Pills Row ───────────────────────────────────── */}
+      <View
+        style={[
+          styles.categoryBar,
+          {
+            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
+            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
+          },
+        ]}
+      >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -593,7 +671,7 @@ export function CatalogSearchScreen({
         </ScrollView>
       </View>
 
-      {/* ── 3. Results Header & List ───────────────────────────────────────── */}
+      {/* ── 3. Section Header & Results ────────────────────────────────────── */}
       <View
         style={[
           styles.resultsSection,
@@ -603,44 +681,22 @@ export function CatalogSearchScreen({
           },
         ]}
       >
-        {/* Results Count Summary & View Toggle */}
+        {/* Results Title & View Mode Toggle */}
         <View style={styles.resultsCountRow}>
-          <AppText variant="caption" style={styles.resultsCountText}>
-            {debouncedQuery.trim().length > 0 ? (
-              <>
-                Kết quả tìm kiếm cho:{" "}
-                <AppText variant="caption" style={styles.resultsQueryBold}>
-                  &quot;{debouncedQuery}&quot;
-                </AppText>{" "}
-                ({books.length} kết quả)
-              </>
-            ) : (
-              <>Danh mục sách ({books.length} kết quả)</>
-            )}
-          </AppText>
+          <View style={styles.resultsTitleGroup}>
+            <AppText variant="subtitle" style={styles.resultsSectionTitle}>
+              Danh mục sách
+            </AppText>
+            <AppText variant="caption" style={styles.resultsCountSubText}>
+              ({books.length} kết quả)
+            </AppText>
+          </View>
 
-          {/* Toggle between Detailed List & E-Commerce Grid */}
+          {/* View Toggle: Grid Card vs Compact List */}
           <View style={styles.viewToggleContainer}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Chế độ xem danh sách chi tiết"
-              onPress={() => {
-                recordInteraction();
-                setViewMode("list");
-              }}
-              style={[
-                styles.viewToggleBtn,
-                viewMode === "list" && styles.viewToggleBtnActive,
-              ]}
-            >
-              <List
-                size={16}
-                color={viewMode === "list" ? "#FFFFFF" : "#64748B"}
-              />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Chế độ xem lưới sản phẩm"
+              accessibilityLabel="Chế độ xem lưới thẻ"
               onPress={() => {
                 recordInteraction();
                 setViewMode("grid");
@@ -652,7 +708,24 @@ export function CatalogSearchScreen({
             >
               <LayoutGrid
                 size={16}
-                color={viewMode === "grid" ? "#FFFFFF" : "#64748B"}
+                color={viewMode === "grid" ? "#2563EB" : "#94A3B8"}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Chế độ xem danh sách gọn"
+              onPress={() => {
+                recordInteraction();
+                setViewMode("list");
+              }}
+              style={[
+                styles.viewToggleBtn,
+                viewMode === "list" && styles.viewToggleBtnActive,
+              ]}
+            >
+              <List
+                size={16}
+                color={viewMode === "list" ? "#2563EB" : "#94A3B8"}
               />
             </Pressable>
           </View>
@@ -683,7 +756,9 @@ export function CatalogSearchScreen({
             data={books}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) =>
-              viewMode === "grid" ? renderGridItem(item) : renderListItem(item)
+              viewMode === "grid"
+                ? renderGridCard(item)
+                : renderListCompactItem(item)
             }
             numColumns={currentColumns}
             columnWrapperStyle={
@@ -699,6 +774,139 @@ export function CatalogSearchScreen({
           />
         )}
       </View>
+
+      {/* ── 4. Quick Filter & Sort Modal (Triggered by ⚙️) ──────────────────── */}
+      <Modal
+        visible={isFilterModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsFilterModalOpen(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setIsFilterModalOpen(false)}
+        >
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <AppText variant="subtitle" style={styles.modalTitle}>
+                Tùy chọn hiển thị & lọc
+              </AppText>
+              <Pressable
+                onPress={() => setIsFilterModalOpen(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={18} color="#64748B" />
+              </Pressable>
+            </View>
+
+            {/* Filter: Only Available */}
+            <View style={styles.modalSection}>
+              <AppText variant="caption" style={styles.modalSectionLabel}>
+                Trạng thái sách
+              </AppText>
+              <View style={styles.modalOptionRow}>
+                <Pressable
+                  onPress={() => setOnlyAvailable(false)}
+                  style={[
+                    styles.modalFilterPill,
+                    !onlyAvailable && styles.modalFilterPillActive,
+                  ]}
+                >
+                  <AppText
+                    variant="caption"
+                    style={[
+                      styles.modalFilterPillText,
+                      !onlyAvailable && styles.modalFilterPillTextActive,
+                    ]}
+                  >
+                    Tất cả sách
+                  </AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => setOnlyAvailable(true)}
+                  style={[
+                    styles.modalFilterPill,
+                    onlyAvailable && styles.modalFilterPillActive,
+                  ]}
+                >
+                  <AppText
+                    variant="caption"
+                    style={[
+                      styles.modalFilterPillText,
+                      onlyAvailable && styles.modalFilterPillTextActive,
+                    ]}
+                  >
+                    Chỉ có sẵn tại kệ
+                  </AppText>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Sort Options */}
+            <View style={styles.modalSection}>
+              <AppText variant="caption" style={styles.modalSectionLabel}>
+                Sắp xếp theo
+              </AppText>
+              <View style={styles.modalSortOptions}>
+                {[
+                  { key: "default", label: "Mặc định (theo kết quả tìm)" },
+                  { key: "title", label: "Tên sách (A → Z)" },
+                  { key: "shelf", label: "Vị trí kệ (Kệ A → Z)" },
+                ].map((opt) => (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() =>
+                      setSortBy(opt.key as "default" | "title" | "shelf")
+                    }
+                    style={styles.modalSortRow}
+                  >
+                    <AppText
+                      variant="caption"
+                      style={[
+                        styles.modalSortText,
+                        sortBy === opt.key && styles.modalSortTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </AppText>
+                    {sortBy === opt.key && (
+                      <Check size={16} color="#2563EB" />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Modal Footer Actions */}
+            <View style={styles.modalFooter}>
+              <Pressable
+                onPress={() => {
+                  setOnlyAvailable(false);
+                  setSortBy("default");
+                }}
+                style={styles.modalResetBtn}
+              >
+                <RotateCcw size={14} color="#64748B" />
+                <AppText variant="caption" style={styles.modalResetText}>
+                  Đặt lại
+                </AppText>
+              </Pressable>
+              <Pressable
+                onPress={() => setIsFilterModalOpen(false)}
+                style={styles.modalApplyBtn}
+              >
+                <AppText variant="caption" style={styles.modalApplyText}>
+                  Áp dụng
+                </AppText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -708,89 +916,98 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  // ── Header Bar ─────────────────────────────────────────────────────────────
-  headerBar: {
+
+  // ── 1. Unified Single-Row Top Bar ──────────────────────────────────────────
+  topBarContainer: {
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
     paddingBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    zIndex: 10,
-  },
-  headerTitleText: {
-    fontWeight: "800",
-    color: "#0F172A",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  headerRightSpacer: {
-    width: 90, // Approximate width matching the pill back button for optical centering
-  },
-
-  // ── Search & Filter Section ────────────────────────────────────────────────
-  searchContainer: {
-    backgroundColor: "#FFFFFF",
-    paddingTop: 10,
-    paddingBottom: 8,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
-    gap: 10,
+    zIndex: 10,
+  },
+  headerBackButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
   },
   searchInputWrapper: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
     borderColor: "#CBD5E1",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    minHeight: 48,
-    gap: 8,
+    borderRadius: 12,
+    paddingLeft: 10,
+    paddingRight: 4,
+    height: 40,
+    gap: 6,
   },
   searchIcon: {
     marginLeft: 2,
   },
   textInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: "#0F172A",
     fontWeight: "500",
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   inputClearButton: {
-    padding: 6,
+    padding: 4,
   },
   btnSearchSubmit: {
     backgroundColor: "#2563EB",
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    height: 30,
+    borderRadius: 7,
     justifyContent: "center",
     alignItems: "center",
   },
   btnSearchSubmitText: {
     color: "#FFFFFF",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 12,
+  },
+  btnSettings: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  btnSettingsActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
   },
   btnPressed: {
     opacity: 0.85,
+  },
+
+  // ── 2. Category Filter Pills Row ───────────────────────────────────────────
+  categoryBar: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   categoryScrollContent: {
     gap: 8,
     paddingVertical: 2,
   },
   categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 5.5,
     borderRadius: 999,
     backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    minHeight: 34,
+    minHeight: 32,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -808,10 +1025,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // ── Results Section ────────────────────────────────────────────────────────
+  // ── 3. Section Header & Results ────────────────────────────────────────────
   resultsSection: {
     flex: 1,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   resultsCountRow: {
     flexDirection: "row",
@@ -819,17 +1036,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
   },
-  resultsCountText: {
-    color: "#475569",
-    fontSize: 12.5,
+  resultsTitleGroup: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
   },
-  resultsQueryBold: {
+  resultsSectionTitle: {
     fontWeight: "800",
     color: "#0F172A",
+    fontSize: 14.5,
+  },
+  resultsCountSubText: {
+    color: "#64748B",
+    fontSize: 12.5,
+    fontWeight: "500",
   },
   viewToggleContainer: {
     flexDirection: "row",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     borderRadius: 8,
     padding: 2,
     borderWidth: 1,
@@ -837,44 +1061,40 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewToggleBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
-    minWidth: 32,
-    minHeight: 28,
+    minWidth: 28,
+    minHeight: 26,
   },
   viewToggleBtnActive: {
-    backgroundColor: "#2563EB",
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: "#EFF6FF",
   },
   listContent: {
     paddingTop: 4,
-    gap: 12,
+    gap: 10,
   },
   rowWrapper: {
-    gap: 12,
+    gap: 10,
   },
 
-  // ── Mode 1: Detailed List Card ─────────────────────────────────────────────
-  bookCardContainer: {
+  // ── Mode 1: Compact Grid Card (Cards 1 & 2 from screenshot) ────────────────
+  gridCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 14,
+    padding: 12,
     shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 1,
     justifyContent: "space-between",
+    gap: 9,
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -884,12 +1104,12 @@ const styles = StyleSheet.create({
   badgeAvailable: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4.5,
     backgroundColor: "#ECFDF5",
     borderWidth: 1,
     borderColor: "#A7F3D0",
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
   },
   dotAvailable: {
@@ -901,17 +1121,17 @@ const styles = StyleSheet.create({
   textAvailable: {
     color: "#065F46",
     fontWeight: "700",
-    fontSize: 11.5,
+    fontSize: 11,
   },
   badgeBorrowed: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4.5,
     backgroundColor: "#FEF3C7",
     borderWidth: 1,
     borderColor: "#FDE68A",
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
   },
   dotBorrowed: {
@@ -923,7 +1143,7 @@ const styles = StyleSheet.create({
   textBorrowed: {
     color: "#92400E",
     fontWeight: "700",
-    fontSize: 11.5,
+    fontSize: 11,
   },
   shelfLocationBadge: {
     flexDirection: "row",
@@ -931,37 +1151,60 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   shelfLocationText: {
-    color: "#475569",
-    fontWeight: "700",
-    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 11.5,
   },
   cardBodyRow: {
     flexDirection: "row",
-    gap: 12,
-    marginVertical: 10,
+    gap: 10,
     alignItems: "flex-start",
   },
-  bookCoverThumb: {
-    width: 62,
-    height: 88,
-    borderRadius: 7,
-    padding: 6,
-    justifyContent: "space-between",
+  bookCoverThumbWrapper: {
+    borderRadius: 6,
+    overflow: "hidden",
     flexShrink: 0,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    position: "relative",
+    padding: 4,
+    justifyContent: "space-between",
+  },
+  bookCoverImage: {
+    ...StyleSheet.absoluteFill,
+    width: "100%",
+    height: "100%",
+  },
+  bookSpineSheen: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 3.5,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRightWidth: 0.5,
+    borderRightColor: "rgba(0, 0, 0, 0.15)",
+    zIndex: 2,
   },
   coverTagText: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
   coverTitleText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "800",
     color: "#FFFFFF",
     lineHeight: 12,
   },
   coverAuthorText: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: "#CBD5E1",
   },
   bookInfoContent: {
@@ -971,29 +1214,34 @@ const styles = StyleSheet.create({
   bookMainTitle: {
     fontWeight: "800",
     color: "#0F172A",
-    fontSize: 14.5,
-    lineHeight: 19,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
   bookAuthorText: {
     color: "#64748B",
-    fontSize: 12,
+    fontSize: 11.5,
   },
   bookAuthorBold: {
     fontWeight: "700",
-    color: "#334155",
+    color: "#1E293B",
   },
   bookMetaText: {
     color: "#94A3B8",
-    fontSize: 11,
+    fontSize: 10.5,
   },
   stockRow: {
-    marginTop: 3,
-    minHeight: 16,
+    marginTop: 2,
+    minHeight: 15,
   },
   stockInShelf: {
     color: "#059669",
-    fontWeight: "800",
-    fontSize: 11.5,
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  stockBorrowed: {
+    color: "#D97706",
+    fontWeight: "700",
+    fontSize: 11,
   },
   slotText: {
     color: "#64748B",
@@ -1005,8 +1253,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnLeadToShelf: {
-    flex: 1.8,
-    minHeight: 40,
+    flex: 2.2,
+    height: 36,
     backgroundColor: "#2563EB",
     borderRadius: 8,
     flexDirection: "row",
@@ -1017,11 +1265,11 @@ const styles = StyleSheet.create({
   btnLeadText: {
     color: "#FFFFFF",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 12.5,
   },
   btnDetailWhite: {
     flex: 1,
-    minHeight: 40,
+    height: 36,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -1032,11 +1280,11 @@ const styles = StyleSheet.create({
   btnDetailWhiteText: {
     color: "#334155",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 12.5,
   },
   btnDetailFull: {
     flex: 1,
-    minHeight: 40,
+    height: 36,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -1049,148 +1297,233 @@ const styles = StyleSheet.create({
   btnDetailFullText: {
     color: "#475569",
     fontWeight: "700",
-    fontSize: 13,
-  },
-
-  // ── Mode 2: E-Commerce Product Card ────────────────────────────────────────
-  gridCardContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  gridCoverWrapper: {
-    height: 140,
-    padding: 10,
-    justifyContent: "space-between",
-  },
-  gridOverlayRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  gridBadgeAvailable: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#ECFDF5EE",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  gridBadgeBorrowed: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FEF3C7EE",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  gridShelfBadge: {
-    backgroundColor: "#00000055",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  gridShelfText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 11,
-  },
-  gridCoverCenter: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-    marginVertical: 4,
-  },
-  gridCoverTag: {
-    fontSize: 8.5,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-  gridCoverTitle: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-    fontSize: 12,
-    textAlign: "center",
-    lineHeight: 14,
-  },
-  gridCoverAuthor: {
-    color: "#CBD5E1",
-    fontSize: 9,
-  },
-  gridCardBody: {
-    padding: 12,
-    gap: 5,
-  },
-  gridCategoryText: {
-    color: "#2563EB",
-    fontWeight: "700",
-    fontSize: 10,
-    letterSpacing: 0.5,
-  },
-  gridTitleText: {
-    fontWeight: "800",
-    color: "#0F172A",
-    fontSize: 13.5,
-    lineHeight: 18,
-    minHeight: 36,
-  },
-  gridAuthorText: {
-    color: "#64748B",
-    fontSize: 11.5,
-  },
-  gridStockRow: {
-    marginTop: 2,
-    marginBottom: 4,
-    minHeight: 16,
-  },
-  gridStockAvailable: {
-    color: "#059669",
-    fontWeight: "700",
-    fontSize: 11,
-  },
-  gridStockUnavailable: {
-    color: "#D97706",
-    fontWeight: "600",
-    fontSize: 11,
-  },
-  gridBtnLead: {
-    backgroundColor: "#2563EB",
-    borderRadius: 8,
-    height: 36,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-  },
-  gridBtnLeadText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
     fontSize: 12.5,
   },
-  gridBtnDetail: {
+
+  // ── Mode 2: Ultra-compact List Row (Cards 3 & 4 from screenshot) ───────────
+  listRowCard: {
+    flex: 1,
     backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    borderRadius: 8,
-    height: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  listRowPressed: {
+    backgroundColor: "#F8FAFC",
+  },
+  compactThumbBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     justifyContent: "center",
     alignItems: "center",
-    gap: 6,
+    flexShrink: 0,
   },
-  gridBtnDetailText: {
+  compactThumbText: {
     color: "#475569",
+    fontWeight: "800",
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  compactInfoContent: {
+    flex: 1,
+    gap: 1.5,
+  },
+  compactMainTitle: {
+    fontWeight: "700",
+    color: "#0F172A",
+    fontSize: 13,
+  },
+  compactSubtitle: {
+    color: "#64748B",
+    fontSize: 11,
+  },
+  compactStatusRow: {
+    marginTop: 1,
+  },
+  compactAvailableText: {
+    color: "#059669",
+    fontSize: 10.5,
+    fontWeight: "600",
+  },
+  compactBorrowedText: {
+    color: "#D97706",
+    fontSize: 10.5,
+    fontWeight: "600",
+  },
+  compactActionGroup: {
+    flexShrink: 0,
+  },
+  compactBtnLead: {
+    height: 32,
+    paddingHorizontal: 11,
+    backgroundColor: "#2563EB",
+    borderRadius: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  compactBtnLeadText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 11.5,
+  },
+  compactBtnDetail: {
+    height: 32,
+    paddingHorizontal: 11,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  compactBtnDetailText: {
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 11.5,
+  },
+
+  // ── Modal Styles ───────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    gap: 16,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontWeight: "800",
+    color: "#0F172A",
+    fontSize: 15,
+  },
+  modalSection: {
+    gap: 8,
+  },
+  modalSectionLabel: {
+    color: "#64748B",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  modalOptionRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  modalFilterPill: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalFilterPillActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+  modalFilterPillText: {
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  modalFilterPillTextActive: {
+    color: "#2563EB",
+    fontWeight: "700",
+  },
+  modalSortOptions: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  modalSortRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  modalSortText: {
+    color: "#475569",
+    fontWeight: "500",
+    fontSize: 12.5,
+  },
+  modalSortTextActive: {
+    color: "#2563EB",
+    fontWeight: "700",
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingTop: 12,
+    gap: 10,
+  },
+  modalResetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    height: 36,
+  },
+  modalResetText: {
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  modalApplyBtn: {
+    flex: 1,
+    height: 36,
+    backgroundColor: "#2563EB",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalApplyText: {
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 12.5,
   },
 });
+

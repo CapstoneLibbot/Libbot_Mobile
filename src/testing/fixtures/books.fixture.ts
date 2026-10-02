@@ -20,6 +20,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2018,
     totalCopies: 4,
     availableCopies: 2,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780134494166-M.jpg",
   },
   {
     id: "bk-1002",
@@ -35,6 +36,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2018,
     totalCopies: 2,
     availableCopies: 0,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780070131432-M.jpg",
   },
   {
     id: "bk-1003",
@@ -51,6 +53,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2017,
     totalCopies: 6,
     availableCopies: 4,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9781449373320-M.jpg",
   },
   {
     id: "bk-1004",
@@ -67,6 +70,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2020,
     totalCopies: 5,
     availableCopies: 3,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780136042594-M.jpg",
   },
   {
     id: "bk-1005",
@@ -82,6 +86,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2005,
     totalCopies: 3,
     availableCopies: 1,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780262201629-M.jpg",
   },
   {
     id: "bk-1006",
@@ -97,6 +102,7 @@ export const booksFixture: Book[] = [
     publishedYear: 2016,
     totalCopies: 3,
     availableCopies: 0,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780262035613-M.jpg",
   },
   {
     id: "bk-1007",
@@ -112,5 +118,6 @@ export const booksFixture: Book[] = [
     publishedYear: 1960,
     totalCopies: 8,
     availableCopies: 5,
+    coverUrl: "https://covers.openlibrary.org/b/isbn/9780061120084-M.jpg",
   },
 ];

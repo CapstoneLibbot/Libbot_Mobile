@@ -5,7 +5,7 @@ import {
   Navigation,
 } from "lucide-react-native";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
 import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
@@ -226,36 +226,47 @@ export function BookDetailScreen({
 
               {/* 2. Book Cover + Information Header */}
               <View style={styles.bookHeaderRow}>
-                {/* Book Graphic Cover */}
+                {/* Book Graphic / Photo Cover */}
                 <View
                   style={[
                     styles.bookCoverThumb,
                     { backgroundColor: coverTheme.bgColor },
                   ]}
                 >
-                  <AppText
-                    variant="caption"
-                    style={[
-                      styles.coverTopText,
-                      { color: coverTheme.topColor },
-                    ]}
-                  >
-                    {coverTheme.topTag}
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    numberOfLines={2}
-                    style={styles.coverMidText}
-                  >
-                    {coverTheme.midText}
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    numberOfLines={1}
-                    style={styles.coverBottomText}
-                  >
-                    {coverTheme.authorSnippet}
-                  </AppText>
+                  {book.coverUrl ? (
+                    <Image
+                      source={{ uri: book.coverUrl }}
+                      style={styles.bookCoverImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <>
+                      <AppText
+                        variant="caption"
+                        style={[
+                          styles.coverTopText,
+                          { color: coverTheme.topColor },
+                        ]}
+                      >
+                        {coverTheme.topTag}
+                      </AppText>
+                      <AppText
+                        variant="caption"
+                        numberOfLines={2}
+                        style={styles.coverMidText}
+                      >
+                        {coverTheme.midText}
+                      </AppText>
+                      <AppText
+                        variant="caption"
+                        numberOfLines={1}
+                        style={styles.coverBottomText}
+                      >
+                        {coverTheme.authorSnippet}
+                      </AppText>
+                    </>
+                  )}
+                  <View style={styles.bookSpineSheen} />
                 </View>
 
                 {/* Title & Metadata */}
@@ -609,6 +620,24 @@ const styles = StyleSheet.create({
     padding: 6,
     justifyContent: "space-between",
     flexShrink: 0,
+    overflow: "hidden",
+    position: "relative",
+  },
+  bookCoverImg: {
+    ...StyleSheet.absoluteFill,
+    width: "100%",
+    height: "100%",
+  },
+  bookSpineSheen: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRightWidth: 0.5,
+    borderRightColor: "rgba(0, 0, 0, 0.15)",
+    zIndex: 2,
   },
   coverTopText: {
     fontSize: 9,

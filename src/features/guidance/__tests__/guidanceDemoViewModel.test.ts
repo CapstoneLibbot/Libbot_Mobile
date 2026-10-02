@@ -3,7 +3,7 @@ import { computeGuidanceDemoPresentation } from "../hooks/useGuidanceDemoViewMod
 import {
   sampleMissionAlternativePath,
   sampleMissionPrimaryPath,
-} from "../../../mocks/missions.mock";
+} from "@/testing/fixtures/missions.fixture";
 import { GuidanceMission } from "../types/guidance.types";
 
 describe("Guidance Demo Presentation View Model", () => {

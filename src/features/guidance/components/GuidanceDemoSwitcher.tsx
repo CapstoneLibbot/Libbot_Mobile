@@ -8,8 +8,8 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { AppText } from "../../../shared/components/AppText";
-import { colors, radius, spacing } from "../../../shared/theme";
+import { AppText } from "@/shared/ui";
+import { colors, radius, spacing } from "@/shared/theme";
 import { GuidanceDemoState } from "../types/guidance.types";
 
 export interface GuidanceDemoSwitcherProps {

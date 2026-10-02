@@ -8,7 +8,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from "react-native-svg";
-import { colors, shadows } from "../../../shared/theme";
+import { colors, shadows } from "@/shared/theme";
 
 export interface RobotEyeProps {
   eyeId: "left" | "right";

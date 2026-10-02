@@ -23,3 +23,10 @@ export interface BookSearchFilter {
   query?: string;
   category?: string;
 }
+
+export interface CatalogRepository {
+  search(filter?: BookSearchFilter): Promise<Book[]>;
+  getById(bookId: string): Promise<Book | null>;
+  getCategories(): Promise<string[]>;
+}
+

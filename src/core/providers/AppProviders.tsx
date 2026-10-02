@@ -13,7 +13,7 @@ import { QueryProvider } from "./QueryProvider";
 
 void SplashScreen.preventAutoHideAsync();
 
-interface AppProvidersProps {
+export interface AppProvidersProps {
   children: ReactNode;
 }
 

@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import React from "react";
-import { AppProviders } from "../src/core/providers/AppProviders";
+import { AppProviders } from "@/core/providers";
 
 export default function RootLayout(): React.ReactElement {
   return (

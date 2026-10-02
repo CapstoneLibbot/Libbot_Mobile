@@ -1,7 +1,6 @@
-import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
+import { useKioskStore } from "@/core/state";
 import {
   AppButton,
   AppCard,
@@ -12,17 +11,24 @@ import {
   AppText,
   MobileMap,
   StatusBadge,
-} from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, spacing } from "../../../shared/theme";
+} from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, spacing } from "@/shared/theme";
 import { useFacility } from "../hooks/useFacility";
 
-export function FacilityDetailScreen(): React.ReactElement {
+export interface FacilityDetailScreenProps {
+  facilityId: string;
+  onBack: () => void;
+}
+
+export function FacilityDetailScreen({
+  facilityId,
+  onBack,
+}: FacilityDetailScreenProps): React.ReactElement {
   const { insets, isCompactWidth, isExpandedWidth, tokens } =
     useResponsiveLayout();
   const isExpanded = isExpandedWidth;
 
-  const { facilityId } = useLocalSearchParams<{ facilityId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
 
   const {
@@ -36,7 +42,7 @@ export function FacilityDetailScreen(): React.ReactElement {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Sơ đồ khu vực" onBack={() => router.back()} />
+        <AppHeader title="Sơ đồ khu vực" onBack={onBack} />
         <AppLoading message="Đang tải thông tin khu vực thư viện..." />
       </View>
     );
@@ -45,7 +51,7 @@ export function FacilityDetailScreen(): React.ReactElement {
   if (isError || !facility) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Sơ đồ khu vực" onBack={() => router.back()} />
+        <AppHeader title="Sơ đồ khu vực" onBack={onBack} />
         {isError ? (
           <AppErrorState
             title="Lỗi tải sơ đồ khu vực"
@@ -57,7 +63,7 @@ export function FacilityDetailScreen(): React.ReactElement {
             title="Không tìm thấy khu vực"
             message="Mã khu vực hoặc kệ sách không tồn tại."
             actionTitle="Quay lại"
-            onAction={() => router.back()}
+            onAction={onBack}
           />
         )}
       </View>
@@ -133,7 +139,7 @@ export function FacilityDetailScreen(): React.ReactElement {
         subtitle={`Tầng ${facility.floor} • ${facility.type}`}
         onBack={() => {
           recordInteraction();
-          router.back();
+          onBack();
         }}
         backLabel="Quay lại"
       />
@@ -198,7 +204,7 @@ export function FacilityDetailScreen(): React.ReactElement {
                   size="md"
                   onPress={() => {
                     recordInteraction();
-                    router.back();
+                    onBack();
                   }}
                 />
               </AppCard>
@@ -257,7 +263,7 @@ export function FacilityDetailScreen(): React.ReactElement {
               size="md"
               onPress={() => {
                 recordInteraction();
-                router.back();
+                onBack();
               }}
             />
           </View>

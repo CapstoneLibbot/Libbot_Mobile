@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MockCatalogRepository } from "../../../infrastructure/repositories/catalog.repository";
+import { MockCatalogRepository } from "@/testing/fakes/mockCatalogRepository";
+import { Book } from "../types/catalog.types";
 
 describe("Catalog Search and Filtering", () => {
   const repository = new MockCatalogRepository(0); // 0 delay for fast unit tests
@@ -7,7 +8,7 @@ describe("Catalog Search and Filtering", () => {
   it("filters books by title (case-insensitive and partial match)", async () => {
     const results = await repository.search({ query: "clean" });
     expect(results.length).toBeGreaterThan(0);
-    expect(results.every((b) => b.title.toLowerCase().includes("clean"))).toBe(
+    expect(results.every((b: Book) => b.title.toLowerCase().includes("clean"))).toBe(
       true,
     );
     expect(results[0].title).toContain("Clean Architecture");
@@ -16,8 +17,8 @@ describe("Catalog Search and Filtering", () => {
   it("filters books by author (case-insensitive)", async () => {
     const results = await repository.search({ query: "Martin" });
     expect(results.length).toBeGreaterThan(0);
-    const authors = results.map((b) => b.author);
-    expect(authors.some((a) => a.includes("Martin"))).toBe(true);
+    const authors = results.map((b: Book) => b.author);
+    expect(authors.some((a: string) => a.includes("Martin"))).toBe(true);
   });
 
   it("filters books by ISBN exactly or partially", async () => {
@@ -30,7 +31,7 @@ describe("Catalog Search and Filtering", () => {
   it("filters books by category", async () => {
     const results = await repository.search({ category: "Robotics" });
     expect(results.length).toBeGreaterThan(0);
-    expect(results.every((b) => b.category === "Robotics")).toBe(true);
+    expect(results.every((b: Book) => b.category === "Robotics")).toBe(true);
   });
 
   it("combines query and category filters simultaneously", async () => {

@@ -13,3 +13,10 @@ export interface FacilityArea {
 }
 
 export type Facility = FacilityArea;
+
+export interface FacilitiesRepository {
+  getAll(): Promise<FacilityArea[]>;
+  getById(facilityId: string): Promise<FacilityArea | null>;
+  getByShelfCode(shelfCode: string): Promise<FacilityArea | null>;
+}
+

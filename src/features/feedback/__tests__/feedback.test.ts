@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { MockFeedbackRepository } from "../../../infrastructure/repositories/feedback.repository";
+import { useKioskStore } from "@/core/state";
+import { MockFeedbackRepository } from "@/testing/fakes/mockFeedbackRepository";
 
 describe("Feedback Submission and Kiosk Session Reset", () => {
   const repository = new MockFeedbackRepository(0);

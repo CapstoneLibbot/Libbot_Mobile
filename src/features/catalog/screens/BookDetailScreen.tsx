@@ -1,4 +1,3 @@
-import { router, useLocalSearchParams } from "expo-router";
 import {
   BookOpen,
   Bot,
@@ -7,7 +6,7 @@ import {
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
+import { useKioskStore } from "@/core/state";
 import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
   AppEmptyState,
@@ -15,9 +14,9 @@ import {
   AppHeader,
   AppLoading,
   AppText,
-} from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, spacing } from "../../../shared/theme";
+} from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, spacing } from "@/shared/theme";
 import { useBookDetail } from "../hooks/useBookDetail";
 
 /**
@@ -62,13 +61,24 @@ function getBookCoverDetailTheme(category: string, title: string, author: string
   return { bgColor, topTag, topColor, midText, authorSnippet };
 }
 
-export function BookDetailScreen(): React.ReactElement {
+export interface BookDetailScreenProps {
+  bookId: string;
+  onBack: () => void;
+  onOpenFacility: (facilityId: string) => void;
+  onStartGuidance: (missionId: string) => void;
+}
+
+export function BookDetailScreen({
+  bookId,
+  onBack,
+  onOpenFacility,
+  onStartGuidance,
+}: BookDetailScreenProps): React.ReactElement {
   const { insets, isCompactWidth, tokens } = useResponsiveLayout();
 
   // Multi-column side by side on medium & expanded displays (tablets / kiosk)
   const isMultiColumn = !isCompactWidth;
 
-  const { bookId } = useLocalSearchParams<{ bookId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
 
@@ -98,7 +108,7 @@ export function BookDetailScreen(): React.ReactElement {
         bookId: book.id,
         kioskSessionId,
       });
-      router.push(`/(kiosk)/guidance/${mission.id}`);
+      onStartGuidance(mission.id);
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -112,13 +122,13 @@ export function BookDetailScreen(): React.ReactElement {
     recordInteraction();
     const facilityId =
       book?.category === "Robotics" ? "fac-shelf-r" : "fac-shelf-a";
-    router.push(`/(kiosk)/facilities/${facilityId}`);
+    onOpenFacility(facilityId);
   };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Thông tin sách" onBack={() => router.back()} />
+        <AppHeader title="Thông tin sách" onBack={onBack} />
         <AppLoading message="Đang tải thông tin chi tiết sách..." />
       </View>
     );
@@ -127,7 +137,7 @@ export function BookDetailScreen(): React.ReactElement {
   if (isError || !book) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Thông tin sách" onBack={() => router.back()} />
+        <AppHeader title="Thông tin sách" onBack={onBack} />
         {isError ? (
           <AppErrorState
             title="Lỗi tải thông tin sách"
@@ -139,7 +149,7 @@ export function BookDetailScreen(): React.ReactElement {
             title="Không tìm thấy sách"
             message="Mã sách không hợp lệ hoặc đã bị gỡ khỏi hệ thống."
             actionTitle="Quay lại danh sách"
-            onAction={() => router.back()}
+            onAction={onBack}
           />
         )}
       </View>
@@ -159,7 +169,7 @@ export function BookDetailScreen(): React.ReactElement {
         subtitle={`${book.author} • ${book.category}`}
         onBack={() => {
           recordInteraction();
-          router.back();
+          onBack();
         }}
         backLabel="Quay lại tra cứu"
       />

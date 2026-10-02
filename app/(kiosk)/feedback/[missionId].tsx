@@ -1,6 +1,19 @@
+import { FeedbackScreen } from "@/features/feedback";
+import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { FeedbackScreen } from "../../../src/features/feedback";
 
 export default function FeedbackRoute(): React.ReactElement {
-  return <FeedbackScreen />;
+  const { missionId } = useLocalSearchParams<{ missionId: string }>();
+
+  return (
+    <FeedbackScreen
+      missionId={missionId ?? ""}
+      onComplete={() => {
+        router.replace("/(kiosk)/idle");
+      }}
+      onSkip={() => {
+        router.replace("/(kiosk)/idle");
+      }}
+    />
+  );
 }

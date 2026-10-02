@@ -1,6 +1,22 @@
+import { BookDetailScreen } from "@/features/catalog";
+import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { BookDetailScreen } from "../../../src/features/catalog";
 
 export default function BookDetailRoute(): React.ReactElement {
-  return <BookDetailScreen />;
+  const { bookId } = useLocalSearchParams<{ bookId: string }>();
+
+  return (
+    <BookDetailScreen
+      bookId={bookId ?? ""}
+      onBack={() => {
+        router.back();
+      }}
+      onOpenFacility={(facilityId) => {
+        router.push(`/(kiosk)/facilities/${facilityId}`);
+      }}
+      onStartGuidance={(missionId) => {
+        router.push(`/(kiosk)/guidance/${missionId}`);
+      }}
+    />
+  );
 }

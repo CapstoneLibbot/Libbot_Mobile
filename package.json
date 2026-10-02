@@ -51,7 +51,9 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "validate": "npm run typecheck && npm run lint && npm test && npx expo install --check && npx expo-doctor"
+    "validate": "npm run typecheck && npm run lint && npm test && npx expo install --check && npx expo-doctor",
+    "build:apk:local": "export ANDROID_HOME=$HOME/Library/Android/sdk && export JAVA_HOME=$(/usr/libexec/java_home) && export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator && npx eas-cli@latest build --platform android --profile preview --local",
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview"
   },
   "engines": {
     "node": ">=24.0.0"

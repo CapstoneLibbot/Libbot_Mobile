@@ -37,6 +37,14 @@ const config: ExpoConfig = {
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
+    config: {
+      googleMaps: {
+        apiKey:
+          process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+          process.env.GOOGLE_MAPS_API_KEY ||
+          "AIzaSyLibotDevelopmentKeyPlaceholder000",
+      },
+    },
     predictiveBackGestureEnabled: false,
   },
   web: {
@@ -44,6 +52,11 @@ const config: ExpoConfig = {
   },
   experiments: {
     typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      projectId: "8df84231-056b-44da-84da-dc44e6f88ff6",
+    },
   },
 };
 

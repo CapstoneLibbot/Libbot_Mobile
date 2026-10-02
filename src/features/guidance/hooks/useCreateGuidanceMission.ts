@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../../core/queryKeys";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { guidanceRepository } from "../../../infrastructure/repositories/guidance.repository";
+import { getGuidanceRepository } from "@/core/composition";
+import { queryKeys, useKioskStore } from "@/core/state";
 import { CreateMissionRequest, GuidanceMission } from "../types/guidance.types";
 
 export const useCreateGuidanceMission = () => {
@@ -9,7 +8,7 @@ export const useCreateGuidanceMission = () => {
   const setActiveMissionId = useKioskStore((state) => state.setActiveMissionId);
 
   return useMutation<GuidanceMission, Error, CreateMissionRequest>({
-    mutationFn: (req) => guidanceRepository.createMission(req),
+    mutationFn: (req) => getGuidanceRepository().createMission(req),
     onSuccess: (mission) => {
       setActiveMissionId(mission.id);
       queryClient.setQueryData(queryKeys.guidance.detail(mission.id), mission);

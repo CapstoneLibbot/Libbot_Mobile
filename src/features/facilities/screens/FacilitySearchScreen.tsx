@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   FlatList,
@@ -7,8 +6,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { useNetworkStatus } from "../../../infrastructure/network/useNetworkStatus";
+import { useKioskStore } from "@/core/state";
+import { useNetworkStatus } from "@/platform/network";
 import {
   AppButton,
   AppCard,
@@ -19,10 +18,10 @@ import {
   AppLoading,
   AppText,
   StatusBadge,
-} from "../../../shared/components";
-import { useDebounce } from "../../../shared/hooks/useDebounce";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, spacing } from "../../../shared/theme";
+} from "@/shared/ui";
+import { useDebounce } from "@/shared/lib";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, spacing } from "@/shared/theme";
 import { useFacilities } from "../hooks/useFacilities";
 import { FacilityArea } from "../types/facility.types";
 
@@ -34,7 +33,15 @@ const FACILITY_TYPES = [
   "Robot Dock",
 ] as const;
 
-export function FacilitySearchScreen(): React.ReactElement {
+export interface FacilitySearchScreenProps {
+  onSelectFacility: (facilityId: string) => void;
+  onBackToIdle: () => void;
+}
+
+export function FacilitySearchScreen({
+  onSelectFacility,
+  onBackToIdle,
+}: FacilitySearchScreenProps): React.ReactElement {
   const { insets, isCompactWidth, isExpandedWidth, tokens } =
     useResponsiveLayout();
   const isTablet = isExpandedWidth;
@@ -118,7 +125,7 @@ export function FacilitySearchScreen(): React.ReactElement {
           size="md"
           onPress={() => {
             recordInteraction();
-            router.push(`/(kiosk)/facilities/${item.id}`);
+            onSelectFacility(item.id);
           }}
           style={styles.detailButton}
         />
@@ -137,7 +144,7 @@ export function FacilitySearchScreen(): React.ReactElement {
         }
         onBack={() => {
           recordInteraction();
-          router.replace("/(kiosk)/idle");
+          onBackToIdle();
         }}
         backLabel="Màn hình chờ"
       />

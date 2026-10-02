@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { getResponsiveBreakpoint } from "../../../shared/utils/responsive";
+import { useKioskStore } from "@/core/state";
+import { getResponsiveBreakpoint } from "@/shared/layout/responsive";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 import {
   GLANCE_TARGETS,

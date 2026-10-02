@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import { Mic } from "lucide-react-native";
 import React, { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -9,17 +8,25 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { useNetworkStatus } from "../../../infrastructure/network/useNetworkStatus";
-import { AppText } from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, radius, shadows, spacing } from "../../../shared/theme";
+import { useKioskStore } from "@/core/state";
+import { useNetworkStatus } from "@/platform/network";
+import { AppText } from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { LiBotActionMenu } from "../components/LiBotActionMenu";
 import { RobotFace, RobotFaceRef } from "../components/RobotFace";
 import { VoiceListeningModal } from "../components/VoiceListeningModal";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 
-export function IdleAttractScreen(): React.ReactElement {
+export interface IdleAttractScreenProps {
+  onNavigateToSearch: () => void;
+  onNavigateToFacilities: () => void;
+}
+
+export function IdleAttractScreen({
+  onNavigateToSearch,
+  onNavigateToFacilities,
+}: IdleAttractScreenProps): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
   const { isConnected } = useNetworkStatus();
@@ -30,7 +37,7 @@ export function IdleAttractScreen(): React.ReactElement {
 
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
-  // Single-flight navigation handler to / (kiosk) / search (Tìm sách)
+  // Single-flight navigation handler to search (Tìm sách)
   const handleNavigateToSearch = useCallback(() => {
     if (isNavigatingRef.current) {
       return;
@@ -39,10 +46,10 @@ export function IdleAttractScreen(): React.ReactElement {
 
     resetKioskSession();
     recordInteraction();
-    router.push("/(kiosk)/search");
-  }, [recordInteraction, resetKioskSession]);
+    onNavigateToSearch();
+  }, [onNavigateToSearch, recordInteraction, resetKioskSession]);
 
-  // Single-flight navigation handler to / (kiosk) / facilities (Tìm khu vực)
+  // Single-flight navigation handler to facilities (Tìm khu vực)
   const handleNavigateToFacilities = useCallback(() => {
     if (isNavigatingRef.current) {
       return;
@@ -51,8 +58,8 @@ export function IdleAttractScreen(): React.ReactElement {
 
     resetKioskSession();
     recordInteraction();
-    router.push("/(kiosk)/facilities");
-  }, [recordInteraction, resetKioskSession]);
+    onNavigateToFacilities();
+  }, [onNavigateToFacilities, recordInteraction, resetKioskSession]);
 
   // Handle Voice action from separate bottom-right FAB
   const handleOpenVoice = useCallback(() => {

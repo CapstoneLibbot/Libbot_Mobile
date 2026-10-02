@@ -1,6 +1,16 @@
+import { FacilitySearchScreen } from "@/features/facilities";
+import { router } from "expo-router";
 import React from "react";
-import { FacilitySearchScreen } from "../../../src/features/facilities";
 
 export default function FacilitiesSearchRoute(): React.ReactElement {
-  return <FacilitySearchScreen />;
+  return (
+    <FacilitySearchScreen
+      onSelectFacility={(facilityId) => {
+        router.push(`/(kiosk)/facilities/${facilityId}`);
+      }}
+      onBackToIdle={() => {
+        router.replace("/(kiosk)/idle");
+      }}
+    />
+  );
 }

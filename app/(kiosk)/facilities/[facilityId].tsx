@@ -1,6 +1,16 @@
+import { FacilityDetailScreen } from "@/features/facilities";
+import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { FacilityDetailScreen } from "../../../src/features/facilities";
 
 export default function FacilityDetailRoute(): React.ReactElement {
-  return <FacilityDetailScreen />;
+  const { facilityId } = useLocalSearchParams<{ facilityId: string }>();
+
+  return (
+    <FacilityDetailScreen
+      facilityId={facilityId ?? ""}
+      onBack={() => {
+        router.back();
+      }}
+    />
+  );
 }

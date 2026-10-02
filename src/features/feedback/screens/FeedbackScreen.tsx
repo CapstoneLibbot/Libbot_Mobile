@@ -1,16 +1,15 @@
-import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
+import { useKioskStore } from "@/core/state";
 import {
   AppButton,
   AppCard,
   AppHeader,
   AppInput,
   AppText,
-} from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, spacing } from "../../../shared/theme";
+} from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, spacing } from "@/shared/theme";
 import { useSubmitFeedback } from "../hooks/useSubmitFeedback";
 
 const RATING_LEVELS = [
@@ -29,9 +28,18 @@ const FEEDBACK_TAGS = [
   "Dễ tương tác",
 ];
 
-export function FeedbackScreen(): React.ReactElement {
+export interface FeedbackScreenProps {
+  missionId: string;
+  onComplete: () => void;
+  onSkip: () => void;
+}
+
+export function FeedbackScreen({
+  missionId,
+  onComplete,
+  onSkip,
+}: FeedbackScreenProps): React.ReactElement {
   const { isCompact, isNarrowHeight, insets } = useResponsiveLayout();
-  const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -72,7 +80,7 @@ export function FeedbackScreen(): React.ReactElement {
 
       // reset session & redirect to attract screen
       resetKioskSession();
-      router.replace("/(kiosk)/idle");
+      onComplete();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Không thể gửi phản hồi.";
@@ -83,7 +91,7 @@ export function FeedbackScreen(): React.ReactElement {
   const handleSkip = () => {
     recordInteraction();
     resetKioskSession();
-    router.replace("/(kiosk)/idle");
+    onSkip();
   };
 
   return (

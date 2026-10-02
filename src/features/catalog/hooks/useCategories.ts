@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { catalogRepository } from "../../../infrastructure/repositories/catalog.repository";
+import { getCatalogRepository } from "@/core/composition";
 
 export const useCategories = () => {
   return useQuery<string[], Error>({
     queryKey: ["catalog", "categories"],
-    queryFn: () => catalogRepository.getCategories(),
+    queryFn: () => getCatalogRepository().getCategories(),
   });
 };

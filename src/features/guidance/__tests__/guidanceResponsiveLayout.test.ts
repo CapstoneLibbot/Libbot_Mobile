@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateIndoorMapViewport,
   DEFAULT_LIBRARY_VIEWBOX,
-} from "../../../shared/utils/indoorMapTransform";
-import { getResponsiveBreakpoint } from "../../../shared/utils/responsive";
+} from "@/shared/lib";
+import { getResponsiveBreakpoint } from "@/shared/layout/responsive";
 import { computeGuidanceDemoPresentation } from "../hooks/useGuidanceDemoViewModel";
 import { GuidanceMission } from "../types/guidance.types";
 

@@ -33,3 +33,11 @@ export interface CreateMissionRequest {
   bookId: string;
   kioskSessionId: string;
 }
+
+export interface GuidanceRepository {
+  createMission(req: CreateMissionRequest): Promise<GuidanceMission>;
+  getMission(missionId: string): Promise<GuidanceMission | null>;
+  cancelMission(missionId: string): Promise<GuidanceMission>;
+  completeMission(missionId: string): Promise<GuidanceMission>;
+}
+

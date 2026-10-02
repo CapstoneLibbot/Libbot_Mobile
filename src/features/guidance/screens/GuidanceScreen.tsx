@@ -1,4 +1,3 @@
-import { router, useLocalSearchParams } from "expo-router";
 import {
   AlertOctagon,
   Battery,
@@ -19,7 +18,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
+import { useKioskStore } from "@/core/state";
 import {
   AppEmptyState,
   AppErrorState,
@@ -27,20 +26,29 @@ import {
   AppLoading,
   AppText,
   IndoorMap,
-} from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { spacing } from "../../../shared/theme";
-import { DEFAULT_LIBRARY_VIEWBOX } from "../../../shared/utils/indoorMapTransform";
+} from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { spacing } from "@/shared/theme";
+import { DEFAULT_LIBRARY_VIEWBOX } from "@/shared/lib";
 import { GuidanceDemoSwitcher } from "../components/GuidanceDemoSwitcher";
 import { useGuidanceDemoViewModel } from "../hooks/useGuidanceDemoViewModel";
 import { useGuidanceMission } from "../hooks/useGuidanceMission";
 
-export function GuidanceScreen(): React.ReactElement {
+export interface GuidanceScreenProps {
+  missionId: string;
+  onGoToFeedback: (missionId: string) => void;
+  onBackToSearch: () => void;
+}
+
+export function GuidanceScreen({
+  missionId,
+  onGoToFeedback,
+  onBackToSearch,
+}: GuidanceScreenProps): React.ReactElement {
   const { insets, isCompactWidth, isNarrowHeight } = useResponsiveLayout();
   // Is landscape if not compact width (>= 600) or narrow height (< 500)
   const isLandscape = !isCompactWidth || isNarrowHeight;
 
-  const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const setActiveMissionId = useKioskStore((state) => state.setActiveMissionId);
 
@@ -88,12 +96,12 @@ export function GuidanceScreen(): React.ReactElement {
 
   const handleGoToFeedback = () => {
     recordInteraction();
-    router.push(`/(kiosk)/feedback/${missionId}`);
+    onGoToFeedback(missionId);
   };
 
   const handleBackToSearch = () => {
     recordInteraction();
-    router.replace("/(kiosk)/search");
+    onBackToSearch();
   };
 
   const handleTogglePause = () => {
@@ -156,7 +164,7 @@ export function GuidanceScreen(): React.ReactElement {
       <View style={styles.container}>
         <AppHeader
           title="Hành trình dẫn đường"
-          onBack={() => router.replace("/(kiosk)/search")}
+          onBack={onBackToSearch}
         />
         {isError ? (
           <AppErrorState
@@ -169,7 +177,7 @@ export function GuidanceScreen(): React.ReactElement {
             title="Chuyến đi không tồn tại"
             message="Mã hành trình không hợp lệ hoặc đã kết thúc."
             actionTitle="Quay lại tra cứu"
-            onAction={() => router.replace("/(kiosk)/search")}
+            onAction={onBackToSearch}
           />
         )}
       </View>

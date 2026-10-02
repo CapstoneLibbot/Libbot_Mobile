@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { colors, spacing } from "../../../shared/theme";
+import { colors, spacing } from "@/shared/theme";
 import {
   GLANCE_TARGETS,
   ROBOT_EYE_DIMENSIONS,

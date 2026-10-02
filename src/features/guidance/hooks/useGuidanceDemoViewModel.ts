@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { StatusTone } from "../../../shared/components/StatusBadge";
+import { StatusTone } from "@/shared/ui";
 import {
-  sampleMissionAlternativePath,
-  sampleMissionPrimaryPath,
-} from "../../../mocks/missions.mock";
+  guidanceDemoAlternativePath,
+  guidanceDemoPrimaryPath,
+} from "../constants/guidanceDemoPaths";
 import {
   GuidanceDemoState,
   GuidanceMission,
@@ -71,11 +71,11 @@ export function computeGuidanceDemoPresentation({
 
   let path: RobotPose[];
   if (demoState === "replanning") {
-    path = sampleMissionAlternativePath;
+    path = guidanceDemoAlternativePath;
   } else if (mission?.path && mission.path.length > 0) {
     path = mission.path;
   } else {
-    path = sampleMissionPrimaryPath;
+    path = guidanceDemoPrimaryPath;
   }
 
   let progress: number;

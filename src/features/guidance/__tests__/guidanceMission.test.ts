@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { MockGuidanceRepository } from "../../../infrastructure/repositories/guidance.repository";
+import { useKioskStore } from "@/core/state";
+import { MockGuidanceRepository } from "@/testing/fakes/mockGuidanceRepository";
 
 describe("Guidance Mission Creation and Management", () => {
   const repository = new MockGuidanceRepository(0);

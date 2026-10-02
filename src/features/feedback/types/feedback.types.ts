@@ -10,3 +10,8 @@ export interface FeedbackSubmissionResult {
   success: boolean;
   message?: string;
 }
+
+export interface FeedbackRepository {
+  submitFeedback(req: SubmitFeedbackRequest): Promise<FeedbackSubmissionResult>;
+}
+

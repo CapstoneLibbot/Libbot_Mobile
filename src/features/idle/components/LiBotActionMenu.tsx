@@ -1,10 +1,10 @@
 import { MapPin, Menu, Search, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
-import { AppText } from "../../../shared/components";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { colors, radius, shadows, spacing } from "../../../shared/theme";
+import { useKioskStore } from "@/core/state";
+import { AppText } from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 
 export interface LiBotActionMenuProps {

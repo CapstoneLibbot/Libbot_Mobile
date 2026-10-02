@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import {
   Building2,
   Info,
@@ -17,7 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useKioskStore } from "../../../core/store/kioskStore";
+import { useKioskStore } from "@/core/state";
 import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
   AppBackButton,
@@ -25,10 +24,10 @@ import {
   AppErrorState,
   AppLoading,
   AppText,
-} from "../../../shared/components";
-import { useDebounce } from "../../../shared/hooks/useDebounce";
-import { useResponsiveLayout } from "../../../shared/hooks/useResponsiveLayout";
-import { spacing } from "../../../shared/theme";
+} from "@/shared/ui";
+import { useDebounce } from "@/shared/lib";
+import { useResponsiveLayout } from "@/shared/layout";
+import { spacing } from "@/shared/theme";
 import { useBookSearch } from "../hooks/useBookSearch";
 import { useCategories } from "../hooks/useCategories";
 import { Book } from "../types/catalog.types";
@@ -88,7 +87,17 @@ function getBookCoverTheme(category: string, title: string, author: string) {
   return { bgColor, tagColor, tag, titleSnippet, authorSnippet };
 }
 
-export function CatalogSearchScreen(): React.ReactElement {
+export interface CatalogSearchScreenProps {
+  onSelectBook: (bookId: string) => void;
+  onStartGuidance: (missionId: string) => void;
+  onBackToIdle: () => void;
+}
+
+export function CatalogSearchScreen({
+  onSelectBook,
+  onStartGuidance,
+  onBackToIdle,
+}: CatalogSearchScreenProps): React.ReactElement {
   const { insets, isCompactWidth, isExpandedWidth, tokens } =
     useResponsiveLayout();
 
@@ -134,7 +143,7 @@ export function CatalogSearchScreen(): React.ReactElement {
 
   const handleViewDetail = (bookId: string) => {
     recordInteraction();
-    router.push(`/(kiosk)/catalog/${bookId}`);
+    onSelectBook(bookId);
   };
 
   const handleRequestGuidance = async (book: Book) => {
@@ -149,7 +158,7 @@ export function CatalogSearchScreen(): React.ReactElement {
         bookId: book.id,
         kioskSessionId,
       });
-      router.push(`/(kiosk)/guidance/${mission.id}`);
+      onStartGuidance(mission.id);
     } catch {
       // Fallback to detail page if quick guidance cannot be created
       handleViewDetail(book.id);
@@ -483,7 +492,7 @@ export function CatalogSearchScreen(): React.ReactElement {
         <AppBackButton
           onPress={() => {
             recordInteraction();
-            router.replace("/(kiosk)/idle");
+            onBackToIdle();
           }}
         />
 

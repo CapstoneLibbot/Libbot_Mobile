@@ -46,6 +46,7 @@ export interface IndoorMapProps {
   routeRevision?: number;
   showLegend?: boolean;
   aspectRatio?: number;
+  preserveAspectRatio?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   detailLevel?: IndoorMapDetailLevel;
@@ -61,7 +62,8 @@ export function IndoorMap({
   missionStatus = "navigating",
   routeRevision = 1,
   showLegend = true,
-  aspectRatio = 1390 / 990,
+  aspectRatio,
+  preserveAspectRatio = "xMidYMid meet",
   style,
   testID = "indoor-map",
   detailLevel = "overview",
@@ -99,15 +101,15 @@ export function IndoorMap({
     });
   }, [viewportMode, robotPose, destinationPose, path, bounds, viewBox]);
 
-  // Project robot and destination coordinates
+  // Project robot and destination coordinates to library floor coordinate space (1390x990)
   const robotSvg = useMemo(
-    () => projectRosToSvg(robotPose, bounds, viewBox),
-    [robotPose, bounds, viewBox],
+    () => projectRosToSvg(robotPose, bounds, DEFAULT_LIBRARY_VIEWBOX),
+    [robotPose, bounds],
   );
 
   const destinationSvg = useMemo(
-    () => projectRosToSvg(destinationPose, bounds, viewBox),
-    [destinationPose, bounds, viewBox],
+    () => projectRosToSvg(destinationPose, bounds, DEFAULT_LIBRARY_VIEWBOX),
+    [destinationPose, bounds],
   );
 
   const robotHeadingDeg = useMemo(
@@ -117,14 +119,14 @@ export function IndoorMap({
 
   const polylinePoints = useMemo(() => {
     if (!path || path.length === 0) return "";
-    return formatPolylinePoints(path, bounds, viewBox);
-  }, [path, bounds, viewBox]);
+    return formatPolylinePoints(path, bounds, DEFAULT_LIBRARY_VIEWBOX);
+  }, [path, bounds]);
 
   // Projected waypoint dots
   const waypoints = useMemo(() => {
     if (!path || path.length === 0) return [];
-    return path.map((pt) => projectRosToSvg(pt, bounds, viewBox));
-  }, [path, bounds, viewBox]);
+    return path.map((pt) => projectRosToSvg(pt, bounds, DEFAULT_LIBRARY_VIEWBOX));
+  }, [path, bounds]);
 
   // Route styling depending on status
   const isReplanning = missionStatus === "replanning";
@@ -181,7 +183,8 @@ export function IndoorMap({
         viewBox={`${activeViewBox.x} ${activeViewBox.y} ${activeViewBox.width} ${activeViewBox.height}`}
         width="100%"
         height="100%"
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={preserveAspectRatio}
+        style={styles.svg}
       >
         <Defs>
           <LinearGradient
@@ -216,17 +219,26 @@ export function IndoorMap({
           </LinearGradient>
         </Defs>
 
-        {/* 1. Floor Base */}
+        {/* 1. Floor Canvas Background (seamlessly fills entire dynamic view area) */}
         <Rect
-          x={viewBox.x}
-          y={viewBox.y}
-          width={viewBox.width}
-          height={viewBox.height}
+          x={activeViewBox.x - 3000}
+          y={activeViewBox.y - 3000}
+          width={activeViewBox.width + 6000}
+          height={activeViewBox.height + 6000}
           fill="#F8FAFC"
-          rx="16"
         />
 
-        {/* 2. Grid lines (omitted in navigation mode for clean minimal map) */}
+        {/* 2. Library Interior Floor Area */}
+        <Rect
+          x="20"
+          y="20"
+          width="1350"
+          height="950"
+          rx="12"
+          fill="#FFFFFF"
+        />
+
+        {/* 3. Grid lines (omitted in navigation mode for clean minimal map) */}
         {!isNavigation && (
           <G testID="map-grid-lines">
             {[
@@ -939,12 +951,17 @@ export function IndoorMap({
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     width: "100%",
+    height: "100%",
     backgroundColor: "#F8FAFC",
     borderRadius: 16,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+  },
+  svg: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
   },
   legendContainer: {
     paddingHorizontal: spacing.md,

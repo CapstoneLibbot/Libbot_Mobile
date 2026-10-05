@@ -11,8 +11,10 @@ import {
   Plus,
   Zap,
 } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  LayoutChangeEvent,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,6 +56,12 @@ export function GuidanceScreen({
 
   const [isPaused, setIsPaused] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [mapContainerSize, setMapContainerSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [, setIsInteracting] = useState(false);
   const floorLabel = "Tầng 1";
 
   const {
@@ -118,13 +126,6 @@ export function GuidanceScreen({
     return `Đi thẳng theo LiBot (${mission?.robotId ?? "LiBot-01"})`;
   }, [isReplanning, isArrived, isCancelled, progress, mission?.shelf, mission?.robotId]);
 
-  const maneuverSubtitle = useMemo(() => {
-    if (isReplanning) return "LiBot đang chọn lối đi an toàn";
-    if (isArrived) return `Sách của bạn nằm ở ngăn 3, ${floorLabel.toLowerCase()}`;
-    if (isCancelled) return "Vui lòng liên hệ thủ thư nếu cần tìm sách";
-    return "Vui lòng đi cùng LiBot";
-  }, [isReplanning, isArrived, isCancelled, floorLabel]);
-
   const estimatedDistance = useMemo(() => {
     if (isArrived) return "0 m";
     if (isCancelled) return "--";
@@ -137,18 +138,220 @@ export function GuidanceScreen({
     return `${Math.max(5, Math.round((100 - progress) * 0.7))} giây`;
   }, [isArrived, isCancelled, progress]);
 
+  const zoomLevelRef = useRef(zoomLevel);
+  const panOffsetRef = useRef(panOffset);
+  const mapContainerSizeRef = useRef(mapContainerSize);
+  const startPanRef = useRef({ x: 0, y: 0 });
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialZoomRef = useRef(1);
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    panOffsetRef.current = panOffset;
+  }, [panOffset]);
+
+  useEffect(() => {
+    mapContainerSizeRef.current = mapContainerSize;
+  }, [mapContainerSize]);
+
+  const handleMapLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setMapContainerSize((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.width - width) < 1 &&
+          Math.abs(prev.height - height) < 1
+        ) {
+          return prev;
+        }
+        return { width, height };
+      });
+    }
+  };
+
+  const handleZoomIn = () => {
+    recordInteraction();
+    setZoomLevel((z) => Math.min(Number((z + 0.25).toFixed(2)), 2.5));
+  };
+
+  const handleZoomOut = () => {
+    recordInteraction();
+    setZoomLevel((z) => {
+      const next = Math.max(1, Number((z - 0.25).toFixed(2)));
+      if (next <= 1.01) {
+        setPanOffset({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const handleResetView = () => {
+    recordInteraction();
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const isViewCustomized =
+    zoomLevel > 1.02 || panOffset.x !== 0 || panOffset.y !== 0;
+
+  // PanResponder handlers are invoked exclusively during touch events, never during render
+  // eslint-disable-next-line react-hooks/refs
+  const [panResponder] = useState(() =>
+    PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Allow pinch zoom anytime
+          if (gestureState.numberActiveTouches > 1) {
+            return true;
+          }
+          // Single-finger drag is ONLY enabled when zoomed in
+          if (zoomLevelRef.current > 1.05) {
+            return (
+              Math.abs(gestureState.dx) > 3 ||
+              Math.abs(gestureState.dy) > 3
+            );
+          }
+          return false;
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (gestureState.numberActiveTouches > 1) {
+            return true;
+          }
+          if (zoomLevelRef.current > 1.05) {
+            return (
+              Math.abs(gestureState.dx) > 6 ||
+              Math.abs(gestureState.dy) > 6
+            );
+          }
+          return false;
+        },
+        onPanResponderGrant: (evt) => {
+          isDraggingRef.current = true;
+          setIsInteracting(true);
+          startPanRef.current = { ...panOffsetRef.current };
+
+          const touches = evt.nativeEvent.touches;
+          if (touches && touches.length >= 2) {
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            initialPinchDistRef.current = Math.hypot(dx, dy);
+            initialZoomRef.current = zoomLevelRef.current;
+          } else {
+            initialPinchDistRef.current = null;
+          }
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          const touches = evt.nativeEvent.touches;
+
+          // Pinch zoom (always active with 2 fingers)
+          if (touches && touches.length >= 2 && initialPinchDistRef.current) {
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            const currentDist = Math.hypot(dx, dy);
+            if (initialPinchDistRef.current > 0) {
+              const factor = currentDist / initialPinchDistRef.current;
+              const targetZoom = Math.min(
+                2.5,
+                Math.max(1.0, initialZoomRef.current * factor),
+              );
+              if (targetZoom <= 1.01) {
+                setPanOffset({ x: 0, y: 0 });
+              }
+              setZoomLevel(Number(targetZoom.toFixed(2)));
+            }
+            return;
+          }
+
+          // Single-finger drag / pan is ONLY allowed when zoomed in
+          if (zoomLevelRef.current <= 1.05) {
+            return;
+          }
+
+          const container = mapContainerSizeRef.current;
+          const containerW =
+            container?.width && container.width > 0
+              ? container.width
+              : 600;
+          const containerH =
+            container?.height && container.height > 0
+              ? container.height
+              : 400;
+          const currentZoom = zoomLevelRef.current || 1;
+
+          const viewBoxW = 1390 / currentZoom;
+          const viewBoxH = 990 / currentZoom;
+
+          // Precise 1:1 screen-to-SVG coordinate scale factor
+          const svgXPerScreenPixel = viewBoxW / containerW;
+          const svgYPerScreenPixel = viewBoxH / containerH;
+
+          const newPanX =
+            startPanRef.current.x -
+            gestureState.dx * svgXPerScreenPixel;
+          const newPanY =
+            startPanRef.current.y -
+            gestureState.dy * svgYPerScreenPixel;
+
+          // Bound pan to keep the active map within viewport
+          const maxPanX = Math.max(0, (1390 - viewBoxW) / 2 + 80);
+          const maxPanY = Math.max(0, (990 - viewBoxH) / 2 + 60);
+
+          const clampedX = Math.max(-maxPanX, Math.min(maxPanX, newPanX));
+          const clampedY = Math.max(-maxPanY, Math.min(maxPanY, newPanY));
+
+          setPanOffset({
+            x: Math.round(clampedX),
+            y: Math.round(clampedY),
+          });
+        },
+        onPanResponderRelease: () => {
+          isDraggingRef.current = false;
+          initialPinchDistRef.current = null;
+          setIsInteracting(false);
+        },
+        onPanResponderTerminate: () => {
+          isDraggingRef.current = false;
+          initialPinchDistRef.current = null;
+          setIsInteracting(false);
+        },
+      })
+  );
+
   const mapTransform = useMemo(() => {
-    const w = DEFAULT_LIBRARY_VIEWBOX.width / zoomLevel;
-    const h = DEFAULT_LIBRARY_VIEWBOX.height / zoomLevel;
+    const baseW = DEFAULT_LIBRARY_VIEWBOX.width; // 1390
+    const baseH = DEFAULT_LIBRARY_VIEWBOX.height; // 990
+
+    // Standard 1x view uses the complete floorplan 1390x990.
+    // Combined with preserveAspectRatio="none", the map outer walls
+    // stretch to cover 100% of the block without leaving any dead space.
+    const viewBoxW = baseW / zoomLevel;
+    const viewBoxH = baseH / zoomLevel;
+
+    // Center of the floorplan in SVG space (695, 495)
+    const centerX = baseW / 2;
+    const centerY = baseH / 2;
+
+    const activePan =
+      zoomLevel > 1.05 ? panOffset : { x: 0, y: 0 };
+
+    const viewBoxX = centerX - viewBoxW / 2 + activePan.x;
+    const viewBoxY = centerY - viewBoxH / 2 + activePan.y;
+
     return {
       viewBox: {
-        x: (DEFAULT_LIBRARY_VIEWBOX.width - w) / 2,
-        y: (DEFAULT_LIBRARY_VIEWBOX.height - h) / 2,
-        width: w,
-        height: h,
+        x: viewBoxX,
+        y: viewBoxY,
+        width: viewBoxW,
+        height: viewBoxH,
       },
     };
-  }, [zoomLevel]);
+  }, [zoomLevel, panOffset]);
 
   if (isLoading) {
     return (
@@ -283,16 +486,28 @@ export function GuidanceScreen({
 
   // ── Left Map Canvas ────────────────────────────────────────────────────────
   const renderMapCanvas = () => (
-    <View style={styles.mapCardContainer}>
+    <View
+      style={styles.mapCardContainer}
+      onLayout={handleMapLayout}
+      {...panResponder.panHandlers}
+    >
       {/* Top-left Floating Chips */}
-      <View style={styles.mapTopLeftChips}>
-        <View style={styles.mapChipPill}>
-          <View style={styles.mapChipDot} />
-          <AppText variant="caption" style={styles.mapChipText}>
-            Sơ đồ: 13.9 × 9.9 m | {floorLabel}
-          </AppText>
+      {isViewCustomized && (
+        <View style={styles.mapTopLeftChips} pointerEvents="box-none">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đặt lại góc nhìn bản đồ"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            onPress={handleResetView}
+            style={styles.mapChipResetPill}
+          >
+            <Compass size={12} color="#2563EB" />
+            <AppText variant="caption" style={styles.mapChipResetText}>
+              Về trung tâm ({Math.round(zoomLevel * 100)}%)
+            </AppText>
+          </Pressable>
         </View>
-      </View>
+      )}
 
       {/* Top-right Floating Zoom Controls */}
       <View style={styles.mapZoomControls}>
@@ -300,7 +515,7 @@ export function GuidanceScreen({
           accessibilityRole="button"
           accessibilityLabel="Phóng to bản đồ"
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          onPress={() => setZoomLevel((z) => Math.min(z + 0.2, 1.6))}
+          onPress={handleZoomIn}
           style={styles.zoomButton}
         >
           <Plus size={16} color="#334155" />
@@ -310,24 +525,25 @@ export function GuidanceScreen({
           accessibilityRole="button"
           accessibilityLabel="Thu nhỏ bản đồ"
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          onPress={() => setZoomLevel((z) => Math.max(z - 0.2, 0.8))}
-          style={styles.zoomButton}
+          onPress={handleZoomOut}
+          disabled={zoomLevel <= 1}
+          style={[styles.zoomButton, zoomLevel <= 1 && styles.zoomButtonDisabled]}
         >
-          <Minus size={16} color="#334155" />
+          <Minus size={16} color={zoomLevel <= 1 ? "#94A3B8" : "#334155"} />
         </Pressable>
         <View style={styles.zoomDivider} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Đặt lại góc nhìn"
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          onPress={() => setZoomLevel(1)}
-          style={styles.zoomButton}
+          onPress={handleResetView}
+          style={[styles.zoomButton, isViewCustomized && styles.zoomButtonActive]}
         >
-          <Compass size={16} color="#2563EB" />
+          <Compass size={16} color={isViewCustomized ? "#2563EB" : "#64748B"} />
         </Pressable>
       </View>
 
-      {/* Main IndoorMap SVG */}
+      {/* Main IndoorMap SVG (covers 100% of container block) */}
       <IndoorMap
         detailLevel="navigation"
         viewportMode="overview"
@@ -340,16 +556,18 @@ export function GuidanceScreen({
         routeRevision={routeRevision}
         showLegend={false}
         aspectRatio={undefined}
+        preserveAspectRatio="none"
         style={styles.mapSvgComponent}
       />
 
-      {/* Bottom-left SLAM Status Chip */}
-      <View style={styles.mapBottomLeftChip}>
-        <View style={styles.slamGreenDot} />
-        <AppText variant="caption" style={styles.slamText}>
-          Sai số: ±0.03m • LiDAR SLAM 2D
-        </AppText>
-      </View>
+      {/* Drag hint badge when zoomed */}
+      {zoomLevel > 1 && (
+        <View style={styles.mapDragHintBadge} pointerEvents="none">
+          <AppText variant="caption" style={styles.mapDragHintText}>
+            Vuốt để di chuyển bản đồ
+          </AppText>
+        </View>
+      )}
     </View>
   );
 
@@ -408,10 +626,6 @@ export function GuidanceScreen({
               numberOfLines={2}
             >
               {maneuverTitle}
-            </AppText>
-
-            <AppText variant="caption" style={styles.maneuverSubText} numberOfLines={1}>
-              {maneuverSubtitle}
             </AppText>
           </View>
         </View>
@@ -765,6 +979,7 @@ const styles = StyleSheet.create({
   },
   landscapeMapCol: {
     flex: 1.6,
+    width: "100%",
     height: "100%",
   },
   landscapeSidebarCol: {
@@ -782,6 +997,7 @@ const styles = StyleSheet.create({
   },
   portraitMapWrapper: {
     flex: 1.1,
+    width: "100%",
     minHeight: 280,
   },
   portraitBottomScroll: {
@@ -793,6 +1009,8 @@ const styles = StyleSheet.create({
   // ── Map Container & Floating Chips ─────────────────────────────────────────
   mapCardContainer: {
     flex: 1,
+    width: "100%",
+    height: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
@@ -804,6 +1022,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
+    backgroundColor: "#F8FAFC",
   },
   mapTopLeftChips: {
     position: "absolute",
@@ -841,6 +1060,27 @@ const styles = StyleSheet.create({
     color: "#334155",
     fontSize: 11,
   },
+  mapChipResetPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  mapChipResetText: {
+    fontWeight: "700",
+    color: "#2563EB",
+    fontSize: 11,
+  },
   mapZoomControls: {
     position: "absolute",
     top: 10,
@@ -861,6 +1101,12 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: "center",
     alignItems: "center",
+  },
+  zoomButtonActive: {
+    backgroundColor: "#EFF6FF",
+  },
+  zoomButtonDisabled: {
+    opacity: 0.45,
   },
   zoomDivider: {
     height: 1,
@@ -890,6 +1136,21 @@ const styles = StyleSheet.create({
   },
   slamText: {
     color: "#475569",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  mapDragHintBadge: {
+    position: "absolute",
+    bottom: 8,
+    right: 10,
+    backgroundColor: "rgba(15, 23, 42, 0.72)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    zIndex: 10,
+  },
+  mapDragHintText: {
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "600",
   },
@@ -958,10 +1219,6 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     fontSize: 15,
     marginTop: 1,
-  },
-  maneuverSubText: {
-    color: "#64748B",
-    fontSize: 12,
   },
   // 2. Progress Section
   progressSection: {

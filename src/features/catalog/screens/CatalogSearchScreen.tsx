@@ -401,7 +401,7 @@ export function CatalogSearchScreen({
               >
                 <Compass size={14} color="#FFFFFF" />
                 <AppText variant="caption" style={styles.btnLeadText}>
-                  Dẫn đường kệ
+                  Dẫn đường
                 </AppText>
               </Pressable>
 

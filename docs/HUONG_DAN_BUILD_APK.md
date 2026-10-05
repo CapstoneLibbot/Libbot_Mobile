@@ -138,5 +138,5 @@ npx eas-cli@latest build --platform android --profile preview
 | **Bản đồ không hiển thị** | Thiếu Google Maps API Key hoặc API Key chưa được kích hoạt Android Maps SDK trên Google Cloud Console. | Cập nhật API Key vào `.env` (`EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`) và `app.config.ts`. |
 
 
-adb install -r build-1790960351994.apk
+adb install -r build-1791125359126.apk
 npx expo run:android

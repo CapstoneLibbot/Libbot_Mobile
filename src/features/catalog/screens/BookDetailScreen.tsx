@@ -91,6 +91,8 @@ export function BookDetailScreen({
   } = useBookDetail(bookId ?? "");
   const createMissionMutation = useCreateGuidanceMission();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [failedCoverBookId, setFailedCoverBookId] = useState<string | null>(null);
+  const hasCoverError = failedCoverBookId === bookId;
 
   const handleRequestGuidance = async () => {
     recordInteraction();
@@ -233,11 +235,12 @@ export function BookDetailScreen({
                     { backgroundColor: coverTheme.bgColor },
                   ]}
                 >
-                  {book.coverUrl ? (
+                  {book.coverUrl && !hasCoverError ? (
                     <Image
                       source={{ uri: book.coverUrl }}
                       style={styles.bookCoverImg}
                       resizeMode="cover"
+                      onError={() => setFailedCoverBookId(book.id)}
                     />
                   ) : (
                     <>

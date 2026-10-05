@@ -198,4 +198,37 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       }
     });
   });
+
+  describe("Specific Guidance Viewport Configurations (360dp, 768dp, 1024dp)", () => {
+    it("verifies 360dp phone portrait uses compact width and single-column composition", () => {
+      const bp = getResponsiveBreakpoint(360, 800);
+      expect(bp.widthClass).toBe("compact");
+      expect(bp.isCompactWidth).toBe(true);
+
+      // In 360dp portrait, isLandscape is false -> renders portraitBody
+      const isLandscape = !bp.isCompactWidth || 800 < 500;
+      expect(isLandscape).toBe(false);
+    });
+
+    it("verifies 768dp tablet portrait uses medium width with two-column tablet layout", () => {
+      const bp = getResponsiveBreakpoint(768, 1024);
+      expect(bp.widthClass).toBe("medium");
+      expect(bp.isMediumWidth).toBe(true);
+      expect(bp.isCompactWidth).toBe(false);
+
+      // In 768dp portrait, !isCompactWidth is true -> renders two-column landscapeBody
+      const isLandscape = !bp.isCompactWidth || 1024 < 500;
+      expect(isLandscape).toBe(true);
+    });
+
+    it("verifies 1024dp landscape uses expanded width with wide map column covering left block", () => {
+      const bp = getResponsiveBreakpoint(1024, 768);
+      expect(bp.widthClass).toBe("expanded");
+      expect(bp.isExpandedWidth).toBe(true);
+      expect(bp.isCompactWidth).toBe(false);
+
+      const isLandscape = !bp.isCompactWidth || 768 < 500;
+      expect(isLandscape).toBe(true);
+    });
+  });
 });

@@ -6,15 +6,17 @@ LiBot Mobile is an Expo/React Native kiosk client for a library robot. Visitors 
 
 ```
 app/                    Thin Expo Router adapters (layouts, param parsing, callbacks)
-src/core/               Runtime config, providers, kiosk state, orientation, composition
-src/features/           Feature presentation and hooks (catalog, facilities, guidance, feedback, idle)
-src/platform/           HTTP client, SignalR realtime lifecycle, secure storage, network status
+src/config/             Environment validation and mock/API mode selection
+src/core/               Providers, kiosk state, orientation, and repository composition
+src/features/           Feature UI, hooks, domain types, and feature-owned API modules
+src/services/           Shared Axios client, API-error mapping, and SignalR service
+src/platform/           Legacy platform adapters plus storage and network status
 src/shared/             Domain-neutral UI, theme tokens, layout primitives, lib, types
 src/testing/            Fixtures, fakes, route contracts, and testing utilities
 docs/                   Product, architecture, refactor, and release documents
 ```
 
-The current structure is documented before a planned deep refactor. Read [the architecture guide](docs/MOBILE_ARCHITECTURE.md) for the current and target boundaries, and [the refactor specification](docs/REFACTOR_SPEC.md) before changing module ownership.
+The catalog feature is integrated with the current backend; facilities, guidance, feedback, and the legacy platform adapters remain mock-first. See [the integration reference](docs/INTEGRATION.md) for the active API contract and rollout status.
 
 ## Setup and development
 
@@ -46,8 +48,8 @@ npm run build:apk       # build Android APK via EAS Cloud
 Copy `.env.example` and set public client values:
 
 ```dotenv
-EXPO_PUBLIC_API_URL=http://<your-lan-host>:5000/api
-EXPO_PUBLIC_SIGNALR_URL=http://<your-lan-host>:5000/hubs
+EXPO_PUBLIC_API_BASE_URL=http://<your-lan-host>:5205/api
+EXPO_PUBLIC_SIGNALR_URL=http://<your-lan-host>:5205/robotHub
 EXPO_PUBLIC_MAP_PROVIDER=google
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...
 ```
@@ -62,3 +64,4 @@ Do not put credentials or secrets in `EXPO_PUBLIC_*` variables; they are visible
 - [Build and release runbook](docs/BUILD_AND_RELEASE.md)
 - [Kiosk product and workflow blueprint](docs/MOBILE_PROJECT_BLUEPRINT.md)
 - [Navigation map / costmap guide](docs/NAVIGATION_MAP_COSTMAP_GUIDE.md)
+- [Backend integration reference and current status](docs/INTEGRATION.md)

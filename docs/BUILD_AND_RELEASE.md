@@ -34,7 +34,7 @@ The setup implementation must record the EAS project ID in the Expo config, conf
 
 | EAS environment | Backend purpose | Expected client values |
 | --- | --- | --- |
-| `development` | Developer-accessible API; use a LAN host, not `localhost`, for a real device | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SIGNALR_URL`, `EXPO_PUBLIC_MAP_PROVIDER` |
+| `development` | Developer-accessible API; use a LAN host, not `localhost`, for a real device | `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_SIGNALR_URL`, `EXPO_PUBLIC_MAP_PROVIDER` |
 | `preview` | Shared staging API for APK QA and TestFlight | Same variables, pointing to staging |
 | `production` | Public production API | Same variables, pointing to production |
 

@@ -4,9 +4,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "@/config": path.resolve(__dirname, "./src/config"),
       "@/core": path.resolve(__dirname, "./src/core"),
       "@/features": path.resolve(__dirname, "./src/features"),
       "@/platform": path.resolve(__dirname, "./src/platform"),
+      "@/services": path.resolve(__dirname, "./src/services"),
       "@/shared": path.resolve(__dirname, "./src/shared"),
       "@/testing": path.resolve(__dirname, "./src/testing"),
     },
@@ -19,4 +21,3 @@ export default defineConfig({
     exclude: ["node_modules/**"],
   },
 });
-

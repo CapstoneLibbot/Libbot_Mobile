@@ -6,6 +6,8 @@ import { MockCatalogRepository } from "@/testing/fakes/mockCatalogRepository";
 import { MockFacilitiesRepository } from "@/testing/fakes/mockFacilitiesRepository";
 import { MockGuidanceRepository } from "@/testing/fakes/mockGuidanceRepository";
 import { MockFeedbackRepository } from "@/testing/fakes/mockFeedbackRepository";
+import { env } from "@/config/env";
+import { HttpCatalogRepository } from "@/features/catalog/api/catalog.api";
 
 export interface AppRepositories {
   catalog: CatalogRepository;
@@ -15,7 +17,9 @@ export interface AppRepositories {
 }
 
 export const appRepositories: AppRepositories = {
-  catalog: new MockCatalogRepository(),
+  catalog: env.isMock
+    ? new MockCatalogRepository()
+    : new HttpCatalogRepository(),
   facilities: new MockFacilitiesRepository(),
   guidance: new MockGuidanceRepository(),
   feedback: new MockFeedbackRepository(),
@@ -29,3 +33,7 @@ export const getGuidanceRepository = (): GuidanceRepository =>
   appRepositories.guidance;
 export const getFeedbackRepository = (): FeedbackRepository =>
   appRepositories.feedback;
+
+export const setCatalogRepository = (repository: CatalogRepository): void => {
+  appRepositories.catalog = repository;
+};

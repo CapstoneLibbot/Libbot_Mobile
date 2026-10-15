@@ -1,4 +1,7 @@
 export * from "./types/catalog.types";
+export * from "./api/catalog.dto";
+export * from "./api/catalog.mapper";
+export * from "./api/catalog.api";
 export * from "./hooks/useBookSearch";
 export * from "./hooks/useBookDetail";
 export * from "./hooks/useCategories";

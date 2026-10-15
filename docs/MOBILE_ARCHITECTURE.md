@@ -2,17 +2,19 @@
 
 ## Product boundary
 
-LiBot Mobile is the public kiosk client for a library robot. It supports two visitor workflows: find a book and request guidance to its shelf; find a facility/area and request guidance to it. It communicates with the backend by REST and receives mission/robot updates through SignalR. It never controls ROS2 or robot hardware directly.
+LiBot Mobile is the public kiosk client for a library robot. It supports two visitor workflows: find a book and request guidance to its shelf; find a facility/area and request guidance to it. It never controls ROS2 or robot hardware directly.
 
 ## Implemented architecture
  
-The codebase has been refactored into clean architectural layers with enforced import boundaries:
+The codebase is mid-transition from mock-first adapters to feature-owned backend adapters. Catalog is the first feature integrated with the existing backend.
  
 - `app/`: Thin Expo Router adapters for routing, layouts, and parameter parsing. Screens are pure UI components driven by explicit input props and output navigation callbacks; feature components never call `router` or `useLocalSearchParams`.
-- `src/core/`: Application runtime configuration (single Zod-validated source), providers (`AppProviders`, `QueryProvider`), kiosk session state (`kioskStore`), server-state query keys (`queryKeys`), orientation policy (`useKioskOrientation` - scoped to kiosk layout only), idle policy (`useIdleTimeout`), and adapter composition (`repositories.ts`).
+- `src/config/`: Zod-validated public environment configuration. `env.ts` selects mock mode when `EXPO_PUBLIC_API_BASE_URL` is absent outside production.
+- `src/core/`: Providers (`AppProviders`, `QueryProvider`), kiosk session state (`kioskStore`), server-state query keys (`queryKeys`), orientation policy, idle policy, and adapter composition (`repositories.ts`).
   > **Critical Expo Router Rule:** Never name this directory `src/app/`. In Expo Router, if `src/app/` exists, Expo Router automatically overrides the root `app/` directory and treats `src/app/` as the route tree. That causes non-route foundation code, tests, and stores to be registered as routes, crashing the app at launch.
-- `src/features/`: Feature slices (`catalog`, `facilities`, `guidance`, `feedback`, `idle`). Each slice owns its domain models, repository interfaces, custom hooks, and presentation screens/components. Features do not cross-import sibling feature internals.
-- `src/platform/`: Domain-neutral platform abstractions for HTTP (`axiosClient`), SignalR realtime lifecycle & typed events (`signalRClient`, `realtimeEvents`), secure key-value storage (`secureStorage`), and network connectivity (`useNetworkStatus`). Platform code never imports feature types.
+- `src/features/`: Feature slices (`catalog`, `facilities`, `guidance`, `feedback`, `idle`). The catalog slice owns its backend DTOs, mapper, and HTTP implementation in `catalog/api/`; its screens remain transport-agnostic. Other feature slices are still backed by mocks.
+- `src/services/`: Shared transport services. `services/api/client.ts` is the Axios client, `apiError.ts` normalizes ASP.NET Core errors, and `services/realtime/signalR.ts` handles the currently available robot heartbeat hub.
+- `src/platform/`: Legacy HTTP and typed-realtime adapters, plus secure storage and network connectivity. Do not add new feature API work here; migrate or remove these legacy HTTP/realtime modules once their consumers move to `src/services`.
 - `src/shared/`: Domain-neutral design system and utilities.
   - `src/shared/ui/`: Pure presentation primitives (`AppButton`, `AppCard`, `AppHeader`, `AppInput`, `AppText`, `StatusBadge`, `IndoorMap`, etc.).
   - `src/shared/theme/`: Visual design tokens, colors, typography, spacing, radius, shadows.
@@ -21,14 +23,15 @@ The codebase has been refactored into clean architectural layers with enforced i
   - `src/shared/types/`: Domain-neutral TypeScript contracts.
 - `src/testing/`: Testing fixtures (`booksFixture`, `facilitiesFixture`, `missionsFixture`), fake repositories (`mock*Repository`), and route contract test suites. Production code is strictly blocked by ESLint boundary rules from importing anything in `src/testing`.
 
-Dependencies flow strictly inward: `app/` → `src/core/` → `src/features/` → `src/platform/` → `src/shared/`.
-Shared and platform modules never import feature modules or routes. Production code never imports test fixtures.
+Feature screens call feature hooks; hooks call a feature API module or repository interface; feature API modules use `src/services`. Shared/services/platform modules never import feature screens or routes. Production code never imports test fixtures.
 
-## Runtime configuration and network
+## Runtime configuration and backend status
 
-The present app reads `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SIGNALR_URL`, and `EXPO_PUBLIC_MAP_PROVIDER`. These are public build-time values and cannot contain secrets. The refactor will replace duplicate config modules with one validated runtime config and choose mock versus network adapters from application-level composition.
+Catalog reads `EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_SIGNALR_URL`; both are public build-time values and cannot contain secrets. The API base URL includes `/api`, for example `http://192.168.1.8:5205/api` for a real device on the same LAN. Devices must not use `localhost`.
 
-REST goes through the Axios client. SignalR has one lifecycle owner; screen or feature code must subscribe through typed events and release subscriptions when the active mission changes or the UI unmounts. Network loss during guidance keeps the last safe snapshot, reconnects, then refetches mission state.
+Catalog uses `GET /book-guidance/search`, `GET /book-guidance/books/{id}`, and `GET /book-categories`. It maps backend DTOs before they reach UI components and displays normalized Vietnamese error messages. Existing `src/core/config` and `src/platform/http` still use the old environment-variable scheme and are legacy modules pending migration; they must not be used for new API integrations.
+
+The new SignalR service connects only when configured and currently subscribes to `ReceiveHeartbeat` from `/robotHub`. Guidance mission progress, robot pose, and route data are not yet integrated because the current backend hub does not publish those events. See [INTEGRATION.md](INTEGRATION.md) for the active routes and next integration order.
 
 ## Responsive kiosk policy
 

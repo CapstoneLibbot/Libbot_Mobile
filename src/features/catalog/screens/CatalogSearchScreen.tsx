@@ -1,5 +1,4 @@
 import {
-  BookOpen,
   Check,
   Compass,
   Eye,
@@ -38,6 +37,7 @@ import { spacing } from "@/shared/theme";
 import { useBookSearch } from "../hooks/useBookSearch";
 import { useCategories } from "../hooks/useCategories";
 import { Book } from "../types/catalog.types";
+import { getFriendlyErrorMessage } from "@/services/api/apiError";
 
 /**
  * Returns distinct cover design colors, abbreviations, and labels based on book category
@@ -72,27 +72,14 @@ function getBookCoverTheme(category: string, title: string, author: string) {
     shortAbbr = "LIT";
   }
 
-  // Generate short title snippet for cover graphic to look like screenshot
-  let titleSnippet = "";
-  const titleLower = title.toLowerCase();
-  if (titleLower.includes("clean arch")) {
-    titleSnippet = "CLEAN ARCH";
-  } else if (titleLower.includes("robotics")) {
-    titleSnippet = "CONTROL";
-  } else if (
-    titleLower.includes("data-intensive") ||
-    titleLower.includes("data intensive")
-  ) {
-    titleSnippet = "DATA INTENSIVE";
-  } else if (titleLower.includes("artificial intelligence")) {
-    titleSnippet = "AI: MODERN";
-  } else {
-    const words = title.split(/[\s:-]+/).filter(Boolean);
-    titleSnippet =
-      words.length <= 2
+  // Generate short title snippet dynamically for stylized cover graphic
+  const words = title.split(/[\s:-]+/).filter(Boolean);
+  const titleSnippet =
+    words.length === 0
+      ? "BOOK"
+      : words.length <= 2
         ? words.join(" ").toUpperCase()
         : `${words[0]} ${words[1]}`.toUpperCase();
-  }
 
   const authorSnippet = author.split(",")[0].trim().split(" ").pop() ?? author;
 
@@ -208,7 +195,7 @@ export function CatalogSearchScreen({
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
-  const [sortBy, setSortBy] = useState<"default" | "title" | "shelf">("default");
+  const [sortBy, setSortBy] = useState<"default" | "title" | "author">("default");
 
   const debouncedQuery = useDebounce(searchInput, 300);
 
@@ -277,8 +264,8 @@ export function CatalogSearchScreen({
 
     if (sortBy === "title") {
       result.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortBy === "shelf") {
-      result.sort((a, b) => a.shelf.localeCompare(b.shelf));
+    } else if (sortBy === "author") {
+      result.sort((a, b) => a.author.localeCompare(b.author));
     }
 
     return result;
@@ -286,20 +273,30 @@ export function CatalogSearchScreen({
 
   // Total count for "All" category pill
   const totalCount = useMemo(() => {
-    return rawBooks.length > 0 ? rawBooks.length : 7;
+    return rawBooks.length;
   }, [rawBooks.length]);
 
-  // ── Mode 1: Compact Grid Card (Referencing Cards 1 & 2 from UI) ─────────────
+  // ── Mode 1: Compact Grid Card ──────────────────────────────────────────────
   const renderGridCard = (item: Book) => {
     return (
       <View style={styles.gridCard}>
-        {/* 1. Card Header: Status Badge (Left) & Shelf Location (Right) */}
+        {/* 1. Card Header: Category Badge (Left) & Status Badge (Right) */}
         <View style={styles.cardHeaderRow}>
+          <View style={styles.categoryBadge}>
+            <AppText
+              variant="caption"
+              style={styles.categoryBadgeText}
+              numberOfLines={1}
+            >
+              {item.category}
+            </AppText>
+          </View>
+
           {item.available ? (
             <View style={styles.badgeAvailable}>
               <View style={styles.dotAvailable} />
               <AppText variant="caption" style={styles.textAvailable}>
-                Có sẵn tại kệ
+                Có sẵn
               </AppText>
             </View>
           ) : (
@@ -310,13 +307,6 @@ export function CatalogSearchScreen({
               </AppText>
             </View>
           )}
-
-          <View style={styles.shelfLocationBadge}>
-            <BookOpen size={12} color="#64748B" />
-            <AppText variant="caption" style={styles.shelfLocationText}>
-              Tầng {item.floor} • Kệ {item.shelf}
-            </AppText>
-          </View>
         </View>
 
         {/* 2. Card Body: Book Cover Thumbnail + Detailed Metadata */}
@@ -362,23 +352,18 @@ export function CatalogSearchScreen({
               style={styles.bookMetaText}
               numberOfLines={1}
             >
-              {item.category} • {item.isbn}
+              Mã ISBN: {item.isbn}
             </AppText>
 
             {/* Availability Stock */}
             <View style={styles.stockRow}>
               {item.available ? (
                 <AppText variant="caption" style={styles.stockInShelf}>
-                  Còn {item.availableCopies ?? 1} cuốn{" "}
-                  {item.shelfSlot ? (
-                    <AppText variant="caption" style={styles.slotText}>
-                      • Vị trí: {item.shelfSlot}
-                    </AppText>
-                  ) : null}
+                  Còn {item.availableCopies ?? 1} cuốn
                 </AppText>
               ) : (
                 <AppText variant="caption" style={styles.stockBorrowed}>
-                  Đang mượn (0/{item.totalCopies ?? 1} cuốn tại kệ)
+                  Đang mượn
                 </AppText>
               )}
             </View>
@@ -389,10 +374,10 @@ export function CatalogSearchScreen({
         <View style={styles.cardFooterRow}>
           {item.available ? (
             <>
-              {/* Primary: Dẫn đường kệ */}
+              {/* Primary: Dẫn đường */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Dẫn đường đến kệ ${item.shelf}`}
+                accessibilityLabel={`Dẫn đường tìm sách ${item.title}`}
                 onPress={() => handleRequestGuidance(item)}
                 style={({ pressed }) => [
                   styles.btnLeadToShelf,
@@ -408,7 +393,7 @@ export function CatalogSearchScreen({
               {/* Secondary: Chi tiết */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Xem chi tiết sách"
+                accessibilityLabel={`Xem chi tiết ${item.title}`}
                 onPress={() => handleViewDetail(item.id)}
                 style={({ pressed }) => [
                   styles.btnDetailWhite,
@@ -424,7 +409,7 @@ export function CatalogSearchScreen({
             /* Single Full-width Secondary Button when Borrowed */
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Xem chi tiết sách đang mượn"
+              accessibilityLabel={`Xem chi tiết ${item.title}`}
               onPress={() => handleViewDetail(item.id)}
               style={({ pressed }) => [
                 styles.btnDetailFull,
@@ -442,7 +427,7 @@ export function CatalogSearchScreen({
     );
   };
 
-  // ── Mode 2: Ultra-compact List Row (Referencing Cards 3 & 4 from UI) ────────
+  // ── Mode 2: Ultra-compact List Row ────────────────────────────────────────
   const renderListCompactItem = (item: Book) => {
     return (
       <Pressable
@@ -478,16 +463,16 @@ export function CatalogSearchScreen({
             style={styles.compactSubtitle}
             numberOfLines={1}
           >
-            {item.author} • Kệ {item.shelf}
+            {item.author} • {item.category}
           </AppText>
           <View style={styles.compactStatusRow}>
             {item.available ? (
               <AppText variant="caption" style={styles.compactAvailableText}>
-                Có sẵn ({item.availableCopies ?? 1} cuốn){item.shelfSlot ? ` • Vị trí: ${item.shelfSlot}` : ""}
+                Có sẵn ({item.availableCopies ?? 1} cuốn)
               </AppText>
             ) : (
               <AppText variant="caption" style={styles.compactBorrowedText}>
-                Đang mượn (0/{item.totalCopies ?? 1} cuốn tại kệ)
+                Đang mượn
               </AppText>
             )}
           </View>
@@ -498,7 +483,7 @@ export function CatalogSearchScreen({
           {item.available ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Dẫn đường tới kệ ${item.shelf}`}
+              accessibilityLabel={`Dẫn đường tìm sách ${item.title}`}
               onPress={(e) => {
                 e.stopPropagation();
                 handleRequestGuidance(item);
@@ -516,7 +501,7 @@ export function CatalogSearchScreen({
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Xem chi tiết sách"
+              accessibilityLabel={`Xem chi tiết ${item.title}`}
               onPress={(e) => {
                 e.stopPropagation();
                 handleViewDetail(item.id);
@@ -738,8 +723,9 @@ export function CatalogSearchScreen({
           <AppErrorState
             title="Lỗi tra cứu sách"
             message={
-              error?.message ??
-              "Không thể tải danh sách sách. Vui lòng thử lại."
+              error
+                ? getFriendlyErrorMessage(error)
+                : "Không thể tải danh sách sách. Vui lòng thử lại."
             }
             onRetry={() => refetch()}
           />
@@ -840,7 +826,7 @@ export function CatalogSearchScreen({
                       onlyAvailable && styles.modalFilterPillTextActive,
                     ]}
                   >
-                    Chỉ có sẵn tại kệ
+                    Chỉ sách có sẵn
                   </AppText>
                 </Pressable>
               </View>
@@ -855,12 +841,12 @@ export function CatalogSearchScreen({
                 {[
                   { key: "default", label: "Mặc định (theo kết quả tìm)" },
                   { key: "title", label: "Tên sách (A → Z)" },
-                  { key: "shelf", label: "Vị trí kệ (Kệ A → Z)" },
+                  { key: "author", label: "Tác giả (A → Z)" },
                 ].map((opt) => (
                   <Pressable
                     key={opt.key}
                     onPress={() =>
-                      setSortBy(opt.key as "default" | "title" | "shelf")
+                      setSortBy(opt.key as "default" | "title" | "author")
                     }
                     style={styles.modalSortRow}
                   >
@@ -1145,15 +1131,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 11,
   },
-  shelfLocationBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  categoryBadge: {
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    maxWidth: "58%",
   },
-  shelfLocationText: {
-    color: "#64748B",
+  categoryBadgeText: {
+    color: "#475569",
     fontWeight: "600",
-    fontSize: 11.5,
+    fontSize: 11,
   },
   cardBodyRow: {
     flexDirection: "row",

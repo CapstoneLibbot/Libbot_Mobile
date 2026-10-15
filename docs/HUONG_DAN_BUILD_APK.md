@@ -30,8 +30,8 @@ File APK chạy độc lập trên điện thoại, do đó **tuyệt đối kh�
 1. Mở Terminal trên máy tính, gõ `ifconfig | grep "inet "` để lấy địa chỉ IP LAN của máy Mac (ví dụ: `192.168.1.50`).
 2. Mở file `.env` và cập nhật:
    ```env
-   EXPO_PUBLIC_API_URL=http://192.168.1.50:5000/api
-   EXPO_PUBLIC_SIGNALR_URL=http://192.168.1.50:5000/hubs
+   EXPO_PUBLIC_API_BASE_URL=http://192.168.1.50:5205/api
+   EXPO_PUBLIC_SIGNALR_URL=http://192.168.1.50:5205/robotHub
    EXPO_PUBLIC_MAP_PROVIDER=google
    EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...
    ```

@@ -3,12 +3,16 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
+      "@/config": ["./src/config"],
+      "@/config/*": ["./src/config/*"],
       "@/core": ["./src/core"],
       "@/core/*": ["./src/core/*"],
       "@/features": ["./src/features"],
       "@/features/*": ["./src/features/*"],
       "@/platform": ["./src/platform"],
       "@/platform/*": ["./src/platform/*"],
+      "@/services": ["./src/services"],
+      "@/services/*": ["./src/services/*"],
       "@/shared": ["./src/shared"],
       "@/shared/*": ["./src/shared/*"],
       "@/testing": ["./src/testing"],

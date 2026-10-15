@@ -280,36 +280,7 @@ export function CatalogSearchScreen({
   const renderGridCard = (item: Book) => {
     return (
       <View style={styles.gridCard}>
-        {/* 1. Card Header: Category Badge (Left) & Status Badge (Right) */}
-        <View style={styles.cardHeaderRow}>
-          <View style={styles.categoryBadge}>
-            <AppText
-              variant="caption"
-              style={styles.categoryBadgeText}
-              numberOfLines={1}
-            >
-              {item.category}
-            </AppText>
-          </View>
-
-          {item.available ? (
-            <View style={styles.badgeAvailable}>
-              <View style={styles.dotAvailable} />
-              <AppText variant="caption" style={styles.textAvailable}>
-                Có sẵn
-              </AppText>
-            </View>
-          ) : (
-            <View style={styles.badgeBorrowed}>
-              <View style={styles.dotBorrowed} />
-              <AppText variant="caption" style={styles.textBorrowed}>
-                Đang mượn
-              </AppText>
-            </View>
-          )}
-        </View>
-
-        {/* 2. Card Body: Book Cover Thumbnail + Detailed Metadata */}
+        {/* 1. Main Content: Book Cover + Details & Status Badge */}
         <Pressable
           onPress={() => handleViewDetail(item.id)}
           style={styles.cardBodyRow}
@@ -328,14 +299,34 @@ export function CatalogSearchScreen({
 
           {/* Book Info Text */}
           <View style={styles.bookInfoContent}>
-            <AppText
-              variant="subtitle"
-              style={styles.bookMainTitle}
-              numberOfLines={2}
-            >
-              {item.title}
-            </AppText>
+            {/* Top Line: Title (Left) & Status Badge (Right) */}
+            <View style={styles.titleStatusRow}>
+              <AppText
+                variant="subtitle"
+                style={styles.bookMainTitle}
+                numberOfLines={2}
+              >
+                {item.title}
+              </AppText>
 
+              {item.available ? (
+                <View style={styles.badgeAvailable}>
+                  <View style={styles.dotAvailable} />
+                  <AppText variant="caption" style={styles.textAvailable}>
+                    Có sẵn
+                  </AppText>
+                </View>
+              ) : (
+                <View style={styles.badgeBorrowed}>
+                  <View style={styles.dotBorrowed} />
+                  <AppText variant="caption" style={styles.textBorrowed}>
+                    Đang mượn
+                  </AppText>
+                </View>
+              )}
+            </View>
+
+            {/* Middle Line: Author */}
             <AppText
               variant="caption"
               style={styles.bookAuthorText}
@@ -347,25 +338,21 @@ export function CatalogSearchScreen({
               </AppText>
             </AppText>
 
-            <AppText
-              variant="caption"
-              style={styles.bookMetaText}
-              numberOfLines={1}
-            >
-              Mã ISBN: {item.isbn}
-            </AppText>
+            {/* Bottom Line: ISBN (Left) & Stock Count (Right) */}
+            <View style={styles.metaAndStockRow}>
+              <AppText
+                variant="caption"
+                style={styles.bookMetaText}
+                numberOfLines={1}
+              >
+                ISBN: {item.isbn}
+              </AppText>
 
-            {/* Availability Stock */}
-            <View style={styles.stockRow}>
               {item.available ? (
                 <AppText variant="caption" style={styles.stockInShelf}>
                   Còn {item.availableCopies ?? 1} cuốn
                 </AppText>
-              ) : (
-                <AppText variant="caption" style={styles.stockBorrowed}>
-                  Đang mượn
-                </AppText>
-              )}
+              ) : null}
             </View>
           </View>
         </Pressable>
@@ -463,7 +450,7 @@ export function CatalogSearchScreen({
             style={styles.compactSubtitle}
             numberOfLines={1}
           >
-            {item.author} • {item.category}
+            {item.author}
           </AppText>
           <View style={styles.compactStatusRow}>
             {item.available ? (
@@ -1082,10 +1069,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 9,
   },
-  cardHeaderRow: {
+  titleStatusRow: {
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    alignItems: "center",
+    gap: 6,
   },
   badgeAvailable: {
     flexDirection: "row",
@@ -1097,6 +1085,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
+    flexShrink: 0,
   },
   dotAvailable: {
     width: 6,
@@ -1119,6 +1108,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
+    flexShrink: 0,
   },
   dotBorrowed: {
     width: 6,
@@ -1129,20 +1119,6 @@ const styles = StyleSheet.create({
   textBorrowed: {
     color: "#92400E",
     fontWeight: "700",
-    fontSize: 11,
-  },
-  categoryBadge: {
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    maxWidth: "58%",
-  },
-  categoryBadgeText: {
-    color: "#475569",
-    fontWeight: "600",
     fontSize: 11,
   },
   cardBodyRow: {
@@ -1199,9 +1175,11 @@ const styles = StyleSheet.create({
   },
   bookInfoContent: {
     flex: 1,
-    gap: 2,
+    justifyContent: "space-between",
+    minHeight: 80,
   },
   bookMainTitle: {
+    flex: 1,
     fontWeight: "800",
     color: "#0F172A",
     fontSize: 13.5,
@@ -1215,27 +1193,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1E293B",
   },
+  metaAndStockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+  },
   bookMetaText: {
+    flex: 1,
     color: "#94A3B8",
     fontSize: 10.5,
-  },
-  stockRow: {
-    marginTop: 2,
-    minHeight: 15,
   },
   stockInShelf: {
     color: "#059669",
     fontWeight: "700",
     fontSize: 11,
-  },
-  stockBorrowed: {
-    color: "#D97706",
-    fontWeight: "700",
-    fontSize: 11,
-  },
-  slotText: {
-    color: "#64748B",
-    fontWeight: "500",
+    flexShrink: 0,
   },
   cardFooterRow: {
     flexDirection: "row",

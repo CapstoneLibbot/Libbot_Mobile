@@ -5,7 +5,7 @@ import {
   MapPin,
   Zap,
 } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -67,6 +67,15 @@ function getBookCoverDetailTheme(category: string, title: string, author: string
   const authorSnippet = author.split("(")[0].trim().split(" ").pop() ?? author;
 
   return { bgColor, topTag, topColor, midText, authorSnippet };
+}
+
+function formatPublisherName(publisher?: string | null): string {
+  if (!publisher) return "Chưa cập nhật";
+  let clean = publisher.trim();
+  if (/^nxb[\s:]+/i.test(clean)) {
+    clean = clean.replace(/^nxb[\s:]+/i, "").trim();
+  }
+  return clean || publisher;
 }
 
 export interface BookDetailScreenProps {
@@ -133,24 +142,24 @@ export function BookDetailScreen({
     totalCopiesCount - availableCopiesCount,
   );
 
-  // Auto-select the first available copy on load or when copies change
-  useEffect(() => {
-    if (copies.length > 0) {
-      const currentSelected = copies.find((c) => c.id === selectedCopyId);
-      if (!currentSelected || currentSelected.status.toLowerCase() !== "available") {
-        const firstAvailable = copies.find(
-          (c) => c.status.toLowerCase() === "available",
-        );
-        setSelectedCopyId(firstAvailable ? firstAvailable.id : null);
+  // Derive effective selected copy ID without cascading renders
+  const activeSelectedCopyId = useMemo(() => {
+    if (copies.length === 0) return null;
+    if (selectedCopyId) {
+      const match = copies.find((c) => c.id === selectedCopyId);
+      if (match && match.status.toLowerCase() === "available") {
+        return match.id;
       }
-    } else {
-      setSelectedCopyId(null);
     }
+    const firstAvailable = copies.find(
+      (c) => c.status.toLowerCase() === "available",
+    );
+    return firstAvailable ? firstAvailable.id : null;
   }, [copies, selectedCopyId]);
 
   const selectedCopy = useMemo(() => {
-    return copies.find((c) => c.id === selectedCopyId) ?? null;
-  }, [copies, selectedCopyId]);
+    return copies.find((c) => c.id === activeSelectedCopyId) ?? null;
+  }, [copies, activeSelectedCopyId]);
 
   const handleSelectCopy = (copy: BookItem) => {
     recordInteraction();
@@ -261,7 +270,7 @@ export function BookDetailScreen({
         ]}
       >
         {/* ═══════════════════════════════════════════════════════════════════════
-            1. TOP BOOK HEADER CARD (REFERENCE DESIGN)
+            1. TOP BOOK HEADER CARD
            ═══════════════════════════════════════════════════════════════════════ */}
         <View style={styles.topCard}>
           {/* Left: Cover thumbnail + Title & Metadata pills */}
@@ -327,25 +336,57 @@ export function BookDetailScreen({
                 >
                   {book.author}
                 </AppText>
+                {book.category ? (
+                  <View style={styles.categoryPill}>
+                    <AppText
+                      variant="caption"
+                      style={styles.categoryPillText}
+                      numberOfLines={1}
+                    >
+                      {book.category}
+                    </AppText>
+                  </View>
+                ) : null}
               </View>
 
               {/* Metadata Pills */}
               <View style={styles.metadataPillsRow}>
                 <View style={styles.metaPill}>
-                  <AppText variant="caption" style={styles.metaPillText}>
-                    ISBN: {book.isbn || "978-0134494166"}
+                  <AppText variant="caption" style={styles.metaPillLabel}>
+                    ISBN:
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    style={styles.metaPillValue}
+                    numberOfLines={1}
+                  >
+                    {book.isbn || "978-0134494166"}
                   </AppText>
                 </View>
 
                 <View style={styles.metaPill}>
-                  <AppText variant="caption" style={styles.metaPillText}>
-                    NXB: {book.publisher || "Prentice Hall"}
+                  <AppText variant="caption" style={styles.metaPillLabel}>
+                    NXB:
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    style={styles.metaPillValue}
+                    numberOfLines={1}
+                  >
+                    {formatPublisherName(book.publisher)}
                   </AppText>
                 </View>
 
                 <View style={styles.metaPill}>
-                  <AppText variant="caption" style={styles.metaPillText}>
-                    Năm: {book.publishedYear || 2018}
+                  <AppText variant="caption" style={styles.metaPillLabel}>
+                    Năm:
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    style={styles.metaPillValue}
+                    numberOfLines={1}
+                  >
+                    {book.publishedYear || 2024}
                   </AppText>
                 </View>
               </View>
@@ -356,7 +397,11 @@ export function BookDetailScreen({
           <View style={styles.statsPill}>
             <View style={styles.statsPillItem}>
               <View style={styles.statDotBlue} />
-              <AppText variant="caption" style={styles.statTextBold}>
+              <AppText
+                variant="caption"
+                numberOfLines={1}
+                style={styles.statTextBold}
+              >
                 {totalCopiesCount} Bản sao
               </AppText>
             </View>
@@ -365,15 +410,35 @@ export function BookDetailScreen({
 
             <View style={styles.statsPillItem}>
               <View style={styles.statDotGreen} />
-              <AppText variant="caption" style={styles.statTextGreen}>
+              <AppText
+                variant="caption"
+                numberOfLines={1}
+                style={styles.statTextGreen}
+              >
                 {availableCopiesCount} Có sẵn
               </AppText>
             </View>
 
+            <View style={styles.statDivider} />
+
             <View style={styles.statsPillItem}>
-              <View style={styles.statDotGray} />
-              <AppText variant="caption" style={styles.statTextGray}>
-                {borrowedCopiesCount} Mượn
+              <View
+                style={
+                  borrowedCopiesCount > 0
+                    ? styles.statDotAmber
+                    : styles.statDotMuted
+                }
+              />
+              <AppText
+                variant="caption"
+                numberOfLines={1}
+                style={
+                  borrowedCopiesCount > 0
+                    ? styles.statTextAmber
+                    : styles.statTextMuted
+                }
+              >
+                {borrowedCopiesCount} Đang mượn
               </AppText>
             </View>
           </View>
@@ -384,12 +449,17 @@ export function BookDetailScreen({
            ═══════════════════════════════════════════════════════════════════════ */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleWrap}>
-            <AppText variant="caption" style={styles.sectionTitleBold}>
-              CHỌN BẢN SAO ĐỂ LIBOT DẪN ĐƯỜNG
-            </AppText>
-            <AppText variant="caption" style={styles.sectionTitleHint}>
-              {" "}(Bấm thẻ để đổi mục tiêu)
-            </AppText>
+            <View style={styles.sectionIconBadge}>
+              <MapPin size={13} color="#2563EB" />
+            </View>
+            <View style={styles.sectionTitleTexts}>
+              <AppText variant="caption" style={styles.sectionTitleBold}>
+                CHỌN BẢN SAO ĐỂ LIBOT DẪN ĐƯỜNG
+              </AppText>
+              <AppText variant="caption" style={styles.sectionTitleHint}>
+                (Bấm thẻ để đổi mục tiêu)
+              </AppText>
+            </View>
           </View>
 
           {/* Legend */}
@@ -427,7 +497,7 @@ export function BookDetailScreen({
         ) : null}
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            3. COPIES GRID (TWO COLUMNS AS PER DESIGN)
+            3. COPIES GRID (ADAPTIVE 1 OR 2 COLUMNS)
            ═══════════════════════════════════════════════════════════════════════ */}
         <ScrollView
           style={styles.scrollArea}
@@ -438,16 +508,26 @@ export function BookDetailScreen({
             style={
               isCompactWidth
                 ? styles.cardsColumnCompact
-                : styles.cardsGridLandscape
+                : copies.length === 1
+                  ? styles.cardsSingleLandscape
+                  : styles.cardsGridLandscape
             }
           >
             {copies.map((copy) => {
               const isAvailable = copy.status.toLowerCase() === "available";
-              const isSelected = copy.id === selectedCopyId;
+              const isSelected = copy.id === activeSelectedCopyId;
+              const isSingle = !isCompactWidth && copies.length === 1;
 
               const aisleLabel = copy.aisle || "Dãy A";
               const shelfLabel = copy.shelf || "Kệ A-12";
               const slotLabel = copy.shelfSlot || "Ngăn 1";
+              const floorLabel = `Tầng ${copy.floor || 1}`;
+
+              const cardWidthStyle = isSingle
+                ? styles.cardSingleWidth
+                : isCompactWidth
+                  ? styles.cardFullWidth
+                  : styles.cardHalfWidth;
 
               if (isAvailable && isSelected) {
                 // ── CARD: SELECTED AVAILABLE ─────────────────────────────────
@@ -457,24 +537,22 @@ export function BookDetailScreen({
                     accessibilityRole="button"
                     accessibilityLabel={`Bản sao ${copy.barcode} đang chọn`}
                     onPress={() => handleSelectCopy(copy)}
-                    style={[
-                      styles.copyCard,
-                      styles.cardSelected,
-                      isCompactWidth
-                        ? styles.cardFullWidth
-                        : styles.cardHalfWidth,
-                    ]}
+                    style={[styles.copyCard, styles.cardSelected, cardWidthStyle]}
                   >
                     <View style={styles.cardIndicatorWrap}>
                       <View style={styles.checkCircleSelected}>
-                        <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                        <Check size={11} color="#FFFFFF" strokeWidth={2.5} />
                       </View>
                     </View>
 
                     <View style={styles.cardMain}>
                       <View style={styles.cardHeaderRow}>
                         <View style={styles.barcodeWithTag}>
-                          <AppText variant="subtitle" style={styles.barcodeText}>
+                          <AppText
+                            variant="subtitle"
+                            style={styles.barcodeText}
+                            numberOfLines={1}
+                          >
                             {copy.barcode}
                           </AppText>
                           <View style={styles.selectedPillTag}>
@@ -497,13 +575,14 @@ export function BookDetailScreen({
 
                       <View style={styles.cardLocationRow}>
                         <MapPin
-                          size={14}
+                          size={11}
                           color="#2563EB"
                           style={styles.pinIcon}
                         />
                         <AppText
                           variant="caption"
                           style={styles.locationBreadcrumb}
+                          numberOfLines={1}
                         >
                           {aisleLabel} › {shelfLabel} ›{" "}
                         </AppText>
@@ -513,6 +592,11 @@ export function BookDetailScreen({
                             style={styles.slotPillText}
                           >
                             {slotLabel}
+                          </AppText>
+                        </View>
+                        <View style={styles.floorPill}>
+                          <AppText variant="caption" style={styles.floorPillText}>
+                            {floorLabel}
                           </AppText>
                         </View>
                       </View>
@@ -532,9 +616,7 @@ export function BookDetailScreen({
                     style={({ pressed }) => [
                       styles.copyCard,
                       styles.cardAvailable,
-                      isCompactWidth
-                        ? styles.cardFullWidth
-                        : styles.cardHalfWidth,
+                      cardWidthStyle,
                       pressed && styles.cardPressed,
                     ]}
                   >
@@ -544,7 +626,11 @@ export function BookDetailScreen({
 
                     <View style={styles.cardMain}>
                       <View style={styles.cardHeaderRow}>
-                        <AppText variant="subtitle" style={styles.barcodeText}>
+                        <AppText
+                          variant="subtitle"
+                          style={styles.barcodeText}
+                          numberOfLines={1}
+                        >
                           {copy.barcode}
                         </AppText>
 
@@ -558,16 +644,22 @@ export function BookDetailScreen({
 
                       <View style={styles.cardLocationRow}>
                         <MapPin
-                          size={14}
+                          size={11}
                           color="#94A3B8"
                           style={styles.pinIcon}
                         />
                         <AppText
                           variant="caption"
                           style={styles.locationBreadcrumb}
+                          numberOfLines={1}
                         >
                           {aisleLabel} › {shelfLabel} › {slotLabel}
                         </AppText>
+                        <View style={styles.floorPill}>
+                          <AppText variant="caption" style={styles.floorPillText}>
+                            {floorLabel}
+                          </AppText>
+                        </View>
                       </View>
                     </View>
                   </Pressable>
@@ -578,15 +670,11 @@ export function BookDetailScreen({
               return (
                 <View
                   key={copy.id}
-                  style={[
-                    styles.copyCard,
-                    styles.cardBorrowed,
-                    isCompactWidth ? styles.cardFullWidth : styles.cardHalfWidth,
-                  ]}
+                  style={[styles.copyCard, styles.cardBorrowed, cardWidthStyle]}
                 >
                   <View style={styles.cardIndicatorWrap}>
                     <View style={styles.lockIconBox}>
-                      <Lock size={14} color="#D97706" />
+                      <Lock size={10} color="#94A3B8" />
                     </View>
                   </View>
 
@@ -595,6 +683,7 @@ export function BookDetailScreen({
                       <AppText
                         variant="subtitle"
                         style={styles.barcodeTextBorrowed}
+                        numberOfLines={1}
                       >
                         {copy.barcode}
                       </AppText>
@@ -608,12 +697,23 @@ export function BookDetailScreen({
                     </View>
 
                     <View style={styles.cardLocationRow}>
+                      <MapPin
+                        size={11}
+                        color="#CBD5E1"
+                        style={styles.pinIcon}
+                      />
                       <AppText
                         variant="caption"
                         style={styles.locationBreadcrumbBorrowed}
+                        numberOfLines={1}
                       >
                         {aisleLabel} › {shelfLabel} › {slotLabel}
                       </AppText>
+                      <View style={styles.floorPill}>
+                        <AppText variant="caption" style={styles.floorPillText}>
+                          {floorLabel}
+                        </AppText>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -625,7 +725,7 @@ export function BookDetailScreen({
 
       {/* ═══════════════════════════════════════════════════════════════════════
           4. BOTTOM FIXED ACTION BAR
-         ═══════════════════════════════════════════════════════════════════════ */}
+           ═══════════════════════════════════════════════════════════════════════ */}
       <View
         style={[
           styles.bottomActionBar,
@@ -639,14 +739,14 @@ export function BookDetailScreen({
         {/* Left: Destination Info */}
         <View style={styles.destinationBox}>
           <View style={styles.destinationPinSquare}>
-            <MapPin size={18} color="#2563EB" />
+            <MapPin size={16} color="#2563EB" />
           </View>
           <View style={styles.destinationTextWrap}>
             <AppText variant="caption" style={styles.destinationLabel}>
               ĐÍCH ĐẾN ĐÃ CHỌN:
             </AppText>
             {selectedCopy ? (
-              <AppText variant="subtitle" style={styles.destinationTarget}>
+              <AppText variant="subtitle" style={styles.destinationTarget} numberOfLines={1}>
                 {selectedCopy.shelf}{" "}
                 <AppText variant="body" style={styles.destinationTargetSub}>
                   ({selectedCopy.shelfSlot})
@@ -657,7 +757,7 @@ export function BookDetailScreen({
                 </AppText>
               </AppText>
             ) : (
-              <AppText variant="body" style={styles.destinationEmpty}>
+              <AppText variant="body" style={styles.destinationEmpty} numberOfLines={1}>
                 Chưa có bản sao nào được chọn
               </AppText>
             )}
@@ -676,7 +776,7 @@ export function BookDetailScreen({
               pressed && styles.btnPressed,
             ]}
           >
-            <MapIcon size={18} color="#334155" />
+            <MapIcon size={16} color="#334155" />
             <AppText variant="subtitle" style={styles.btnSecondaryMapText}>
               Sơ đồ 2D
             </AppText>
@@ -699,7 +799,7 @@ export function BookDetailScreen({
               pressed && styles.btnPressed,
             ]}
           >
-            <Zap size={18} color="#FFFFFF" fill="#FFFFFF" />
+            <Zap size={16} color="#FFFFFF" fill="#FFFFFF" />
             <AppText variant="subtitle" style={styles.btnPrimaryGuidanceText}>
               {createMissionMutation.isPending
                 ? "Đang khởi tạo chuyến đi..."
@@ -743,22 +843,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#FFFFFF",
-    borderRadius: radius.lg,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingVertical: 10,
     paddingHorizontal: 14,
+    gap: 12,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
   topCardLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: spacing.sm,
+    minWidth: 0,
+    gap: 12,
   },
   coverThumbnail: {
     width: 44,
@@ -768,6 +870,14 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   coverImage: {
     width: "100%",
@@ -780,18 +890,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   coverGraphicTop: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
   coverGraphicMid: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: "800",
     color: "#FFFFFF",
-    lineHeight: 11,
+    lineHeight: 10,
   },
   coverGraphicBottom: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: "#94A3B8",
   },
   coverSpineSheen: {
@@ -799,53 +909,75 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    width: 3.5,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   topInfoWrap: {
     flex: 1,
+    minWidth: 0,
     justifyContent: "center",
-    gap: 4,
+    gap: 5,
   },
   titleAuthorRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "nowrap",
     gap: 6,
+    minWidth: 0,
   },
   bookTitleText: {
     fontWeight: "700",
     color: "#0F172A",
-    fontSize: 16,
+    fontSize: 15,
     flexShrink: 1,
   },
   separatorDot: {
-    color: "#94A3B8",
-    fontSize: 14,
+    color: "#CBD5E1",
+    fontSize: 13,
   },
   bookAuthorText: {
-    color: "#64748B",
-    fontSize: 14,
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "500",
     flexShrink: 2,
+  },
+  categoryPill: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+  },
+  categoryPillText: {
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: "600",
   },
   metadataPillsRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 6,
+    gap: 8,
   },
   metaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    borderRadius: radius.sm,
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  metaPillText: {
-    color: "#475569",
-    fontSize: 12,
+  metaPillLabel: {
+    color: "#94A3B8",
+    fontSize: 11,
     fontWeight: "500",
+  },
+  metaPillValue: {
+    color: "#334155",
+    fontSize: 11.5,
+    fontWeight: "600",
   },
 
   /* ── Right: Summary Stats Pill ─────────────────────────────────────────── */
@@ -856,59 +988,66 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    borderRadius: radius.md,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: spacing.sm,
+    borderRadius: 999,
+    paddingVertical: 5.5,
+    paddingHorizontal: 14,
+    gap: 8,
   },
   statsPillItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexShrink: 0,
   },
   statDotBlue: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#2563EB",
   },
   statDotGreen: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#10B981",
   },
-  statDotGray: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#94A3B8",
-  },
   statDotAmber: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#F59E0B",
+  },
+  statDotMuted: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#94A3B8",
   },
   statTextBold: {
     fontWeight: "700",
     color: "#1E293B",
-    fontSize: 13,
+    fontSize: 12.5,
   },
   statTextGreen: {
     fontWeight: "700",
     color: "#059669",
-    fontSize: 13,
+    fontSize: 12.5,
   },
-  statTextGray: {
+  statTextAmber: {
+    fontWeight: "600",
+    color: "#B45309",
+    fontSize: 12,
+  },
+  statTextMuted: {
     fontWeight: "500",
-    color: "#64748B",
-    fontSize: 13,
+    color: "#94A3B8",
+    fontSize: 12,
   },
   statDivider: {
     width: 1,
-    height: 14,
+    height: 12,
     backgroundColor: "#CBD5E1",
+    marginHorizontal: 1,
   },
 
   /* ── 2. Section Header & Legend Row ────────────────────────────────────── */
@@ -922,21 +1061,38 @@ const styles = StyleSheet.create({
   sectionTitleWrap: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+  },
+  sectionIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sectionTitleTexts: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   sectionTitleBold: {
     fontWeight: "800",
-    color: "#1E293B",
-    fontSize: 13,
+    color: "#0F172A",
+    fontSize: 12.5,
     letterSpacing: 0.3,
   },
   sectionTitleHint: {
     color: "#64748B",
-    fontSize: 12,
+    fontSize: 11.5,
+    fontWeight: "400",
   },
   legendWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: 12,
   },
   legendItem: {
     flexDirection: "row",
@@ -945,7 +1101,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     color: "#475569",
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "500",
   },
 
@@ -969,11 +1125,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
+  },
+  cardsSingleLandscape: {
+    flexDirection: "column",
+    width: "100%",
   },
   cardsColumnCompact: {
     flexDirection: "column",
-    gap: 10,
+    gap: 8,
+  },
+  cardSingleWidth: {
+    width: "100%",
   },
   cardHalfWidth: {
     width: "49.2%",
@@ -982,12 +1145,12 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   copyCard: {
-    borderRadius: radius.lg,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 76,
+    minHeight: 62,
   },
   cardIndicatorWrap: {
     marginRight: 12,
@@ -1014,19 +1177,19 @@ const styles = StyleSheet.create({
 
   /* ── Selected Card Styles ── */
   cardSelected: {
-    backgroundColor: "#EFF6FF",
-    borderWidth: 2,
+    backgroundColor: "#F0F7FF",
+    borderWidth: 1.5,
     borderColor: "#2563EB",
     shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   checkCircleSelected: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#2563EB",
     justifyContent: "center",
     alignItems: "center",
@@ -1037,43 +1200,57 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   barcodeText: {
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#0F172A",
-    fontSize: 16,
+    fontSize: 15,
   },
   selectedPillTag: {
     backgroundColor: "#2563EB",
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
   },
   selectedTagText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "800",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   locationBreadcrumb: {
     color: "#475569",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: "500",
   },
   slotPillSelected: {
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
   slotPillText: {
-    color: "#1E40AF",
+    color: "#0F172A",
     fontSize: 12,
     fontWeight: "700",
+  },
+  floorPill: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: 8,
+  },
+  floorPillText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   /* ── Available Unselected Card Styles ── */
   cardAvailable: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   cardPressed: {
@@ -1084,7 +1261,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: "#CBD5E1",
     backgroundColor: "#FFFFFF",
   },
@@ -1094,20 +1271,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    opacity: 0.8,
+    opacity: 0.85,
   },
   lockIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#FEF3C7",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
   },
   barcodeTextBorrowed: {
     fontWeight: "600",
     color: "#94A3B8",
-    fontSize: 15,
+    fontSize: 14.5,
     textDecorationLine: "line-through",
   },
   locationBreadcrumbBorrowed: {
@@ -1119,24 +1296,24 @@ const styles = StyleSheet.create({
   badgeAvailable: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DCFCE7",
+    backgroundColor: "#ECFDF5",
     borderWidth: 1,
     borderColor: "#BBF7D0",
     borderRadius: 999,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 5,
+    paddingVertical: 2.5,
+    gap: 4.5,
   },
   dotAvailable: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: "#16A34A",
   },
   textAvailable: {
     color: "#15803D",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 11.5,
+    fontWeight: "600",
   },
   badgeBorrowed: {
     flexDirection: "row",
@@ -1146,18 +1323,18 @@ const styles = StyleSheet.create({
     borderColor: "#FDE68A",
     borderRadius: 999,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 5,
+    paddingVertical: 2.5,
+    gap: 4.5,
   },
   dotBorrowed: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: "#D97706",
   },
   textBorrowed: {
     color: "#B45309",
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "600",
   },
 
@@ -1169,18 +1346,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
-    paddingTop: 10,
+    paddingTop: 8,
   },
   destinationBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 10,
     flex: 1,
+    minWidth: 0,
   },
   destinationPinSquare: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
+    width: 34,
+    height: 34,
+    borderRadius: 6,
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
@@ -1189,17 +1367,18 @@ const styles = StyleSheet.create({
   },
   destinationTextWrap: {
     justifyContent: "center",
+    minWidth: 0,
   },
   destinationLabel: {
     color: "#64748B",
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     letterSpacing: 0.4,
   },
   destinationTarget: {
     color: "#0F172A",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13.5,
   },
   destinationTargetSub: {
     color: "#475569",
@@ -1211,21 +1390,21 @@ const styles = StyleSheet.create({
   },
   destinationEmpty: {
     color: "#94A3B8",
-    fontSize: 13,
+    fontSize: 12.5,
   },
   actionButtonsWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 8,
     flexShrink: 0,
   },
   btnSecondaryMap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: radius.md,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: "#CBD5E1",
     backgroundColor: "#FFFFFF",
@@ -1234,27 +1413,27 @@ const styles = StyleSheet.create({
   btnSecondaryMapText: {
     color: "#334155",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13.5,
   },
   btnPrimaryGuidance: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    height: 44,
-    paddingHorizontal: 20,
-    borderRadius: radius.md,
+    gap: 7,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     backgroundColor: "#2563EB",
     justifyContent: "center",
     shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
   },
   btnPrimaryGuidanceText: {
     color: "#FFFFFF",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13.5,
   },
   btnDisabled: {
     opacity: 0.5,

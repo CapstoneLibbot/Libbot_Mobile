@@ -1,11 +1,18 @@
 import {
-  BookOpen,
-  Bot,
   Check,
-  Navigation,
+  Lock,
+  Map as MapIcon,
+  MapPin,
+  Zap,
 } from "lucide-react-native";
-import React, { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useKioskStore } from "@/core/state";
 import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
@@ -16,24 +23,25 @@ import {
   AppText,
 } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
-import { colors, spacing } from "@/shared/theme";
+import { colors, radius, spacing } from "@/shared/theme";
 import { useBookDetail } from "../hooks/useBookDetail";
+import { BookItem } from "../types/catalog.types";
 
 /**
- * Returns tailored cover graphic theme based on book data
+ * Returns tailored cover graphic theme based on book data when no image is available.
  */
 function getBookCoverDetailTheme(category: string, title: string, author: string) {
   const catLower = (category || "").toLowerCase();
   const titleLower = (title || "").toLowerCase();
 
   let bgColor = "#0F172A"; // Dark Navy / Slate
-  let topTag = "CLEAN";
+  let topTag = "ARCH";
   let topColor = "#F59E0B"; // Amber
-  let midText = "ARCH";
+  let midText = "CLEAN ARCH";
 
   if (titleLower.includes("clean arch")) {
-    topTag = "CLEAN";
-    midText = "ARCH";
+    topTag = "ARCH";
+    midText = "CLEAN ARCH";
     topColor = "#FBBF24";
   } else if (catLower.includes("robot")) {
     bgColor = "#881337";
@@ -51,7 +59,7 @@ function getBookCoverDetailTheme(category: string, title: string, author: string
     midText = "AI: MODERN";
     topColor = "#DDD6FE";
   } else {
-    topTag = (category || "TECH").toUpperCase();
+    topTag = (category || "TECH").slice(0, 5).toUpperCase();
     const words = title.split(/[\s:-]+/).filter(Boolean);
     midText = words.slice(0, 2).join(" ").toUpperCase();
   }
@@ -74,10 +82,7 @@ export function BookDetailScreen({
   onOpenFacility,
   onStartGuidance,
 }: BookDetailScreenProps): React.ReactElement {
-  const { insets, isCompactWidth, tokens } = useResponsiveLayout();
-
-  // Multi-column side by side on medium & expanded displays (tablets / kiosk)
-  const isMultiColumn = !isCompactWidth;
+  const { insets, isCompactWidth } = useResponsiveLayout();
 
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
@@ -89,10 +94,72 @@ export function BookDetailScreen({
     error,
     refetch,
   } = useBookDetail(bookId ?? "");
+
   const createMissionMutation = useCreateGuidanceMission();
   const [actionError, setActionError] = useState<string | null>(null);
   const [failedCoverBookId, setFailedCoverBookId] = useState<string | null>(null);
+  const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
+
   const hasCoverError = failedCoverBookId === bookId;
+
+  // Synthesize or extract copies from book data
+  const copies: BookItem[] = useMemo(() => {
+    if (!book) return [];
+    if (book.copies && book.copies.length > 0) {
+      return book.copies;
+    }
+    // Fallback if backend does not provide explicit copies
+    return [
+      {
+        id: `${book.id}-c1`,
+        barcode: `BC-${book.isbn ? book.isbn.slice(-5) : "94811"}`,
+        status: book.available ? "Available" : "Borrowed",
+        aisle: book.aisle || "Dãy A",
+        shelf: book.shelf || "Kệ A-12",
+        shelfSlot: book.shelfSlot || "Ngăn 3",
+        floor: book.floor,
+        location: null,
+      },
+    ];
+  }, [book]);
+
+  // Statistics
+  const totalCopiesCount = book?.totalCopies ?? copies.length;
+  const availableCopiesCount =
+    book?.availableCopies ??
+    copies.filter((c) => c.status.toLowerCase() === "available").length;
+  const borrowedCopiesCount = Math.max(
+    0,
+    totalCopiesCount - availableCopiesCount,
+  );
+
+  // Auto-select the first available copy on load or when copies change
+  useEffect(() => {
+    if (copies.length > 0) {
+      const currentSelected = copies.find((c) => c.id === selectedCopyId);
+      if (!currentSelected || currentSelected.status.toLowerCase() !== "available") {
+        const firstAvailable = copies.find(
+          (c) => c.status.toLowerCase() === "available",
+        );
+        setSelectedCopyId(firstAvailable ? firstAvailable.id : null);
+      }
+    } else {
+      setSelectedCopyId(null);
+    }
+  }, [copies, selectedCopyId]);
+
+  const selectedCopy = useMemo(() => {
+    return copies.find((c) => c.id === selectedCopyId) ?? null;
+  }, [copies, selectedCopyId]);
+
+  const handleSelectCopy = (copy: BookItem) => {
+    recordInteraction();
+    if (copy.status.toLowerCase() !== "available") {
+      return; // Cannot select borrowed copies
+    }
+    setSelectedCopyId(copy.id);
+    setActionError(null);
+  };
 
   const handleRequestGuidance = async () => {
     recordInteraction();
@@ -100,8 +167,8 @@ export function BookDetailScreen({
 
     if (!book) return;
 
-    if (!book.available) {
-      setActionError("Sách này hiện không có sẵn trên kệ để dẫn đường.");
+    if (!selectedCopy || selectedCopy.status.toLowerCase() !== "available") {
+      setActionError("Vui lòng chọn một bản sao đang có sẵn trên kệ.");
       return;
     }
 
@@ -109,6 +176,9 @@ export function BookDetailScreen({
       const mission = await createMissionMutation.mutateAsync({
         bookId: book.id,
         kioskSessionId,
+        bookItemId: selectedCopy.id,
+        targetShelf: selectedCopy.shelf,
+        barcode: selectedCopy.barcode,
       });
       onStartGuidance(mission.id);
     } catch (err: unknown) {
@@ -123,7 +193,9 @@ export function BookDetailScreen({
   const handleViewShelfMap = () => {
     recordInteraction();
     const facilityId =
-      book?.category === "Robotics" ? "fac-shelf-r" : "fac-shelf-a";
+      selectedCopy?.aisle?.toLowerCase().includes("b")
+        ? "fac-shelf-r"
+        : "fac-shelf-a";
     onOpenFacility(facilityId);
   };
 
@@ -143,7 +215,7 @@ export function BookDetailScreen({
         {isError ? (
           <AppErrorState
             title="Lỗi tải thông tin sách"
-            message={error?.message ?? "Không thể tải chi tiết sách."}
+            message={error?.message ?? "Không thể tải chi tiết sách từ hệ thống."}
             onRetry={() => refetch()}
           />
         ) : (
@@ -166,6 +238,9 @@ export function BookDetailScreen({
 
   return (
     <View style={styles.container}>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ORIGINAL APP HEADER (PRESERVED)
+         ═══════════════════════════════════════════════════════════════════════ */}
       <AppHeader
         title={book.title}
         subtitle={`${book.author} • ${book.category}`}
@@ -176,328 +251,465 @@ export function BookDetailScreen({
         backLabel="Quay lại tra cứu"
       />
 
-      <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={[
-          styles.contentContainer,
+      <View
+        style={[
+          styles.mainContent,
           {
-            paddingLeft: Math.max(insets.left, tokens.pagePaddingHorizontal),
-            paddingRight: Math.max(insets.right, tokens.pagePaddingHorizontal),
-            paddingBottom: Math.max(insets.bottom + spacing.xl, spacing.xxl),
-            gap: tokens.contentGap,
+            paddingLeft: Math.max(insets.left, spacing.md),
+            paddingRight: Math.max(insets.right, spacing.md),
           },
         ]}
-        showsVerticalScrollIndicator={false}
       >
-        <View
-          style={
-            isMultiColumn
-              ? styles.columnsWrapperExpanded
-              : styles.columnsWrapperCompact
-          }
-        >
-          {/* ══════════════════════════════════════════════════════════════════
-              LEFT PANEL: Book Information Card
-             ══════════════════════════════════════════════════════════════════ */}
-          <View style={isMultiColumn ? styles.leftColumnExpanded : styles.fullWidth}>
-            <View style={styles.bookInfoCard}>
-              {/* 1. Status & Category Tag Row */}
-              <View style={styles.badgeRow}>
-                {book.available ? (
-                  <View style={styles.badgeAvailable}>
-                    <View style={styles.dotAvailable} />
-                    <AppText variant="caption" style={styles.textAvailable}>
-                      Có sẵn trên kệ
-                    </AppText>
-                  </View>
-                ) : (
-                  <View style={styles.badgeBorrowed}>
-                    <View style={styles.dotBorrowed} />
-                    <AppText variant="caption" style={styles.textBorrowed}>
-                      Đang mượn
-                    </AppText>
-                  </View>
-                )}
-
-                <View style={styles.badgeCategory}>
-                  <AppText variant="caption" style={styles.textCategory}>
-                    {book.category}
-                  </AppText>
-                </View>
-              </View>
-
-              {/* 2. Book Cover + Information Header */}
-              <View style={styles.bookHeaderRow}>
-                {/* Book Graphic / Photo Cover */}
-                <View
-                  style={[
-                    styles.bookCoverThumb,
-                    { backgroundColor: coverTheme.bgColor },
-                  ]}
-                >
-                  {book.coverUrl && !hasCoverError ? (
-                    <Image
-                      source={{ uri: book.coverUrl }}
-                      style={styles.bookCoverImg}
-                      resizeMode="cover"
-                      onError={() => setFailedCoverBookId(book.id)}
-                    />
-                  ) : (
-                    <>
-                      <AppText
-                        variant="caption"
-                        style={[
-                          styles.coverTopText,
-                          { color: coverTheme.topColor },
-                        ]}
-                      >
-                        {coverTheme.topTag}
-                      </AppText>
-                      <AppText
-                        variant="caption"
-                        numberOfLines={2}
-                        style={styles.coverMidText}
-                      >
-                        {coverTheme.midText}
-                      </AppText>
-                      <AppText
-                        variant="caption"
-                        numberOfLines={1}
-                        style={styles.coverBottomText}
-                      >
-                        {coverTheme.authorSnippet}
-                      </AppText>
-                    </>
-                  )}
-                  <View style={styles.bookSpineSheen} />
-                </View>
-
-                {/* Title & Metadata */}
-                <View style={styles.bookHeaderInfo}>
-                  <AppText
-                    variant="title"
-                    style={styles.bookTitle}
-                    numberOfLines={2}
-                  >
-                    {book.title}
-                  </AppText>
-
-                  <AppText variant="body" style={styles.authorLine}>
-                    Tác giả:{" "}
-                    <AppText variant="body" style={styles.authorBold}>
-                      {book.author}
-                    </AppText>
-                  </AppText>
-
-                  <AppText variant="caption" style={styles.metaLine}>
-                    {book.language ?? "Tiếng Anh"} • {book.pages ?? 432} trang •{" "}
-                    {book.publisher ?? "NXB Pearson"} (
-                    {book.publishedYear ?? 2018})
-                  </AppText>
-                </View>
-              </View>
-
-              {/* 3. Tóm tắt Box */}
-              <View style={styles.summaryBox}>
-                <AppText variant="body" style={styles.summaryContent}>
-                  <AppText variant="body" style={styles.summaryTitle}>
-                    Tóm tắt:{" "}
-                  </AppText>
-                  {book.description}
-                </AppText>
-              </View>
-
-              {/* 4. Stat Grid (4 Bottom Metric Boxes) */}
-              <View
-                style={
-                  isCompactWidth
-                    ? styles.statGridCompact
-                    : styles.statGridExpanded
-                }
-              >
-                {/* Box 1: Mã ISBN */}
-                <View
-                  style={[
-                    styles.statBox,
-                    styles.statBoxNeutral,
-                    isCompactWidth && styles.statBoxCompact,
-                  ]}
-                >
-                  <AppText variant="caption" style={styles.statLabelNeutral}>
-                    Mã ISBN
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    style={styles.statValueBold}
-                    numberOfLines={1}
-                  >
-                    {book.isbn}
-                  </AppText>
-                </View>
-
-                {/* Box 2: Vị trí kệ */}
-                <View
-                  style={[
-                    styles.statBox,
-                    styles.statBoxBlue,
-                    isCompactWidth && styles.statBoxCompact,
-                  ]}
-                >
-                  <AppText variant="caption" style={styles.statLabelBlue}>
-                    Vị trí kệ
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    style={styles.statValueBlue}
-                    numberOfLines={1}
-                  >
-                    Kệ {book.shelf}
-                  </AppText>
-                </View>
-
-                {/* Box 3: Vị trí tầng */}
-                <View
-                  style={[
-                    styles.statBox,
-                    styles.statBoxNeutral,
-                    isCompactWidth && styles.statBoxCompact,
-                  ]}
-                >
-                  <AppText variant="caption" style={styles.statLabelNeutral}>
-                    Vị trí tầng
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    style={styles.statValueBold}
-                    numberOfLines={1}
-                  >
-                    Tầng {book.floor}
-                    {book.zone ? ` (${book.zone})` : ""}
-                  </AppText>
-                </View>
-
-                {/* Box 4: Khả dụng */}
-                <View
-                  style={[
-                    styles.statBox,
-                    styles.statBoxGreen,
-                    isCompactWidth && styles.statBoxCompact,
-                  ]}
-                >
-                  <AppText variant="caption" style={styles.statLabelGreen}>
-                    Khả dụng
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    style={styles.statValueGreen}
-                    numberOfLines={1}
-                  >
-                    {book.availableCopies ?? (book.available ? 1 : 0)} /{" "}
-                    {book.totalCopies ?? 1} bản
-                  </AppText>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* ══════════════════════════════════════════════════════════════════
-              RIGHT PANEL: Dịch vụ Robot LiBot & Actions
-             ══════════════════════════════════════════════════════════════════ */}
-          <View style={isMultiColumn ? styles.rightColumnExpanded : styles.fullWidth}>
-            <View style={styles.robotServiceCard}>
-              {/* 1. Header Box with Robot Icon */}
-              <View style={styles.robotHeaderRow}>
-                <View style={styles.robotIconBox}>
-                  <Bot size={22} color="#FFFFFF" />
-                </View>
-                <View style={styles.robotHeaderTextWrap}>
-                  <AppText variant="subtitle" style={styles.robotTitle}>
-                    Dịch vụ Robot LiBot
-                  </AppText>
-                  <AppText variant="caption" style={styles.robotSubtitle}>
-                    Tự hành dẫn đường thời gian thực
-                  </AppText>
-                </View>
-              </View>
-
-              {/* 2. Intro Description */}
-              <AppText variant="body" style={styles.robotDescription}>
-                LiBot có thể tự hành dẫn bạn đến trực tiếp vị trí{" "}
-                <AppText variant="body" style={styles.robotHighlightShelf}>
-                  Kệ sách {book.shelf} (Tầng {book.floor})
-                </AppText>{" "}
-                chỉ trong ~1 phút.
-              </AppText>
-
-              {/* 3. Availability Alert Box */}
-              {book.available ? (
-                <View style={styles.readyAlertBox}>
-                  <Check size={16} color="#059669" strokeWidth={2.5} />
-                  <AppText variant="caption" style={styles.readyAlertText}>
-                    Sách đang sẵn sàng tại đúng vị trí {book.shelfSlot ?? "ngăn 3"}
-                  </AppText>
-                </View>
+        {/* ═══════════════════════════════════════════════════════════════════════
+            1. TOP BOOK HEADER CARD (REFERENCE DESIGN)
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <View style={styles.topCard}>
+          {/* Left: Cover thumbnail + Title & Metadata pills */}
+          <View style={styles.topCardLeft}>
+            {/* Book Cover Thumbnail */}
+            <View
+              style={[
+                styles.coverThumbnail,
+                { backgroundColor: coverTheme.bgColor },
+              ]}
+            >
+              {book.coverUrl && !hasCoverError ? (
+                <Image
+                  source={{ uri: book.coverUrl }}
+                  style={styles.coverImage}
+                  resizeMode="cover"
+                  onError={() => setFailedCoverBookId(book.id)}
+                />
               ) : (
-                <View style={styles.unavailableAlertBox}>
-                  <AppText variant="caption" style={styles.unavailableAlertText}>
-                    ✕ Sách hiện không có sẵn (tất cả bản in đã được mượn)
+                <View style={styles.coverGraphic}>
+                  <AppText
+                    variant="caption"
+                    style={[styles.coverGraphicTop, { color: coverTheme.topColor }]}
+                  >
+                    {coverTheme.topTag}
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    numberOfLines={2}
+                    style={styles.coverGraphicMid}
+                  >
+                    {coverTheme.midText}
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    numberOfLines={1}
+                    style={styles.coverGraphicBottom}
+                  >
+                    {coverTheme.authorSnippet}
                   </AppText>
                 </View>
               )}
+              <View style={styles.coverSpineSheen} />
+            </View>
 
-              {actionError ? (
-                <View style={styles.errorBox}>
-                  <AppText variant="caption" color={colors.danger}>
-                    {actionError}
+            {/* Title and Metadata */}
+            <View style={styles.topInfoWrap}>
+              <View style={styles.titleAuthorRow}>
+                <AppText
+                  variant="subtitle"
+                  style={styles.bookTitleText}
+                  numberOfLines={1}
+                >
+                  {book.title}
+                </AppText>
+                <AppText variant="body" style={styles.separatorDot}>
+                  •
+                </AppText>
+                <AppText
+                  variant="body"
+                  style={styles.bookAuthorText}
+                  numberOfLines={1}
+                >
+                  {book.author}
+                </AppText>
+              </View>
+
+              {/* Metadata Pills */}
+              <View style={styles.metadataPillsRow}>
+                <View style={styles.metaPill}>
+                  <AppText variant="caption" style={styles.metaPillText}>
+                    ISBN: {book.isbn || "978-0134494166"}
                   </AppText>
                 </View>
-              ) : null}
 
-              {/* 4. Action Buttons */}
-              <View style={styles.actionGroup}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Yêu cầu LiBot dẫn đường tới Kệ ${book.shelf}`}
-                  disabled={!book.available || createMissionMutation.isPending}
-                  onPress={handleRequestGuidance}
-                  style={({ pressed }) => [
-                    styles.btnPrimaryGuidance,
-                    (!book.available ||
-                      createMissionMutation.isPending) &&
-                      styles.btnDisabled,
-                    pressed && styles.btnPressed,
-                  ]}
-                >
-                  <Navigation size={17} color="#FFFFFF" fill="#FFFFFF" />
-                  <AppText
-                    variant="subtitle"
-                    style={styles.btnPrimaryGuidanceText}
-                  >
-                    {createMissionMutation.isPending
-                      ? "Đang khởi tạo chuyến đi..."
-                      : `Yêu cầu LiBot dẫn đường tới Kệ ${book.shelf}`}
+                <View style={styles.metaPill}>
+                  <AppText variant="caption" style={styles.metaPillText}>
+                    NXB: {book.publisher || "Prentice Hall"}
                   </AppText>
-                </Pressable>
+                </View>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Xem sơ đồ khu vực & vị trí kệ"
-                  onPress={handleViewShelfMap}
-                  style={({ pressed }) => [
-                    styles.btnSecondaryMap,
-                    pressed && styles.btnPressed,
-                  ]}
-                >
-                  <BookOpen size={17} color="#475569" />
-                  <AppText variant="subtitle" style={styles.btnSecondaryMapText}>
-                    Xem sơ đồ khu vực & vị trí kệ
+                <View style={styles.metaPill}>
+                  <AppText variant="caption" style={styles.metaPillText}>
+                    Năm: {book.publishedYear || 2018}
                   </AppText>
-                </Pressable>
+                </View>
               </View>
             </View>
           </View>
+
+          {/* Right: Summary Stats Pill */}
+          <View style={styles.statsPill}>
+            <View style={styles.statsPillItem}>
+              <View style={styles.statDotBlue} />
+              <AppText variant="caption" style={styles.statTextBold}>
+                {totalCopiesCount} Bản sao
+              </AppText>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statsPillItem}>
+              <View style={styles.statDotGreen} />
+              <AppText variant="caption" style={styles.statTextGreen}>
+                {availableCopiesCount} Có sẵn
+              </AppText>
+            </View>
+
+            <View style={styles.statsPillItem}>
+              <View style={styles.statDotGray} />
+              <AppText variant="caption" style={styles.statTextGray}>
+                {borrowedCopiesCount} Mượn
+              </AppText>
+            </View>
+          </View>
         </View>
-      </ScrollView>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            2. SECTION TITLE & LEGEND ROW
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionTitleWrap}>
+            <AppText variant="caption" style={styles.sectionTitleBold}>
+              CHỌN BẢN SAO ĐỂ LIBOT DẪN ĐƯỜNG
+            </AppText>
+            <AppText variant="caption" style={styles.sectionTitleHint}>
+              {" "}(Bấm thẻ để đổi mục tiêu)
+            </AppText>
+          </View>
+
+          {/* Legend */}
+          <View style={styles.legendWrap}>
+            <View style={styles.legendItem}>
+              <View style={styles.statDotBlue} />
+              <AppText variant="caption" style={styles.legendText}>
+                Bản đã chọn
+              </AppText>
+            </View>
+
+            <View style={styles.legendItem}>
+              <View style={styles.statDotGreen} />
+              <AppText variant="caption" style={styles.legendText}>
+                Có sẵn
+              </AppText>
+            </View>
+
+            <View style={styles.legendItem}>
+              <View style={styles.statDotAmber} />
+              <AppText variant="caption" style={styles.legendText}>
+                Đang mượn
+              </AppText>
+            </View>
+          </View>
+        </View>
+
+        {/* Action error banner if needed */}
+        {actionError ? (
+          <View style={styles.errorBanner}>
+            <AppText variant="caption" color={colors.danger}>
+              {actionError}
+            </AppText>
+          </View>
+        ) : null}
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            3. COPIES GRID (TWO COLUMNS AS PER DESIGN)
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={
+              isCompactWidth
+                ? styles.cardsColumnCompact
+                : styles.cardsGridLandscape
+            }
+          >
+            {copies.map((copy) => {
+              const isAvailable = copy.status.toLowerCase() === "available";
+              const isSelected = copy.id === selectedCopyId;
+
+              const aisleLabel = copy.aisle || "Dãy A";
+              const shelfLabel = copy.shelf || "Kệ A-12";
+              const slotLabel = copy.shelfSlot || "Ngăn 1";
+
+              if (isAvailable && isSelected) {
+                // ── CARD: SELECTED AVAILABLE ─────────────────────────────────
+                return (
+                  <Pressable
+                    key={copy.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bản sao ${copy.barcode} đang chọn`}
+                    onPress={() => handleSelectCopy(copy)}
+                    style={[
+                      styles.copyCard,
+                      styles.cardSelected,
+                      isCompactWidth
+                        ? styles.cardFullWidth
+                        : styles.cardHalfWidth,
+                    ]}
+                  >
+                    <View style={styles.cardIndicatorWrap}>
+                      <View style={styles.checkCircleSelected}>
+                        <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    </View>
+
+                    <View style={styles.cardMain}>
+                      <View style={styles.cardHeaderRow}>
+                        <View style={styles.barcodeWithTag}>
+                          <AppText variant="subtitle" style={styles.barcodeText}>
+                            {copy.barcode}
+                          </AppText>
+                          <View style={styles.selectedPillTag}>
+                            <AppText
+                              variant="caption"
+                              style={styles.selectedTagText}
+                            >
+                              ĐANG CHỌN
+                            </AppText>
+                          </View>
+                        </View>
+
+                        <View style={styles.badgeAvailable}>
+                          <View style={styles.dotAvailable} />
+                          <AppText variant="caption" style={styles.textAvailable}>
+                            Có sẵn
+                          </AppText>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardLocationRow}>
+                        <MapPin
+                          size={14}
+                          color="#2563EB"
+                          style={styles.pinIcon}
+                        />
+                        <AppText
+                          variant="caption"
+                          style={styles.locationBreadcrumb}
+                        >
+                          {aisleLabel} › {shelfLabel} ›{" "}
+                        </AppText>
+                        <View style={styles.slotPillSelected}>
+                          <AppText
+                            variant="caption"
+                            style={styles.slotPillText}
+                          >
+                            {slotLabel}
+                          </AppText>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }
+
+              if (isAvailable && !isSelected) {
+                // ── CARD: UNSELECTED AVAILABLE ───────────────────────────────
+                return (
+                  <Pressable
+                    key={copy.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Chọn bản sao ${copy.barcode}`}
+                    onPress={() => handleSelectCopy(copy)}
+                    style={({ pressed }) => [
+                      styles.copyCard,
+                      styles.cardAvailable,
+                      isCompactWidth
+                        ? styles.cardFullWidth
+                        : styles.cardHalfWidth,
+                      pressed && styles.cardPressed,
+                    ]}
+                  >
+                    <View style={styles.cardIndicatorWrap}>
+                      <View style={styles.radioCircleUnselected} />
+                    </View>
+
+                    <View style={styles.cardMain}>
+                      <View style={styles.cardHeaderRow}>
+                        <AppText variant="subtitle" style={styles.barcodeText}>
+                          {copy.barcode}
+                        </AppText>
+
+                        <View style={styles.badgeAvailable}>
+                          <View style={styles.dotAvailable} />
+                          <AppText variant="caption" style={styles.textAvailable}>
+                            Có sẵn
+                          </AppText>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardLocationRow}>
+                        <MapPin
+                          size={14}
+                          color="#94A3B8"
+                          style={styles.pinIcon}
+                        />
+                        <AppText
+                          variant="caption"
+                          style={styles.locationBreadcrumb}
+                        >
+                          {aisleLabel} › {shelfLabel} › {slotLabel}
+                        </AppText>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }
+
+              // ── CARD: BORROWED / UNAVAILABLE ───────────────────────────────
+              return (
+                <View
+                  key={copy.id}
+                  style={[
+                    styles.copyCard,
+                    styles.cardBorrowed,
+                    isCompactWidth ? styles.cardFullWidth : styles.cardHalfWidth,
+                  ]}
+                >
+                  <View style={styles.cardIndicatorWrap}>
+                    <View style={styles.lockIconBox}>
+                      <Lock size={14} color="#D97706" />
+                    </View>
+                  </View>
+
+                  <View style={styles.cardMain}>
+                    <View style={styles.cardHeaderRow}>
+                      <AppText
+                        variant="subtitle"
+                        style={styles.barcodeTextBorrowed}
+                      >
+                        {copy.barcode}
+                      </AppText>
+
+                      <View style={styles.badgeBorrowed}>
+                        <View style={styles.dotBorrowed} />
+                        <AppText variant="caption" style={styles.textBorrowed}>
+                          Đang mượn
+                        </AppText>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardLocationRow}>
+                      <AppText
+                        variant="caption"
+                        style={styles.locationBreadcrumbBorrowed}
+                      >
+                        {aisleLabel} › {shelfLabel} › {slotLabel}
+                      </AppText>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          4. BOTTOM FIXED ACTION BAR
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <View
+        style={[
+          styles.bottomActionBar,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing.sm),
+            paddingLeft: Math.max(insets.left, spacing.md),
+            paddingRight: Math.max(insets.right, spacing.md),
+          },
+        ]}
+      >
+        {/* Left: Destination Info */}
+        <View style={styles.destinationBox}>
+          <View style={styles.destinationPinSquare}>
+            <MapPin size={18} color="#2563EB" />
+          </View>
+          <View style={styles.destinationTextWrap}>
+            <AppText variant="caption" style={styles.destinationLabel}>
+              ĐÍCH ĐẾN ĐÃ CHỌN:
+            </AppText>
+            {selectedCopy ? (
+              <AppText variant="subtitle" style={styles.destinationTarget}>
+                {selectedCopy.shelf}{" "}
+                <AppText variant="body" style={styles.destinationTargetSub}>
+                  ({selectedCopy.shelfSlot})
+                </AppText>{" "}
+                • Mã:{" "}
+                <AppText variant="subtitle" style={styles.destinationBarcode}>
+                  {selectedCopy.barcode}
+                </AppText>
+              </AppText>
+            ) : (
+              <AppText variant="body" style={styles.destinationEmpty}>
+                Chưa có bản sao nào được chọn
+              </AppText>
+            )}
+          </View>
+        </View>
+
+        {/* Right: Buttons */}
+        <View style={styles.actionButtonsWrap}>
+          {/* Button: Sơ đồ 2D */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Xem sơ đồ 2D"
+            onPress={handleViewShelfMap}
+            style={({ pressed }) => [
+              styles.btnSecondaryMap,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <MapIcon size={18} color="#334155" />
+            <AppText variant="subtitle" style={styles.btnSecondaryMapText}>
+              Sơ đồ 2D
+            </AppText>
+          </Pressable>
+
+          {/* Button: Dẫn đường LiBot */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              selectedCopy
+                ? `Dẫn đường LiBot tới ${selectedCopy.shelf}`
+                : "Dẫn đường LiBot"
+            }
+            disabled={!selectedCopy || createMissionMutation.isPending}
+            onPress={handleRequestGuidance}
+            style={({ pressed }) => [
+              styles.btnPrimaryGuidance,
+              (!selectedCopy || createMissionMutation.isPending) &&
+                styles.btnDisabled,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <Zap size={18} color="#FFFFFF" fill="#FFFFFF" />
+            <AppText variant="subtitle" style={styles.btnPrimaryGuidanceText}>
+              {createMissionMutation.isPending
+                ? "Đang khởi tạo chuyến đi..."
+                : selectedCopy
+                  ? `Dẫn đường LiBot tới ${selectedCopy.shelf}`
+                  : "Dẫn đường LiBot"}
+            </AppText>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -507,393 +719,551 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  scrollArea: {
+  mainContent: {
     flex: 1,
-  },
-  contentContainer: {
     paddingTop: spacing.sm,
   },
-  columnsWrapperExpanded: {
-    flexDirection: "row",
-    gap: spacing.md,
-    alignItems: "flex-start",
-  },
-  columnsWrapperCompact: {
-    flexDirection: "column",
-    gap: spacing.md,
-  },
-  leftColumnExpanded: {
-    flex: 1.3,
-  },
-  rightColumnExpanded: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
-  fullWidth: {
-    width: "100%",
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.lg,
+    backgroundColor: "#F8FAFC",
   },
 
-  // ── Left Card: Book Info Card ──────────────────────────────────────────────
-  bookInfoCard: {
+  /* ── 1. Top Book Header Card ────────────────────────────────────────────── */
+  topCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 16,
-    gap: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 3,
     elevation: 2,
   },
-  badgeRow: {
+  topCardLeft: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.sm,
+  },
+  coverThumbnail: {
+    width: 44,
+    height: 60,
+    borderRadius: 6,
+    overflow: "hidden",
+    position: "relative",
+    justifyContent: "center",
     alignItems: "center",
   },
-  badgeAvailable: {
+  coverImage: {
+    width: "100%",
+    height: "100%",
+  },
+  coverGraphic: {
+    width: "100%",
+    height: "100%",
+    padding: 3,
+    justifyContent: "space-between",
+  },
+  coverGraphicTop: {
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  coverGraphicMid: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    lineHeight: 11,
+  },
+  coverGraphicBottom: {
+    fontSize: 8,
+    color: "#94A3B8",
+  },
+  coverSpineSheen: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  topInfoWrap: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 4,
+  },
+  titleAuthorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "nowrap",
+    gap: 6,
+  },
+  bookTitleText: {
+    fontWeight: "700",
+    color: "#0F172A",
+    fontSize: 16,
+    flexShrink: 1,
+  },
+  separatorDot: {
+    color: "#94A3B8",
+    fontSize: 14,
+  },
+  bookAuthorText: {
+    color: "#64748B",
+    fontSize: 14,
+    flexShrink: 2,
+  },
+  metadataPillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  metaPill: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  metaPillText: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
+  /* ── Right: Summary Stats Pill ─────────────────────────────────────────── */
+  statsPill: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: radius.md,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: spacing.sm,
+  },
+  statsPillItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statDotBlue: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#2563EB",
+  },
+  statDotGreen: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#10B981",
+  },
+  statDotGray: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#94A3B8",
+  },
+  statDotAmber: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#F59E0B",
+  },
+  statTextBold: {
+    fontWeight: "700",
+    color: "#1E293B",
+    fontSize: 13,
+  },
+  statTextGreen: {
+    fontWeight: "700",
+    color: "#059669",
+    fontSize: 13,
+  },
+  statTextGray: {
+    fontWeight: "500",
+    color: "#64748B",
+    fontSize: 13,
+  },
+  statDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: "#CBD5E1",
+  },
+
+  /* ── 2. Section Header & Legend Row ────────────────────────────────────── */
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  sectionTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sectionTitleBold: {
+    fontWeight: "800",
+    color: "#1E293B",
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  sectionTitleHint: {
+    color: "#64748B",
+    fontSize: 12,
+  },
+  legendWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  legendItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#ECFDF5",
+  },
+  legendText: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
+  errorBanner: {
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#A7F3D0",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderColor: "#FCA5A5",
+    borderRadius: radius.sm,
+    padding: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+
+  /* ── 3. Copies Grid ────────────────────────────────────────────────────── */
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.sm,
+  },
+  cardsGridLandscape: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  cardsColumnCompact: {
+    flexDirection: "column",
+    gap: 10,
+  },
+  cardHalfWidth: {
+    width: "49.2%",
+  },
+  cardFullWidth: {
+    width: "100%",
+  },
+  copyCard: {
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 76,
+  },
+  cardIndicatorWrap: {
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardMain: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 4,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  pinIcon: {
+    marginRight: 4,
+  },
+
+  /* ── Selected Card Styles ── */
+  cardSelected: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 2,
+    borderColor: "#2563EB",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  checkCircleSelected: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  barcodeWithTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  barcodeText: {
+    fontWeight: "800",
+    color: "#0F172A",
+    fontSize: 16,
+  },
+  selectedPillTag: {
+    backgroundColor: "#2563EB",
     borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  selectedTagText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  locationBreadcrumb: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  slotPillSelected: {
+    backgroundColor: "#DBEAFE",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  slotPillText: {
+    color: "#1E40AF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  /* ── Available Unselected Card Styles ── */
+  cardAvailable: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  cardPressed: {
+    opacity: 0.85,
+    borderColor: "#93C5FD",
+  },
+  radioCircleUnselected: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+  },
+
+  /* ── Borrowed Card Styles ── */
+  cardBorrowed: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    opacity: 0.8,
+  },
+  lockIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FEF3C7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  barcodeTextBorrowed: {
+    fontWeight: "600",
+    color: "#94A3B8",
+    fontSize: 15,
+    textDecorationLine: "line-through",
+  },
+  locationBreadcrumbBorrowed: {
+    color: "#94A3B8",
+    fontSize: 12,
+  },
+
+  /* ── Badges ── */
+  badgeAvailable: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    gap: 5,
   },
   dotAvailable: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#10B981",
+    backgroundColor: "#16A34A",
   },
   textAvailable: {
-    color: "#065F46",
-    fontWeight: "700",
+    color: "#15803D",
     fontSize: 12,
+    fontWeight: "700",
   },
   badgeBorrowed: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
     backgroundColor: "#FEF3C7",
     borderWidth: 1,
     borderColor: "#FDE68A",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
     borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    gap: 5,
   },
   dotBorrowed: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#D97706",
   },
   textBorrowed: {
-    color: "#92400E",
-    fontWeight: "700",
+    color: "#B45309",
     fontSize: 12,
+    fontWeight: "600",
   },
-  badgeCategory: {
+
+  /* ── 4. Bottom Action Bar ───────────────────────────────────────────────── */
+  bottomActionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingTop: 10,
+  },
+  destinationBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    flex: 1,
+  },
+  destinationPinSquare: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  textCategory: {
+  destinationTextWrap: {
+    justifyContent: "center",
+  },
+  destinationLabel: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  destinationTarget: {
+    color: "#0F172A",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  destinationTargetSub: {
+    color: "#475569",
+    fontWeight: "500",
+  },
+  destinationBarcode: {
     color: "#2563EB",
-    fontWeight: "600",
-    fontSize: 12,
+    fontWeight: "800",
   },
-
-  // ── Book Header Row ────────────────────────────────────────────────────────
-  bookHeaderRow: {
+  destinationEmpty: {
+    color: "#94A3B8",
+    fontSize: 13,
+  },
+  actionButtonsWrap: {
     flexDirection: "row",
-    gap: 14,
-    alignItems: "flex-start",
-  },
-  bookCoverThumb: {
-    width: 72,
-    height: 104,
-    borderRadius: 8,
-    padding: 6,
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.sm,
     flexShrink: 0,
-    overflow: "hidden",
-    position: "relative",
   },
-  bookCoverImg: {
-    ...StyleSheet.absoluteFill,
-    width: "100%",
-    height: "100%",
-  },
-  bookSpineSheen: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderRightWidth: 0.5,
-    borderRightColor: "rgba(0, 0, 0, 0.15)",
-    zIndex: 2,
-  },
-  coverTopText: {
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-  coverMidText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    lineHeight: 14,
-  },
-  coverBottomText: {
-    fontSize: 8.5,
-    color: "#94A3B8",
-  },
-  bookHeaderInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  bookTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#0F172A",
-    lineHeight: 22,
-  },
-  authorLine: {
-    color: "#64748B",
-    fontSize: 13,
-  },
-  authorBold: {
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  metaLine: {
-    color: "#94A3B8",
-    fontSize: 12,
-    marginTop: 2,
-  },
-
-  // ── Summary Box ────────────────────────────────────────────────────────────
-  summaryBox: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    padding: 12,
-  },
-  summaryTitle: {
-    fontWeight: "800",
-    color: "#1E293B",
-    fontSize: 13,
-  },
-  summaryContent: {
-    color: "#475569",
-    fontSize: 13,
-    lineHeight: 21,
-  },
-
-  // ── Stat Grid ──────────────────────────────────────────────────────────────
-  statGridExpanded: {
+  btnSecondaryMap: {
     flexDirection: "row",
-    gap: 8,
-  },
-  statGridCompact: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  statBox: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: 56,
-  },
-  statBoxCompact: {
-    flexBasis: "48%",
-    flexGrow: 1,
-  },
-  statBoxNeutral: {
-    backgroundColor: "#F8FAFC",
-    borderColor: "#E2E8F0",
-  },
-  statBoxBlue: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#BFDBFE",
-  },
-  statBoxGreen: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#A7F3D0",
-  },
-  statLabelNeutral: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#64748B",
-    marginBottom: 3,
-  },
-  statLabelBlue: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#2563EB",
-    marginBottom: 3,
-  },
-  statLabelGreen: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#059669",
-    marginBottom: 3,
-  },
-  statValueBold: {
-    fontSize: 13.5,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  statValueBlue: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-  statValueGreen: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#059669",
-  },
-
-  // ── Right Card: Robot Service Card ─────────────────────────────────────────
-  robotServiceCard: {
+    gap: 6,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 16,
-    gap: 12,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  robotHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  robotIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#2563EB",
     justifyContent: "center",
-    alignItems: "center",
   },
-  robotHeaderTextWrap: {
-    flex: 1,
-    gap: 1,
-  },
-  robotTitle: {
-    fontSize: 15.5,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  robotSubtitle: {
-    fontSize: 11.5,
-    color: "#64748B",
-  },
-  robotDescription: {
-    color: "#475569",
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  robotHighlightShelf: {
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-  readyAlertBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  readyAlertText: {
-    color: "#059669",
+  btnSecondaryMapText: {
+    color: "#334155",
     fontWeight: "700",
-    fontSize: 12.5,
-    flex: 1,
-  },
-  unavailableAlertBox: {
-    backgroundColor: "#FEF3C7",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  unavailableAlertText: {
-    color: "#92400E",
-    fontWeight: "700",
-    fontSize: 12.5,
-  },
-  errorBox: {
-    backgroundColor: "#FEE2E2",
-    padding: 10,
-    borderRadius: 8,
-  },
-  actionGroup: {
-    gap: 10,
-    marginTop: 4,
+    fontSize: 14,
   },
   btnPrimaryGuidance: {
-    backgroundColor: "#2563EB",
-    borderRadius: 12,
-    minHeight: 46,
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 14,
+    height: 44,
+    paddingHorizontal: 20,
+    borderRadius: radius.md,
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   btnPrimaryGuidanceText: {
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 14,
   },
-  btnSecondaryMap: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    minHeight: 46,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  btnSecondaryMapText: {
-    color: "#334155",
-    fontWeight: "700",
-    fontSize: 13.5,
-  },
   btnDisabled: {
     opacity: 0.5,
+    backgroundColor: "#94A3B8",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   btnPressed: {
     opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
 });

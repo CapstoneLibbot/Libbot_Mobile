@@ -134,10 +134,64 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
     expect(book.availableCopies).toBe(1);
     expect(book.floor).toBe(1);
     expect(book.shelf).toBe("Kệ 01-A");
-    expect(book.shelfSlot).toBe("Tầng 3");
+    expect(book.shelfSlot).toBe("Ngăn 3");
     expect(book.publisher).toBe("Prentice Hall");
     expect(book.publishedYear).toBe(2008);
     expect(book.coverUrl).toBe("https://example.com/clean-code.jpg");
+  });
+
+  it("maps BookGuidanceDetailDto with explicit bookItems copies list", () => {
+    const detailWithCopies: BookGuidanceDetailDto = {
+      bookId: "b-arch-01",
+      isbn: "978-0134494166",
+      title: "Clean Architecture",
+      author: "Robert C. Martin",
+      classification: "Architecture",
+      location: {
+        floorId: "f1",
+        floor: "Tầng 1",
+        floorNumber: 1,
+        aisleId: "a1",
+        aisle: "A",
+        aisleName: "Dãy A",
+        shelfId: "s1",
+        shelf: "A-12",
+        shelfName: "Kệ A-12",
+        shelfLevelId: "sl3",
+        shelfLevel: 3,
+      },
+      actions: ["VIEW_LOCATION", "START_GUIDANCE", "RATE"],
+      bookItems: [
+        {
+          id: "c1",
+          barcode: "BC-94811",
+          status: "Available",
+        },
+        {
+          id: "c2",
+          barcode: "BC-94812",
+          status: "Available",
+        },
+        {
+          id: "c3",
+          barcode: "BC-94825",
+          status: "Borrowed",
+        },
+      ],
+    };
+
+    const book = mapBookDetailToBook(detailWithCopies);
+
+    expect(book.id).toBe("b-arch-01");
+    expect(book.available).toBe(true);
+    expect(book.totalCopies).toBe(3);
+    expect(book.availableCopies).toBe(2);
+    expect(book.copies).toHaveLength(3);
+    expect(book.copies?.[0].barcode).toBe("BC-94811");
+    expect(book.copies?.[0].status).toBe("Available");
+    expect(book.copies?.[2].barcode).toBe("BC-94825");
+    expect(book.copies?.[2].status).toBe("Borrowed");
+    expect(book.actions).toEqual(["VIEW_LOCATION", "START_GUIDANCE", "RATE"]);
   });
 
   it("maps BookGuidanceDetailDto when location is null (borrowed / unavailable)", () => {

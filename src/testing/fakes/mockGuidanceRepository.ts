@@ -42,7 +42,7 @@ export class MockGuidanceRepository implements GuidanceRepository {
       id: missionId,
       bookId: book.id,
       bookTitle: book.title,
-      shelf: book.shelf,
+      shelf: req.targetShelf ?? book.shelf,
       robotId: sampleMissionTemplate.robotId,
       status: "active",
       progress: 15,

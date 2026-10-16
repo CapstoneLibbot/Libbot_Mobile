@@ -32,6 +32,9 @@ export type GuidanceDemoState =
 export interface CreateMissionRequest {
   bookId: string;
   kioskSessionId: string;
+  bookItemId?: string;
+  targetShelf?: string;
+  barcode?: string;
 }
 
 export interface GuidanceRepository {

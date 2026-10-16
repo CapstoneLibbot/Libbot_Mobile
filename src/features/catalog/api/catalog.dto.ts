@@ -43,6 +43,13 @@ export interface BookLocationDto {
   endpoint?: NavigationEndpointDto | null;
 }
 
+export interface BookGuidanceBookItemDto {
+  id: string;
+  barcode: string;
+  status: string;
+  location?: BookLocationDto | null;
+}
+
 export interface BookGuidanceDetailDto {
   bookId: string;
   isbn: string;
@@ -54,6 +61,7 @@ export interface BookGuidanceDetailDto {
   location?: BookLocationDto | null;
   actions: string[];
   image?: string | null;
+  bookItems?: BookGuidanceBookItemDto[];
 }
 
 export interface BookSearchParamsDto {

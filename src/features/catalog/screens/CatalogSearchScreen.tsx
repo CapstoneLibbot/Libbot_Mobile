@@ -23,7 +23,7 @@ import {
   View,
 } from "react-native";
 import { useKioskStore } from "@/core/state";
-import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
+import { getCatalogRepository } from "@/core/composition";
 import {
   AppBackButton,
   AppEmptyState,
@@ -176,7 +176,7 @@ function BookCoverThumb({
 
 export interface CatalogSearchScreenProps {
   onSelectBook: (bookId: string) => void;
-  onStartGuidance: (missionId: string) => void;
+  onStartGuidance: (bookId: string, bookItemId: string) => void;
   onBackToIdle: () => void;
 }
 
@@ -200,7 +200,6 @@ export function CatalogSearchScreen({
   const debouncedQuery = useDebounce(searchInput, 300);
 
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
-  const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
 
   const { data: categories = ["All"] } = useCategories();
   const {
@@ -214,7 +213,6 @@ export function CatalogSearchScreen({
     category: selectedCategory,
   });
 
-  const createMissionMutation = useCreateGuidanceMission();
 
   const handleSearchChange = (text: string) => {
     recordInteraction();
@@ -244,11 +242,15 @@ export function CatalogSearchScreen({
     }
 
     try {
-      const mission = await createMissionMutation.mutateAsync({
-        bookId: book.id,
-        kioskSessionId,
-      });
-      onStartGuidance(mission.id);
+      const detail = await getCatalogRepository().getById(book.id);
+      const firstLocatedCopy = detail?.copies?.find(
+        (copy) => copy.status === "Available" && copy.endpoint,
+      );
+      if (!detail || !firstLocatedCopy) {
+        handleViewDetail(book.id);
+        return;
+      }
+      onStartGuidance(detail.id, firstLocatedCopy.id);
     } catch {
       handleViewDetail(book.id);
     }

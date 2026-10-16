@@ -1,5 +1,5 @@
 import * as signalR from "@microsoft/signalr";
-import { runtimeConfig } from "@/core/config";
+import { env } from "@/config/env";
 import {
   RealtimeEventMap,
   RealtimeEventName,
@@ -13,6 +13,7 @@ export type RealtimeCallback<T extends RealtimeEventName> = (
 export class SignalRClient {
   private connection: signalR.HubConnection | null = null;
   private listeners: Map<string, Set<(raw: unknown) => void>> = new Map();
+  private runtimeGroups = new Set<string>();
 
   setConnectionForTesting(conn: signalR.HubConnection | null): void {
     this.connection = conn;
@@ -23,14 +24,30 @@ export class SignalRClient {
   }
 
   async connect(): Promise<void> {
-    if (this.connection) return;
+    if (this.connection?.state === signalR.HubConnectionState.Connected) return;
+    if (!env.apiBaseUrl && !env.signalRUrl) throw new Error("SignalR URL is not configured.");
+
+    const hubUrl = this.getHubUrl();
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(runtimeConfig.signalRUrl)
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .build();
 
-    await this.connection.start();
+    this.attachListeners(this.connection);
+    this.connection.onreconnected(async () => {
+      for (const runtimeId of this.runtimeGroups) {
+        try { await this.connection?.invoke("SubscribeRuntime", runtimeId); } catch { /* REST polling remains available. */ }
+      }
+    });
+
+    try {
+      await this.connection.start();
+      for (const runtimeId of this.runtimeGroups) await this.connection.invoke("SubscribeRuntime", runtimeId);
+    } catch (error) {
+      this.connection = null;
+      throw error;
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -39,6 +56,7 @@ export class SignalRClient {
     await this.connection.stop();
     this.connection = null;
     this.listeners.clear();
+    this.runtimeGroups.clear();
   }
 
   on<T extends RealtimeEventName>(
@@ -90,6 +108,34 @@ export class SignalRClient {
     }
 
     return this.connection.invoke(methodName, ...args);
+  }
+
+  async subscribeRuntime(runtimeId: string): Promise<void> {
+    this.runtimeGroups.add(runtimeId);
+    await this.connect();
+    await this.connection!.invoke("SubscribeRuntime", runtimeId);
+  }
+
+  async unsubscribeRuntime(runtimeId: string): Promise<void> {
+    this.runtimeGroups.delete(runtimeId);
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("UnsubscribeRuntime", runtimeId);
+    }
+  }
+
+  private attachListeners(connection: signalR.HubConnection): void {
+    for (const [eventName, handlers] of this.listeners) {
+      for (const handler of handlers) connection.on(eventName, handler);
+    }
+  }
+
+  private getHubUrl(): string {
+    const configured = env.signalRUrl ?? env.apiBaseUrl!;
+    const url = new URL(configured);
+    const path = url.pathname.replace(/\/$/, "");
+    if (/\/robotHub$/i.test(path)) return url.toString().replace(/\/$/, "");
+    url.pathname = path.replace(/\/(api|hubs)$/i, "") + "/robotHub";
+    return url.toString().replace(/\/$/, "");
   }
 }
 

@@ -26,6 +26,16 @@ export interface GuidanceMission {
   updatedAt: string;
 }
 
+export interface GuidanceSession {
+  missionId: string;
+  executionId: string;
+  runtimeId: string;
+  bookId: string;
+  bookItemId: string;
+  armLeaseId?: string;
+  status: "starting" | "waiting" | "navigating" | "completed" | "failed";
+}
+
 export type GuidanceDemoState =
   "navigating" | "replanning" | "arrived" | "cancelled";
 

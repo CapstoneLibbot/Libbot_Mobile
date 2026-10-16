@@ -189,6 +189,8 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
     expect(book.copies).toHaveLength(3);
     expect(book.copies?.[0].barcode).toBe("BC-94811");
     expect(book.copies?.[0].status).toBe("Available");
+    expect(book.copies?.[0].location).toBeNull();
+    expect(book.copies?.[0].endpoint).toBeNull();
     expect(book.copies?.[2].barcode).toBe("BC-94825");
     expect(book.copies?.[2].status).toBe("Borrowed");
     expect(book.actions).toEqual(["VIEW_LOCATION", "START_GUIDANCE", "RATE"]);

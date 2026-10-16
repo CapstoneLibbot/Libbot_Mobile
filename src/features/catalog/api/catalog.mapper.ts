@@ -81,7 +81,8 @@ export function mapBookDetailToBook(dto: BookGuidanceDetailDto): Book {
 
   const rawBookItems = dto.bookItems ?? [];
   const copies: BookItem[] = rawBookItems.map((item) => {
-    const itemLoc = item.location ?? location;
+    // Keep an unlocated copy unlocated; aggregate book location may point at another copy.
+    const itemLoc = item.location ?? null;
     const itemAisle = itemLoc
       ? formatAisleLabel(itemLoc.aisle, itemLoc.aisleName)
       : aisle;

@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { useKioskStore } from "@/core/state";
-import { useCreateGuidanceMission } from "../../../features/guidance/hooks/useCreateGuidanceMission";
 import {
   AppEmptyState,
   AppErrorState,
@@ -81,8 +80,8 @@ function formatPublisherName(publisher?: string | null): string {
 export interface BookDetailScreenProps {
   bookId: string;
   onBack: () => void;
-  onOpenFacility: (facilityId: string) => void;
-  onStartGuidance: (missionId: string) => void;
+  onOpenFacility: (facilityId: string, bookId?: string, bookItemId?: string) => void;
+  onStartGuidance: (bookId: string, bookItemId: string) => void;
 }
 
 export function BookDetailScreen({
@@ -94,7 +93,6 @@ export function BookDetailScreen({
   const { insets, isCompactWidth } = useResponsiveLayout();
 
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
-  const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
 
   const {
     data: book,
@@ -104,7 +102,6 @@ export function BookDetailScreen({
     refetch,
   } = useBookDetail(bookId ?? "");
 
-  const createMissionMutation = useCreateGuidanceMission();
   const [actionError, setActionError] = useState<string | null>(null);
   const [failedCoverBookId, setFailedCoverBookId] = useState<string | null>(null);
   const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
@@ -182,14 +179,10 @@ export function BookDetailScreen({
     }
 
     try {
-      const mission = await createMissionMutation.mutateAsync({
-        bookId: book.id,
-        kioskSessionId,
-        bookItemId: selectedCopy.id,
-        targetShelf: selectedCopy.shelf,
-        barcode: selectedCopy.barcode,
-      });
-      onStartGuidance(mission.id);
+      if (!selectedCopy.endpoint) {
+        throw new Error("Bản sao chưa có tọa độ dẫn đường.");
+      }
+      onStartGuidance(book.id, selectedCopy.id);
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -201,11 +194,12 @@ export function BookDetailScreen({
 
   const handleViewShelfMap = () => {
     recordInteraction();
+    if (!book) return;
     const facilityId =
       selectedCopy?.aisle?.toLowerCase().includes("b")
         ? "fac-shelf-r"
         : "fac-shelf-a";
-    onOpenFacility(facilityId);
+    onOpenFacility(facilityId, book.id, selectedCopy?.id);
   };
 
   if (isLoading) {
@@ -790,22 +784,20 @@ export function BookDetailScreen({
                 ? `Dẫn đường LiBot tới ${selectedCopy.shelf}`
                 : "Dẫn đường LiBot"
             }
-            disabled={!selectedCopy || createMissionMutation.isPending}
+            disabled={!selectedCopy || !selectedCopy.endpoint}
             onPress={handleRequestGuidance}
             style={({ pressed }) => [
               styles.btnPrimaryGuidance,
-              (!selectedCopy || createMissionMutation.isPending) &&
+              (!selectedCopy || !selectedCopy.endpoint) &&
                 styles.btnDisabled,
               pressed && styles.btnPressed,
             ]}
           >
             <Zap size={16} color="#FFFFFF" fill="#FFFFFF" />
             <AppText variant="subtitle" style={styles.btnPrimaryGuidanceText}>
-              {createMissionMutation.isPending
-                ? "Đang khởi tạo chuyến đi..."
-                : selectedCopy
-                  ? `Dẫn đường LiBot tới ${selectedCopy.shelf}`
-                  : "Dẫn đường LiBot"}
+              {selectedCopy?.endpoint
+                ? `Dẫn đường LiBot tới ${selectedCopy.shelf}`
+                : "Bản sao chưa có tọa độ dẫn đường"}
             </AppText>
           </Pressable>
         </View>

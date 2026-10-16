@@ -34,13 +34,34 @@ export const missionStepPayloadSchema = z.object({
   progress: z.number().min(0).max(100).optional(),
 });
 
+export const runtimeTelemetryPayloadSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+  kind: z.string(),
+  connected: z.boolean(),
+  stale: z.boolean(),
+  armed: z.boolean(),
+  telemetry: z.object({
+    timestamp: z.string(),
+    pose: z.object({ x: z.number(), y: z.number(), yaw: z.number() }),
+    localizationState: z.string(),
+    navigationState: z.string(),
+    activeGoalId: z.string().nullable().optional(),
+    plannedPath: z.array(z.object({ x: z.number(), y: z.number() })).nullable().optional(),
+    error: z.string().nullable().optional(),
+    battery: z.number().nullable().optional(),
+  }).nullable(),
+}).passthrough();
+
 export type RealtimeEventName =
   | "RobotPositionUpdated"
   | "RobotStatusChanged"
   | "RobotBatteryUpdated"
   | "RobotConnectionChanged"
   | "MissionStatusChanged"
-  | "MissionStepChanged";
+  | "MissionStepChanged"
+  | "RobotTelemetryUpdated"
+  | "RuntimeConnectionChanged";
 
 export interface RealtimeEventMap {
   RobotPositionUpdated: z.infer<typeof robotPositionPayloadSchema>;
@@ -49,6 +70,8 @@ export interface RealtimeEventMap {
   RobotConnectionChanged: z.infer<typeof robotConnectionPayloadSchema>;
   MissionStatusChanged: z.infer<typeof missionStatusPayloadSchema>;
   MissionStepChanged: z.infer<typeof missionStepPayloadSchema>;
+  RobotTelemetryUpdated: z.infer<typeof runtimeTelemetryPayloadSchema>;
+  RuntimeConnectionChanged: z.infer<typeof runtimeTelemetryPayloadSchema>;
 }
 
 export const realtimeEventSchemas = {
@@ -58,6 +81,8 @@ export const realtimeEventSchemas = {
   RobotConnectionChanged: robotConnectionPayloadSchema,
   MissionStatusChanged: missionStatusPayloadSchema,
   MissionStepChanged: missionStepPayloadSchema,
+  RobotTelemetryUpdated: runtimeTelemetryPayloadSchema,
+  RuntimeConnectionChanged: runtimeTelemetryPayloadSchema,
 };
 
 export function validateRealtimePayload<T extends RealtimeEventName>(

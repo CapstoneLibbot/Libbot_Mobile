@@ -8,8 +8,8 @@ export default function SearchRoute(): React.ReactElement {
       onSelectBook={(bookId) => {
         router.push(`/(kiosk)/catalog/${bookId}`);
       }}
-      onStartGuidance={(missionId) => {
-        router.push(`/(kiosk)/guidance/${missionId}`);
+      onStartGuidance={(bookId, bookItemId) => {
+        router.push(`/(kiosk)/guidance/map?bookId=${encodeURIComponent(bookId)}&bookItemId=${encodeURIComponent(bookItemId)}`);
       }}
       onBackToIdle={() => {
         router.replace("/(kiosk)/idle");

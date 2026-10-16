@@ -11,11 +11,14 @@ export default function BookDetailRoute(): React.ReactElement {
       onBack={() => {
         router.back();
       }}
-      onOpenFacility={(facilityId) => {
-        router.push(`/(kiosk)/facilities/${facilityId}`);
+      onOpenFacility={(facilityId, targetBookId, bookItemId) => {
+        const bookQuery = targetBookId && bookItemId
+          ? `?bookId=${encodeURIComponent(targetBookId)}&bookItemId=${encodeURIComponent(bookItemId)}`
+          : "";
+        router.push(`/(kiosk)/facilities/${facilityId}${bookQuery}`);
       }}
-      onStartGuidance={(missionId) => {
-        router.push(`/(kiosk)/guidance/${missionId}`);
+      onStartGuidance={(targetBookId, bookItemId) => {
+        router.push(`/(kiosk)/guidance/map?bookId=${encodeURIComponent(targetBookId)}&bookItemId=${encodeURIComponent(bookItemId)}`);
       }}
     />
   );

@@ -1,19 +1,8 @@
-import { GuidanceScreen } from "@/features/guidance";
-import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import { router } from "expo-router";
+import React, { useEffect } from "react";
+import { AppLoading } from "@/shared/ui";
 
 export default function GuidanceRoute(): React.ReactElement {
-  const { missionId } = useLocalSearchParams<{ missionId: string }>();
-
-  return (
-    <GuidanceScreen
-      missionId={missionId ?? ""}
-      onGoToFeedback={(id) => {
-        router.push(`/(kiosk)/feedback/${id}`);
-      }}
-      onBackToSearch={() => {
-        router.replace("/(kiosk)/search");
-      }}
-    />
-  );
+  useEffect(() => { router.replace("/(kiosk)/search"); }, []);
+  return <AppLoading message="Đang mở bản đồ dẫn đường…" />;
 }

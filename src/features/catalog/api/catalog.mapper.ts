@@ -68,8 +68,13 @@ function formatShelfLabel(shelf?: string | null, shelfName?: string | null): str
  * including individual copies (bookItems), shelf, floor, and shelfSlot extracted from location.
  */
 export function mapBookDetailToBook(dto: BookGuidanceDetailDto): Book {
-  const hasLocation = Boolean(dto.location);
-  const location = dto.location;
+  const rawBookItems = dto.bookItems ?? [];
+  const location =
+    rawBookItems.find(
+      (item) =>
+        item.status?.trim().toLowerCase() === "available" && item.location,
+    )?.location ?? null;
+  const hasLocation = Boolean(location);
 
   const floor = location?.floorNumber ?? 1;
   const aisle = location ? formatAisleLabel(location.aisle, location.aisleName) : undefined;
@@ -79,7 +84,6 @@ export function mapBookDetailToBook(dto: BookGuidanceDetailDto): Book {
     ? `Ngăn ${location.shelfLevel}`
     : undefined;
 
-  const rawBookItems = dto.bookItems ?? [];
   const copies: BookItem[] = rawBookItems.map((item) => {
     // Keep an unlocated copy unlocated; aggregate book location may point at another copy.
     const itemLoc = item.location ?? null;

@@ -92,7 +92,7 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
     expect(books[1].available).toBe(false);
   });
 
-  it("maps BookGuidanceDetailDto with full location and availability to Book model", () => {
+  it("maps BookGuidanceDetailDto location from an available book item", () => {
     const detailDto: BookGuidanceDetailDto = {
       bookId: "book-guid-123",
       isbn: "9780132350884",
@@ -101,26 +101,33 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
       publisher: "Prentice Hall",
       publicationYear: 2008,
       classification: "Programming",
-      location: {
-        floorId: "f1",
-        floor: "Floor 1",
-        floorNumber: 1,
-        aisleId: "a1",
-        aisle: "A1",
-        aisleName: "Aisle Software",
-        shelfId: "s1",
-        shelf: "S1",
-        shelfName: "Kệ 01-A",
-        shelfLevelId: "sl2",
-        shelfLevel: 3,
-        endpoint: {
-          endpointId: "ep1",
-          name: "Point Shelf 1",
-          x: 12.5,
-          y: 8.2,
-          theta: 1.57,
+      bookItems: [
+        {
+          id: "copy-1",
+          barcode: "BC-01",
+          status: "Available",
+          location: {
+            floorId: "f1",
+            floor: "Floor 1",
+            floorNumber: 1,
+            aisleId: "a1",
+            aisle: "A1",
+            aisleName: "Aisle Software",
+            shelfId: "s1",
+            shelf: "S1",
+            shelfName: "Kệ 01-A",
+            shelfLevelId: "sl2",
+            shelfLevel: 3,
+            endpoint: {
+              endpointId: "ep1",
+              name: "Point Shelf 1",
+              x: 12.5,
+              y: 8.2,
+              theta: 1.57,
+            },
+          },
         },
-      },
+      ],
       actions: ["VIEW_LOCATION", "START_GUIDANCE", "RATE"],
       image: "https://example.com/clean-code.jpg",
     };
@@ -147,19 +154,6 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
       title: "Clean Architecture",
       author: "Robert C. Martin",
       classification: "Architecture",
-      location: {
-        floorId: "f1",
-        floor: "Tầng 1",
-        floorNumber: 1,
-        aisleId: "a1",
-        aisle: "A",
-        aisleName: "Dãy A",
-        shelfId: "s1",
-        shelf: "A-12",
-        shelfName: "Kệ A-12",
-        shelfLevelId: "sl3",
-        shelfLevel: 3,
-      },
       actions: ["VIEW_LOCATION", "START_GUIDANCE", "RATE"],
       bookItems: [
         {
@@ -196,7 +190,7 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
     expect(book.actions).toEqual(["VIEW_LOCATION", "START_GUIDANCE", "RATE"]);
   });
 
-  it("maps BookGuidanceDetailDto when location is null (borrowed / unavailable)", () => {
+  it("maps BookGuidanceDetailDto when no copies are located", () => {
     const unavailableDetailDto: BookGuidanceDetailDto = {
       bookId: "book-guid-456",
       isbn: "9780132350885",
@@ -205,7 +199,7 @@ describe("Catalog DTO to Domain Mapper (src/features/catalog/api/catalog.mapper.
       publisher: null,
       publicationYear: null,
       classification: null,
-      location: null,
+      bookItems: [],
       actions: ["VIEW_LOCATION"],
       image: null,
     };

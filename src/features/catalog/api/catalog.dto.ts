@@ -58,7 +58,6 @@ export interface BookGuidanceDetailDto {
   publisher?: string | null;
   publicationYear?: number | null;
   classification?: string | null;
-  location?: BookLocationDto | null;
   actions: string[];
   image?: string | null;
   bookItems?: BookGuidanceBookItemDto[];

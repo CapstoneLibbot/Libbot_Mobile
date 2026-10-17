@@ -23,19 +23,6 @@ describe("catalogApi and HttpCatalogRepository (src/features/catalog/api/catalog
       title: "Clean Architecture",
       author: "Robert C. Martin",
       classification: "Engineering",
-      location: {
-        floorId: "f1",
-        floor: "Tầng 1",
-        floorNumber: 1,
-        aisleId: "a1",
-        aisle: "A",
-        aisleName: "Dãy A",
-        shelfId: "s1",
-        shelf: "A-12",
-        shelfName: "Kệ A-12",
-        shelfLevelId: "sl3",
-        shelfLevel: 3,
-      },
       actions: ["VIEW_LOCATION", "START_GUIDANCE", "RATE"],
       bookItems: [
         {
@@ -77,19 +64,6 @@ describe("catalogApi and HttpCatalogRepository (src/features/catalog/api/catalog
       isbn: "9780134494166",
       title: "Clean Architecture",
       author: "Robert C. Martin",
-      location: {
-        floorId: "f1",
-        floor: "Tầng 1",
-        floorNumber: 1,
-        aisleId: "a1",
-        aisle: "A",
-        aisleName: "Dãy A",
-        shelfId: "s1",
-        shelf: "A-12",
-        shelfName: "Kệ A-12",
-        shelfLevelId: "sl3",
-        shelfLevel: 3,
-      },
       actions: ["START_GUIDANCE"],
       bookItems: [
         {

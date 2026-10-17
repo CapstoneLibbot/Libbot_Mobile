@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { GAZEBO_MAP, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import { GAZEBO_MAP, getEndpointsForTargetMap, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import type { GuidanceMapEndpoint } from "../types/guidance.types";
 
 describe("Gazebo map world coordinates", () => {
   it("maps the FE occupancy origin to the lower-left pixel using the FE axis direction", () => {
@@ -19,5 +20,20 @@ describe("Gazebo map world coordinates", () => {
 
     expect(worldToGazeboPixel(worldPoint).x).toBeCloseTo(pixelX);
     expect(worldToGazeboPixel(worldPoint).y).toBeCloseTo(pixelY);
+  });
+
+  it("shows active endpoints from the selected book endpoint's map only", () => {
+    const endpoints: GuidanceMapEndpoint[] = [
+      { id: "target", mapId: "map-a", name: "Endpoint 1", x: 1, y: 2, theta: 0, isActive: true },
+      { id: "same-map", mapId: "map-a", name: "Endpoint 2", x: 2, y: 3, theta: 0, isActive: true },
+      { id: "inactive", mapId: "map-a", name: "Inactive", x: 3, y: 4, theta: 0, isActive: false },
+      { id: "other-map", mapId: "map-b", name: "Endpoint 3", x: 4, y: 5, theta: 0, isActive: true },
+    ];
+
+    expect(getEndpointsForTargetMap(endpoints, "target").map(({ id }) => id)).toEqual([
+      "target",
+      "same-map",
+    ]);
+    expect(getEndpointsForTargetMap(endpoints, "missing")).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import mapMetadataJson from "../../../../assets/maps/library-map.json";
+import type { GuidanceMapEndpoint } from "../types/guidance.types";
 
 export interface GazeboMapMetadata {
   imageWidth: number;
@@ -16,4 +17,14 @@ export function worldToGazeboPixel(point: { x: number; y: number }): { x: number
     x: (point.x - GAZEBO_MAP.origin[0]) / GAZEBO_MAP.resolution,
     y: GAZEBO_MAP.imageHeight - (point.y - GAZEBO_MAP.origin[1]) / GAZEBO_MAP.resolution,
   };
+}
+
+export function getEndpointsForTargetMap(
+  endpoints: GuidanceMapEndpoint[],
+  targetEndpointId?: string | null,
+): GuidanceMapEndpoint[] {
+  if (!targetEndpointId) return [];
+  const target = endpoints.find((endpoint) => endpoint.id === targetEndpointId);
+  if (!target) return [];
+  return endpoints.filter((endpoint) => endpoint.isActive && endpoint.mapId === target.mapId);
 }

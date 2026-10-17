@@ -7,6 +7,16 @@ export interface RobotPose {
   yaw: number;
 }
 
+export interface GuidanceMapEndpoint {
+  id: string;
+  mapId: string;
+  name: string;
+  x: number;
+  y: number;
+  theta: number;
+  isActive: boolean;
+}
+
 export interface GuidanceMission {
   id: string;
   bookId: string;

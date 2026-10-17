@@ -10,9 +10,10 @@ import { colors, radius, spacing } from "@/shared/theme";
 import { GazeboMap2D } from "../components/GazeboMap2D";
 import { bookGuidanceApi, hasNavigationEndpoint } from "../api/bookGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
-import type { RobotRuntime } from "../api/bookGuidance.api";
+import type { BookGuidanceExecution, RobotRuntime } from "../api/bookGuidance.api";
 import type { Book } from "@/features/catalog/types/catalog.types";
-import type { GuidanceSession, RobotPose } from "../types/guidance.types";
+import type { GuidanceMapEndpoint, GuidanceSession, RobotPose } from "../types/guidance.types";
+import { getEndpointsForTargetMap } from "../utils/gazeboMapCoordinates";
 
 export interface GuidanceScreenProps {
   bookId: string;
@@ -30,6 +31,31 @@ function isTerminal(status?: string): boolean {
   return status === "completed" || status === "failed";
 }
 
+function getWorkflowFailureDetails(execution?: BookGuidanceExecution | null): {
+  step?: string;
+  code?: string;
+  message?: string;
+} {
+  const results = execution?.result?.results ?? [];
+  const failedStep = execution?.result?.failed_step ?? execution?.currentStep ?? undefined;
+  const failedStepResult = results.find((item) => item.step === failedStep)
+    ?? results.find((item) => ["error", "failed", "timeout"].includes(item.result?.status?.toLowerCase() ?? ""));
+  return {
+    step: failedStep ?? undefined,
+    code: failedStepResult?.result?.nav2_result_code ?? undefined,
+    message: failedStepResult?.result?.message ?? execution?.error ?? execution?.message ?? undefined,
+  };
+}
+
+function formatWorkflowFailure(execution: BookGuidanceExecution): string {
+  const details = getWorkflowFailureDetails(execution);
+  return [
+    details.step ? `Bước ${details.step}` : undefined,
+    details.code,
+    details.message,
+  ].filter(Boolean).join(" · ") || "BookGuidance workflow thất bại.";
+}
+
 export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSearch }: GuidanceScreenProps): React.ReactElement {
   const { insets, isCompactWidth } = useResponsiveLayout();
   const session = useKioskStore((state) => state.activeGuidanceSession);
@@ -39,7 +65,9 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   const [loadedBookId, setLoadedBookId] = useState<string | null>(null);
   const [runtimes, setRuntimes] = useState<RobotRuntime[]>([]);
   const [runtimeId, setRuntimeId] = useState(session?.bookId === bookId && session.bookItemId === bookItemId ? session.runtimeId : "sim");
-  const [execution, setExecution] = useState<{ status: string; currentStep?: string | null; currentStepType?: string | null; expectedEventType?: string | null } | null>(null);
+  const [execution, setExecution] = useState<BookGuidanceExecution | null>(null);
+  const [mapEndpoints, setMapEndpoints] = useState<GuidanceMapEndpoint[]>([]);
+  const [mapEndpointsError, setMapEndpointsError] = useState<string | null>(null);
   const [armLeaseId, setArmLeaseId] = useState<string | null>(session?.armLeaseId ?? null);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,6 +86,11 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   const destination = useMemo<RobotPose | null>(() => hasNavigationEndpoint(endpoint)
     ? { x: endpoint.x, y: endpoint.y, yaw: endpoint.theta }
     : null, [endpoint]);
+  const libraryEndpoints = useMemo(
+    () => getEndpointsForTargetMap(mapEndpoints, endpoint?.endpointId),
+    [mapEndpoints, endpoint?.endpointId],
+  );
+  const workflowFailure = useMemo(() => getWorkflowFailureDetails(execution), [execution]);
   const runtimeMatchesSelection = runtime?.id === runtimeId;
   const robotPose = runtimeMatchesSelection ? runtime?.telemetry?.pose ?? null : null;
   const route = runtimeMatchesSelection ? runtime?.telemetry?.plannedPath?.map((point) => ({ ...point, yaw: 0 })) ?? [] : [];
@@ -93,6 +126,22 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
       .catch((error: unknown) => { if (mounted) setErrorMessage(getErrorMessage(error)); });
     return () => { mounted = false; };
   }, [runtimeId]);
+
+  useEffect(() => {
+    let mounted = true;
+    void bookGuidanceApi.getMapEndpoints()
+      .then((items) => {
+        if (!mounted) return;
+        setMapEndpoints(items);
+        setMapEndpointsError(null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setMapEndpoints([]);
+        setMapEndpointsError("Không tải được các điểm kệ trên bản đồ.");
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const postCompletion = useCallback(async (missionId: string, succeeded: boolean, message?: string) => {
     if (completionPosted.current) return;
@@ -133,7 +182,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
           await postCompletion(activeSession.missionId, true);
         } else if (state.status.toLowerCase() === "failed") {
           if (activeSession.status !== "failed") setSession({ ...activeSession, status: "failed" });
-          await postCompletion(activeSession.missionId, false, state.error ?? "BookGuidance workflow failed.");
+          await postCompletion(activeSession.missionId, false, formatWorkflowFailure(state));
         } else {
           const status = state.currentStep === "S120" || runtime?.telemetry?.navigationState?.toUpperCase() === "NAVIGATING"
             ? "navigating" : eventType ? "waiting" : "starting";
@@ -267,6 +316,8 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
           runtimeLabel={runtime?.kind === "REAL" ? "REAL" : "SIM"}
           destination={destination}
           destinationLabel={selectedCopy?.shelf ?? "Vị trí sách"}
+          mapEndpoints={libraryEndpoints}
+          selectedEndpointId={endpoint?.endpointId}
           path={route}
           testID="gazebo-guidance-map"
         />
@@ -274,8 +325,10 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         <View style={styles.legend}>
           <LegendDot color="#0284c7" label={robotPose ? "Robot realtime" : "Chưa nhận pose robot"} />
           <LegendDot color="#ea580c" label="Bản sao sách" />
+          <LegendDot color="#047857" label="Điểm thư viện" />
           <LegendDot color="#2563eb" label={route.length > 1 ? "Lộ trình Nav2" : "Chưa có plannedPath"} />
         </View>
+        {mapEndpointsError && <AppText variant="caption" color={colors.subtext}>{mapEndpointsError}</AppText>}
         <View style={styles.mapCaption}>
           <AppText variant="caption" color={colors.subtext}>
             {realtimeConnected ? "Realtime SignalR" : "Đang cập nhật bằng REST polling"} • tọa độ cùng origin và tỷ lệ với bản đồ FE
@@ -287,13 +340,26 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
           <View style={styles.errorBox}><AppText variant="body" color="#9f1239">Bản sao này thiếu endpoint tọa độ. Hãy chọn bản sao khác có vị trí đã cấu hình.</AppText></View>
         )}
         {activeSession && (
-          <View style={styles.workflowCard}>
-            <View style={styles.workflowIcon}><Radio size={18} color={isArrived ? "#047857" : "#1d4ed8"} /></View>
+          <View style={[styles.workflowCard, workflowStatus === "failed" && styles.workflowCardFailed]}>
+            <View style={[styles.workflowIcon, workflowStatus === "failed" && styles.workflowIconFailed]}>
+              <Radio size={18} color={isArrived ? "#047857" : workflowStatus === "failed" ? "#be123c" : "#1d4ed8"} />
+            </View>
             <View style={styles.bookDetails}>
-          <AppText variant="subtitle">{isArrived ? "Đã đến vị trí sách" : workflowStatus === "failed" ? "Workflow bị từ chối" : execution?.currentStep === "S170" ? "Đang hoàn tất BookGuidance" : workflowStatus === "navigating" ? "LiBot đang dẫn đường" : "Đang chạy BookGuidance"}</AppText>
+          <AppText variant="subtitle">{isArrived ? "Đã đến vị trí sách" : workflowStatus === "failed" ? "Workflow thất bại" : execution?.currentStep === "S170" ? "Đang hoàn tất BookGuidance" : workflowStatus === "navigating" ? "LiBot đang dẫn đường" : "Đang chạy BookGuidance"}</AppText>
               <AppText variant="caption" color={colors.subtext}>{execution?.currentStep ?? "Đang chờ workflow"} • {activeSession.runtimeId} • {activeSession.executionId.slice(0, 8)}</AppText>
             </View>
             {isArrived && <CheckCircle2 size={22} color="#059669" />}
+          </View>
+        )}
+
+        {workflowStatus === "failed" && (
+          <View style={styles.errorBox} testID="book-guidance-failure-details">
+            {workflowFailure.step && <AppText variant="body" color="#9f1239">Bước thất bại: {workflowFailure.step}</AppText>}
+            {workflowFailure.code && <AppText variant="caption" color="#9f1239">Mã Nav2: {workflowFailure.code}</AppText>}
+            {workflowFailure.message && <AppText variant="caption" color="#9f1239">{workflowFailure.message}</AppText>}
+            {!workflowFailure.step && !workflowFailure.code && !workflowFailure.message && (
+              <AppText variant="body" color="#9f1239">Workflow không hoàn thành. Chưa có chi tiết lỗi từ robot.</AppText>
+            )}
           </View>
         )}
 
@@ -358,6 +424,8 @@ const styles = StyleSheet.create({
   inline: { flexDirection: "row", alignItems: "center", gap: 8, padding: 8 },
   workflowCard: { padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: "#dbeafe", backgroundColor: "#eff6ff", flexDirection: "row", alignItems: "center", gap: 10 },
   workflowIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center" },
+  workflowCardFailed: { borderColor: "#fecdd3", backgroundColor: "#fff1f2" },
+  workflowIconFailed: { backgroundColor: "#ffe4e6" },
   errorBox: { padding: 12, borderRadius: 12, backgroundColor: "#fff1f2", borderWidth: 1, borderColor: "#fecdd3" },
   armButton: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: "#bfdbfe", backgroundColor: "#eff6ff", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9 },
   actionRow: { flexDirection: "row", gap: 10 },

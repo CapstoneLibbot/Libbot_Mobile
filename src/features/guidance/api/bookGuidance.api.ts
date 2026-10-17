@@ -1,5 +1,16 @@
 import { apiClient } from "@/services/api/client";
 import type { NavigationEndpointDto } from "@/features/catalog/api/catalog.dto";
+import type { GuidanceMapEndpoint } from "../types/guidance.types";
+
+interface LibraryEndpointDto {
+  id: string;
+  mapId: string;
+  name: string;
+  positionX: number;
+  positionY: number;
+  theta: number;
+  isActive: boolean;
+}
 
 export interface RobotRuntimeTelemetry {
   timestamp: string;
@@ -47,6 +58,19 @@ export interface BookGuidanceExecution {
   allowedValues?: string[];
   error?: string | null;
   message?: string | null;
+  result?: {
+    failed_step?: string | null;
+    results?: {
+      step?: string | null;
+      step_type?: string | null;
+      result?: {
+        status?: string | null;
+        move_status?: string | null;
+        nav2_result_code?: string | null;
+        message?: string | null;
+      } | null;
+    }[];
+  } | null;
 }
 
 export interface RuntimeArmLease {
@@ -56,6 +80,28 @@ export interface RuntimeArmLease {
 }
 
 export const bookGuidanceApi = {
+  async getMapEndpoints(): Promise<GuidanceMapEndpoint[]> {
+    const response = await apiClient.get<LibraryEndpointDto[]>("/endpoints");
+    return response.data
+      .filter((endpoint) => (
+        typeof endpoint.id === "string"
+        && typeof endpoint.mapId === "string"
+        && typeof endpoint.name === "string"
+        && Number.isFinite(endpoint.positionX)
+        && Number.isFinite(endpoint.positionY)
+        && Number.isFinite(endpoint.theta)
+      ))
+      .map((endpoint) => ({
+        id: endpoint.id,
+        mapId: endpoint.mapId,
+        name: endpoint.name,
+        x: endpoint.positionX,
+        y: endpoint.positionY,
+        theta: endpoint.theta,
+        isActive: endpoint.isActive,
+      }));
+  },
+
   async getRuntimes(): Promise<RobotRuntime[]> {
     const response = await apiClient.get<RobotRuntime[]>("/robot-runtimes");
     return response.data;

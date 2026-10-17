@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import Svg, { Circle, G, Line, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
-import type { RobotPose } from "../types/guidance.types";
+import type { GuidanceMapEndpoint, RobotPose } from "../types/guidance.types";
 import { GAZEBO_MAP as map, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
 
 export interface GazeboMap2DProps {
@@ -10,6 +10,8 @@ export interface GazeboMap2DProps {
   runtimeLabel?: string;
   destination?: RobotPose | null;
   destinationLabel?: string;
+  mapEndpoints?: GuidanceMapEndpoint[];
+  selectedEndpointId?: string | null;
   path?: { x: number; y: number }[] | null;
   frameStyle?: StyleProp<ViewStyle>;
   testID?: string;
@@ -21,6 +23,8 @@ export function GazeboMap2D({
   runtimeLabel,
   destination,
   destinationLabel,
+  mapEndpoints = [],
+  selectedEndpointId,
   path,
   frameStyle,
   testID = "gazebo-map-2d",
@@ -32,6 +36,16 @@ export function GazeboMap2D({
     [path],
   );
   const routeString = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const endpointMarkers = useMemo(
+    () => mapEndpoints
+      .filter((endpoint) => endpoint.id !== selectedEndpointId)
+      .map((endpoint) => ({ endpoint, pixel: worldToGazeboPixel(endpoint) }))
+      .filter(({ pixel }) => (
+        pixel.x >= 0 && pixel.x <= map.imageWidth
+        && pixel.y >= 0 && pixel.y <= map.imageHeight
+      )),
+    [mapEndpoints, selectedEndpointId],
+  );
   const label = (destinationLabel ?? "Vị trí sách").slice(0, 12);
   const labelWidth = Math.max(12, Math.min(24, label.length * 1.35 + 2.5));
   const labelX = targetPixel && targetPixel.x > map.imageWidth * 0.66
@@ -74,6 +88,41 @@ export function GazeboMap2D({
           </>
         )}
 
+        {endpointMarkers.map(({ endpoint, pixel }) => {
+          const endpointLabel = endpoint.name.trim().slice(0, 16);
+          const endpointLabelWidth = Math.max(10, Math.min(24, endpointLabel.length * 1.25 + 2));
+          const endpointLabelX = pixel.x > map.imageWidth - endpointLabelWidth - 3
+            ? pixel.x - endpointLabelWidth - 2
+            : pixel.x + 2;
+          const endpointLabelY = pixel.y < 6 ? pixel.y + 2.2 : pixel.y - 5;
+
+          return (
+            <G key={`library-endpoint-${endpoint.id}`}>
+              <Circle cx={pixel.x} cy={pixel.y} r={2.3} fill="#047857" fillOpacity={0.16} />
+              <Circle cx={pixel.x} cy={pixel.y} r={1.1} fill="#ecfdf5" stroke="#047857" strokeWidth={0.55} />
+              <Rect
+                x={endpointLabelX}
+                y={endpointLabelY}
+                width={endpointLabelWidth}
+                height={3.7}
+                rx={0.9}
+                fill="#f0fdf4"
+                stroke="#86efac"
+                strokeWidth={0.22}
+              />
+              <SvgText
+                x={endpointLabelX + 1}
+                y={endpointLabelY + 2.5}
+                fill="#166534"
+                fontSize={1.75}
+                fontWeight="700"
+              >
+                {endpointLabel}
+              </SvgText>
+            </G>
+          );
+        })}
+
         {targetPixel && destination && (
           <G>
             <Circle cx={targetPixel.x} cy={targetPixel.y} r={3.7} fill="#f97316" fillOpacity={0.16} />
@@ -93,10 +142,10 @@ export function GazeboMap2D({
         )}
 
         <G>
-          <Rect x={2} y={2} width={runtimeLabel ? 25 : 20} height={4.7} rx={1.4} fill="#ffffff" fillOpacity={0.94} stroke="#cbd5e1" strokeWidth={0.25} />
+          <Rect x={2} y={2} width={runtimeLabel ? 29 : 24} height={4.7} rx={1.4} fill="#ffffff" fillOpacity={0.94} stroke="#cbd5e1" strokeWidth={0.25} />
           <Circle cx={4.1} cy={4.35} r={0.8} fill={robotConnected ? "#10b981" : "#94a3b8"} />
           <SvgText x={5.8} y={5.2} fill="#334155" fontSize={2.25} fontWeight="700">
-            {runtimeLabel ? `GAZEBO 2D · ${runtimeLabel.slice(0, 8)}` : "GAZEBO 2D"}
+            {runtimeLabel ? `THƯ VIỆN · ${runtimeLabel.slice(0, 8)}` : "BẢN ĐỒ THƯ VIỆN"}
           </SvgText>
         </G>
 

@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { GAZEBO_MAP, getEndpointsForTargetMap, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import { getEndpointsForTargetMap, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
 import type { GuidanceMapEndpoint } from "../types/guidance.types";
+
+const COORDINATE_FRAME = {
+  imageWidth: 100,
+  imageHeight: 80,
+  resolution: 0.05,
+  origin: [-1, -2, 0] as [number, number, number],
+  obstacles: [],
+};
 
 describe("Gazebo map world coordinates", () => {
   it("maps the FE occupancy origin to the lower-left pixel using the FE axis direction", () => {
-    expect(worldToGazeboPixel({ x: GAZEBO_MAP.origin[0], y: GAZEBO_MAP.origin[1] })).toEqual({
+    expect(worldToGazeboPixel({ x: COORDINATE_FRAME.origin[0], y: COORDINATE_FRAME.origin[1] }, COORDINATE_FRAME)).toEqual({
       x: 0,
-      y: GAZEBO_MAP.imageHeight,
+      y: COORDINATE_FRAME.imageHeight,
     });
   });
 
@@ -14,12 +22,12 @@ describe("Gazebo map world coordinates", () => {
     const pixelX = 42;
     const pixelY = 16;
     const worldPoint = {
-      x: GAZEBO_MAP.origin[0] + pixelX * GAZEBO_MAP.resolution,
-      y: GAZEBO_MAP.origin[1] + (GAZEBO_MAP.imageHeight - pixelY) * GAZEBO_MAP.resolution,
+      x: COORDINATE_FRAME.origin[0] + pixelX * COORDINATE_FRAME.resolution,
+      y: COORDINATE_FRAME.origin[1] + (COORDINATE_FRAME.imageHeight - pixelY) * COORDINATE_FRAME.resolution,
     };
 
-    expect(worldToGazeboPixel(worldPoint).x).toBeCloseTo(pixelX);
-    expect(worldToGazeboPixel(worldPoint).y).toBeCloseTo(pixelY);
+    expect(worldToGazeboPixel(worldPoint, COORDINATE_FRAME).x).toBeCloseTo(pixelX);
+    expect(worldToGazeboPixel(worldPoint, COORDINATE_FRAME).y).toBeCloseTo(pixelY);
   });
 
   it("shows active endpoints from the selected book endpoint's map only", () => {

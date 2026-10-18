@@ -1,8 +1,17 @@
 import React, { useMemo } from "react";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import Svg, { Circle, G, Line, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import type { GuidanceMapEndpoint, RobotPose } from "../types/guidance.types";
-import { GAZEBO_MAP as map, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import { getOccupancyPaths, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
+
+const EMPTY_MAP: GazeboMapMetadata = {
+  imageWidth: 1,
+  imageHeight: 1,
+  resolution: 1,
+  origin: [0, 0, 0],
+  obstacles: [],
+};
 
 export interface GazeboMap2DProps {
   robot?: RobotPose | null;
@@ -13,6 +22,7 @@ export interface GazeboMap2DProps {
   mapEndpoints?: GuidanceMapEndpoint[];
   selectedEndpointId?: string | null;
   path?: { x: number; y: number }[] | null;
+  mapMetadata?: GazeboMapMetadata;
   frameStyle?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -26,25 +36,28 @@ export function GazeboMap2D({
   mapEndpoints = [],
   selectedEndpointId,
   path,
+  mapMetadata,
   frameStyle,
   testID = "gazebo-map-2d",
 }: GazeboMap2DProps): React.ReactElement {
-  const robotPixel = robot ? worldToGazeboPixel(robot) : null;
-  const targetPixel = destination ? worldToGazeboPixel(destination) : null;
+  const map = mapMetadata ?? EMPTY_MAP;
+  const robotPixel = robot ? worldToGazeboPixel(robot, map) : null;
+  const targetPixel = destination ? worldToGazeboPixel(destination, map) : null;
   const routePoints = useMemo(
-    () => (path ?? []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)).map(worldToGazeboPixel),
-    [path],
+    () => (path ?? []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)).map((point) => worldToGazeboPixel(point, map)),
+    [path, map],
   );
   const routeString = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const occupancyPaths = useMemo(() => getOccupancyPaths(map), [map]);
   const endpointMarkers = useMemo(
     () => mapEndpoints
       .filter((endpoint) => endpoint.id !== selectedEndpointId)
-      .map((endpoint) => ({ endpoint, pixel: worldToGazeboPixel(endpoint) }))
+      .map((endpoint) => ({ endpoint, pixel: worldToGazeboPixel(endpoint, map) }))
       .filter(({ pixel }) => (
         pixel.x >= 0 && pixel.x <= map.imageWidth
         && pixel.y >= 0 && pixel.y <= map.imageHeight
       )),
-    [mapEndpoints, selectedEndpointId],
+    [mapEndpoints, selectedEndpointId, map],
   );
   const label = (destinationLabel ?? "Vị trí sách").slice(0, 12);
   const labelWidth = Math.max(12, Math.min(24, label.length * 1.35 + 2.5));
@@ -53,8 +66,16 @@ export function GazeboMap2D({
     : (targetPixel?.x ?? 0) + 2;
   const labelY = Math.max(1, (targetPixel?.y ?? 0) - 6);
 
+  if (!mapMetadata) {
+    return (
+      <View style={[styles.frame, styles.emptyFrame, frameStyle]} testID={testID}>
+        <Text style={styles.emptyText}>Đang tải map robot mới nhất từ BE…</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.frame, frameStyle]} testID={testID}>
+    <View style={[styles.frame, { aspectRatio: map.imageWidth / map.imageHeight }, frameStyle]} testID={testID}>
       <Svg
         width="100%"
         height="100%"
@@ -63,13 +84,12 @@ export function GazeboMap2D({
         accessibilityLabel="Bản đồ occupancy Gazebo 2D"
       >
         <Rect x={0} y={0} width={map.imageWidth} height={map.imageHeight} fill="#f1f5f9" />
-        {Array.from({ length: Math.ceil(map.imageWidth / 10) + 1 }, (_, index) => (
-          <Line key={`grid-v-${index}`} x1={index * 10} y1={0} x2={index * 10} y2={map.imageHeight} stroke="#94a3b8" strokeOpacity={0.2} strokeWidth={0.16} />
-        ))}
-        {Array.from({ length: Math.ceil(map.imageHeight / 10) + 1 }, (_, index) => (
-          <Line key={`grid-h-${index}`} x1={0} y1={index * 10} x2={map.imageWidth} y2={index * 10} stroke="#94a3b8" strokeOpacity={0.2} strokeWidth={0.16} />
-        ))}
-        {map.obstacles.map((obstacle, index) => (
+        {map.cells
+          ? <>
+            {occupancyPaths.unknown && <Path d={occupancyPaths.unknown} fill="#94a3b8" />}
+            {occupancyPaths.occupied && <Path d={occupancyPaths.occupied} fill="#334155" />}
+          </>
+          : map.obstacles.map((obstacle, index) => (
           <Rect
             key={`occupied-${index}`}
             x={obstacle.pixelX}
@@ -78,6 +98,12 @@ export function GazeboMap2D({
             height={obstacle.pixelHeight}
             fill="#334155"
           />
+          ))}
+        {Array.from({ length: Math.ceil(map.imageWidth / 10) + 1 }, (_, index) => (
+          <Line key={`grid-v-${index}`} x1={index * 10} y1={0} x2={index * 10} y2={map.imageHeight} stroke="#94a3b8" strokeOpacity={0.2} strokeWidth={0.16} />
+        ))}
+        {Array.from({ length: Math.ceil(map.imageHeight / 10) + 1 }, (_, index) => (
+          <Line key={`grid-h-${index}`} x1={0} y1={index * 10} x2={map.imageWidth} y2={index * 10} stroke="#94a3b8" strokeOpacity={0.2} strokeWidth={0.16} />
         ))}
         <Rect x={0.15} y={0.15} width={map.imageWidth - 0.3} height={map.imageHeight - 0.3} fill="none" stroke="#cbd5e1" strokeWidth={0.3} />
 
@@ -163,12 +189,22 @@ export function GazeboMap2D({
 const styles = StyleSheet.create({
   frame: {
     width: "100%",
-    aspectRatio: map.imageWidth / map.imageHeight,
     maxHeight: 430,
     overflow: "hidden",
     borderRadius: 16,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
     borderColor: "#cbd5e1",
+  },
+  emptyFrame: {
+    minHeight: 220,
+    aspectRatio: undefined,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  emptyText: {
+    color: "#475569",
+    textAlign: "center",
   },
 });

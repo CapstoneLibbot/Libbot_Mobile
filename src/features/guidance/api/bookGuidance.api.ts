@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/api/client";
 import type { NavigationEndpointDto } from "@/features/catalog/api/catalog.dto";
 import type { GuidanceMapEndpoint } from "../types/guidance.types";
+import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
 interface LibraryEndpointDto {
   id: string;
@@ -80,6 +81,52 @@ export interface RuntimeArmLease {
 }
 
 export const bookGuidanceApi = {
+  async getLatestRobotMap(): Promise<{ id: string; name: string; version: string } | null> {
+    const response = await apiClient.get<{ id: string; name: string; version: string } | null>(
+      "/robot-runtimes/real/maps/latest",
+    );
+    return response.data;
+  },
+
+  async getRobotMap(mapId: string): Promise<GazeboMapMetadata | null> {
+    const response = await apiClient.get<{
+      id: string;
+      name: string;
+      version: string;
+      width: number;
+      height: number;
+      data?: {
+        format?: string;
+        resolution?: number;
+        origin?: unknown;
+        cells?: unknown;
+      } | null;
+    }>(`/maps/${encodeURIComponent(mapId)}`);
+    const saved = response.data;
+    const origin = saved.data?.origin;
+    const cells = saved.data?.cells;
+    if (saved.data?.format !== "occupancy-grid-v1"
+      || !Number.isInteger(saved.width) || saved.width <= 0
+      || !Number.isInteger(saved.height) || saved.height <= 0
+      || typeof saved.data.resolution !== "number" || saved.data.resolution <= 0
+      || !Array.isArray(origin) || origin.length < 3 || !origin.slice(0, 3).every((value) => typeof value === "number")
+      || !Array.isArray(cells) || cells.length !== saved.width * saved.height
+      || !cells.every((value) => typeof value === "number")) {
+      return null;
+    }
+    return {
+      id: saved.id,
+      name: saved.name,
+      version: saved.version,
+      imageWidth: saved.width,
+      imageHeight: saved.height,
+      resolution: saved.data.resolution,
+      origin: origin.slice(0, 3) as [number, number, number],
+      obstacles: [],
+      cells: cells as number[],
+    };
+  },
+
   async getMapEndpoints(): Promise<GuidanceMapEndpoint[]> {
     const response = await apiClient.get<LibraryEndpointDto[]>("/endpoints");
     return response.data

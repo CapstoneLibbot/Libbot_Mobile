@@ -14,6 +14,7 @@ import type { BookGuidanceExecution, RobotRuntime } from "../api/bookGuidance.ap
 import type { Book } from "@/features/catalog/types/catalog.types";
 import type { GuidanceMapEndpoint, GuidanceSession, RobotPose } from "../types/guidance.types";
 import { getEndpointsForTargetMap } from "../utils/gazeboMapCoordinates";
+import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
 export interface GuidanceScreenProps {
   bookId: string;
@@ -68,10 +69,13 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   const [execution, setExecution] = useState<BookGuidanceExecution | null>(null);
   const [mapEndpoints, setMapEndpoints] = useState<GuidanceMapEndpoint[]>([]);
   const [mapEndpointsError, setMapEndpointsError] = useState<string | null>(null);
+  const [savedRobotMap, setSavedRobotMap] = useState<GazeboMapMetadata | null>(null);
+  const [savedRobotMapError, setSavedRobotMapError] = useState<string | null>(null);
   const [armLeaseId, setArmLeaseId] = useState<string | null>(session?.armLeaseId ?? null);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const sentEvents = useRef(new Set<string>());
+  const savedRobotMapId = useRef<string | null>(null);
   const pollInFlight = useRef(false);
   const completionPosted = useRef(false);
 
@@ -92,6 +96,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   );
   const workflowFailure = useMemo(() => getWorkflowFailureDetails(execution), [execution]);
   const runtimeMatchesSelection = runtime?.id === runtimeId;
+  const selectedSavedRobotMap = savedRobotMap;
   const robotPose = runtimeMatchesSelection ? runtime?.telemetry?.pose ?? null : null;
   const route = runtimeMatchesSelection ? runtime?.telemetry?.plannedPath?.map((point) => ({ ...point, yaw: 0 })) ?? [] : [];
   const isReal = runtime?.kind?.toUpperCase() === "REAL" || runtimeId.toLowerCase() === "real";
@@ -141,6 +146,44 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         setMapEndpointsError("Không tải được các điểm kệ trên bản đồ.");
       });
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let requestInProgress = false;
+    savedRobotMapId.current = null;
+
+    const refreshSavedRobotMap = async () => {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      try {
+        const latest = await bookGuidanceApi.getLatestRobotMap();
+        if (!mounted) return;
+        if (!latest) {
+          savedRobotMapId.current = null;
+          setSavedRobotMap(null);
+          setSavedRobotMapError("BE chưa có map robot đã lưu trong database.");
+          return;
+        }
+        if (latest.id === savedRobotMapId.current) return;
+        const nextMap = await bookGuidanceApi.getRobotMap(latest.id);
+        if (mounted && nextMap) {
+          savedRobotMapId.current = latest.id;
+          setSavedRobotMap(nextMap);
+          setSavedRobotMapError(null);
+        } else if (mounted) {
+          setSavedRobotMapError("Dữ liệu map mới nhất không hợp lệ; đang giữ map trước đó.");
+        }
+      } catch {
+        if (mounted) setSavedRobotMapError("Không tải được map mới nhất từ BE; đang dùng map đã tải trước đó.");
+      } finally {
+        requestInProgress = false;
+      }
+    };
+
+    void refreshSavedRobotMap();
+    const timer = setInterval(() => { void refreshSavedRobotMap(); }, 5000);
+    return () => { mounted = false; clearInterval(timer); };
   }, []);
 
   const postCompletion = useCallback(async (missionId: string, succeeded: boolean, message?: string) => {
@@ -313,12 +356,13 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         <GazeboMap2D
           robot={robotPose}
           robotConnected={Boolean(runtime?.connected && !runtime.stale)}
-          runtimeLabel={runtime?.kind === "REAL" ? "REAL" : "SIM"}
+          runtimeLabel={selectedSavedRobotMap ? `MAP V${selectedSavedRobotMap.version}` : runtime?.kind === "REAL" ? "REAL" : "SIM"}
           destination={destination}
           destinationLabel={selectedCopy?.shelf ?? "Vị trí sách"}
           mapEndpoints={libraryEndpoints}
           selectedEndpointId={endpoint?.endpointId}
           path={route}
+          mapMetadata={selectedSavedRobotMap ?? undefined}
           testID="gazebo-guidance-map"
         />
 
@@ -333,6 +377,8 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
           <AppText variant="caption" color={colors.subtext}>
             {realtimeConnected ? "Realtime SignalR" : "Đang cập nhật bằng REST polling"} • tọa độ cùng origin và tỷ lệ với bản đồ FE
           </AppText>
+          {selectedSavedRobotMap && <AppText variant="caption" color={colors.subtext}>Map robot mới nhất: {selectedSavedRobotMap.name} · v{selectedSavedRobotMap.version}</AppText>}
+          {savedRobotMapError && <AppText variant="caption" color="#9f1239">{savedRobotMapError}</AppText>}
         </View>
 
         {bookLoading && <View style={styles.inline}><ActivityIndicator color={colors.primary} /><AppText variant="caption">Đang tải vị trí bản sao…</AppText></View>}

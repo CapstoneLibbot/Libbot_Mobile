@@ -53,6 +53,17 @@ export const runtimeTelemetryPayloadSchema = z.object({
   }).nullable(),
 }).passthrough();
 
+export const occupancyGridPayloadSchema = z.object({
+  timestamp: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  resolution: z.number().positive(),
+  originX: z.number(),
+  originY: z.number(),
+  originYaw: z.number(),
+  data: z.array(z.number().int().min(-1).max(100)),
+});
+
 export type RealtimeEventName =
   | "RobotPositionUpdated"
   | "RobotStatusChanged"
@@ -61,7 +72,8 @@ export type RealtimeEventName =
   | "MissionStatusChanged"
   | "MissionStepChanged"
   | "RobotTelemetryUpdated"
-  | "RuntimeConnectionChanged";
+  | "RuntimeConnectionChanged"
+  | "RobotMapUpdated";
 
 export interface RealtimeEventMap {
   RobotPositionUpdated: z.infer<typeof robotPositionPayloadSchema>;
@@ -72,6 +84,7 @@ export interface RealtimeEventMap {
   MissionStepChanged: z.infer<typeof missionStepPayloadSchema>;
   RobotTelemetryUpdated: z.infer<typeof runtimeTelemetryPayloadSchema>;
   RuntimeConnectionChanged: z.infer<typeof runtimeTelemetryPayloadSchema>;
+  RobotMapUpdated: z.infer<typeof occupancyGridPayloadSchema>;
 }
 
 export const realtimeEventSchemas = {
@@ -83,6 +96,7 @@ export const realtimeEventSchemas = {
   MissionStepChanged: missionStepPayloadSchema,
   RobotTelemetryUpdated: runtimeTelemetryPayloadSchema,
   RuntimeConnectionChanged: runtimeTelemetryPayloadSchema,
+  RobotMapUpdated: occupancyGridPayloadSchema,
 };
 
 export function validateRealtimePayload<T extends RealtimeEventName>(

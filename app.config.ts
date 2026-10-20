@@ -5,7 +5,7 @@ const config: ExpoConfig = {
   slug: "libot-mobile",
   scheme: "libotmobile",
   version: "1.0.0",
-  orientation: "landscape",
+  orientation: "default",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   plugins: [
@@ -22,7 +22,7 @@ const config: ExpoConfig = {
     ],
     "expo-font",
     "expo-secure-store",
-    ["expo-screen-orientation", { initialOrientation: "LANDSCAPE" }],
+      ["expo-screen-orientation", { initialOrientation: "DEFAULT" }],
   ],
   ios: {
     bundleIdentifier: "com.yourorg.libot",

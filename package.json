@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^15.0.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@hookform/resolvers": "^5.9.1",
     "@microsoft/signalr": "^10.0.11",
@@ -29,6 +30,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
+    "react-native-webrtc": "^155.0.1",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },

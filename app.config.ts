@@ -22,6 +22,13 @@ const config: ExpoConfig = {
     ],
     "expo-font",
     "expo-secure-store",
+    [
+      "@config-plugins/react-native-webrtc",
+      {
+        microphonePermission:
+          "Cho phép LiBot sử dụng microphone để hỗ trợ tìm sách và địa điểm trong thư viện.",
+      },
+    ],
     ["expo-screen-orientation", { initialOrientation: "LANDSCAPE" }],
   ],
   ios: {

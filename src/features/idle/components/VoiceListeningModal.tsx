@@ -1,11 +1,12 @@
 import { Mic, X } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
 import { AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
+import { useRealtimeVoiceSession } from "../hooks/useRealtimeVoiceSession";
 
 export interface VoiceListeningModalProps {
   visible: boolean;
@@ -19,6 +20,7 @@ export function VoiceListeningModal({
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const setVoiceActive = useKioskStore((state) => state.setVoiceActive);
   const { isTablet, isNarrowHeight, insets, width } = useResponsiveLayout();
+  const { status, error, start, stop } = useRealtimeVoiceSession();
 
   // Animation values initialized once via useState for React 19 safety
   const [pulseAnim] = useState(() => new Animated.Value(0));
@@ -28,39 +30,26 @@ export function VoiceListeningModal({
   const [bar4] = useState(() => new Animated.Value(28));
   const [bar5] = useState(() => new Animated.Value(14));
 
-  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Safe handler to close and notify store
+  // Safe handler to close the live WebRTC session and notify the kiosk store.
   const handleClose = useCallback(() => {
-    if (autoCloseTimerRef.current) {
-      clearTimeout(autoCloseTimerRef.current);
-    }
+    stop();
     setVoiceActive(false);
     recordInteraction();
     onClose();
-  }, [onClose, recordInteraction, setVoiceActive]);
+  }, [onClose, recordInteraction, setVoiceActive, stop]);
 
-  // Reset 10s auto-close timer whenever user taps inside the modal
+  // Register interaction without interrupting a live conversation.
   const handleUserInteraction = useCallback(() => {
     recordInteraction();
-    if (autoCloseTimerRef.current) {
-      clearTimeout(autoCloseTimerRef.current);
-    }
-    autoCloseTimerRef.current = setTimeout(() => {
-      handleClose();
-    }, IDLE_MENU_CONFIG.voiceModalAutoCloseMs);
-  }, [handleClose, recordInteraction]);
+  }, [recordInteraction]);
 
   useEffect(() => {
     if (!visible) return;
 
-    // Suppress idle reset and start auto-close countdown
+    // Suppress idle reset while the live voice session owns the microphone.
     setVoiceActive(true);
     recordInteraction();
-
-    autoCloseTimerRef.current = setTimeout(() => {
-      handleClose();
-    }, IDLE_MENU_CONFIG.voiceModalAutoCloseMs);
+    void start();
 
     // Pulse ring animation loop
     const pulseLoop = Animated.loop(
@@ -110,9 +99,7 @@ export function VoiceListeningModal({
     barLoops.forEach((loop) => loop.start());
 
     return () => {
-      if (autoCloseTimerRef.current) {
-        clearTimeout(autoCloseTimerRef.current);
-      }
+      stop();
       pulseLoop.stop();
       barLoops.forEach((loop) => loop.stop());
       setVoiceActive(false);
@@ -124,11 +111,12 @@ export function VoiceListeningModal({
     bar3,
     bar4,
     bar5,
-    handleClose,
     isNarrowHeight,
     pulseAnim,
     recordInteraction,
     setVoiceActive,
+    start,
+    stop,
   ]);
 
   if (!visible) {
@@ -249,6 +237,19 @@ export function VoiceListeningModal({
         >
           Bạn có thể nói tên sách, tác giả hoặc khu vực bạn muốn tìm.
         </AppText>
+        <AppText
+          variant="caption"
+          color={error ? colors.danger : colors.textSecondary}
+          style={styles.connectionStatus}
+        >
+          {error
+            ? error
+            : status === "connecting"
+              ? "Đang kết nối trợ lý giọng nói…"
+              : status === "stopping"
+                ? "Đang kết thúc cuộc trò chuyện…"
+                : "Bạn có thể nói ngay bây giờ."}
+        </AppText>
       </Pressable>
     </View>
   );
@@ -368,5 +369,10 @@ const styles = StyleSheet.create({
   descriptionNarrow: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  connectionStatus: {
+    textAlign: "center",
+    marginTop: spacing.sm,
+    maxWidth: 360,
   },
 });

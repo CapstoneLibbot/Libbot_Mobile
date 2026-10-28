@@ -11,9 +11,22 @@ export interface GuidanceMapEndpoint {
   id: string;
   mapId: string;
   name: string;
+  endpointType?: "WAYPOINT" | "CHARGER" | "PARK";
   x: number;
   y: number;
   theta: number;
+  isActive: boolean;
+}
+
+export interface GuidanceMapZone {
+  id: string;
+  mapId: string;
+  zoneType: "KEEP_OUT" | "SPEED_LIMIT" | "NO_STOP";
+  maxSpeed: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
   isActive: boolean;
 }
 

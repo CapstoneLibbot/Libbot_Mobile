@@ -1,17 +1,20 @@
 import { apiClient } from "@/services/api/client";
 import type { NavigationEndpointDto } from "@/features/catalog/api/catalog.dto";
-import type { GuidanceMapEndpoint } from "../types/guidance.types";
+import type { GuidanceMapEndpoint, GuidanceMapZone } from "../types/guidance.types";
 import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
 interface LibraryEndpointDto {
   id: string;
   mapId: string;
   name: string;
+  endpointType?: "WAYPOINT" | "CHARGER" | "PARK";
   positionX: number;
   positionY: number;
   theta: number;
   isActive: boolean;
 }
+
+type LibraryZoneDto = GuidanceMapZone;
 
 export interface RobotRuntimeTelemetry {
   timestamp: string;
@@ -127,13 +130,15 @@ export const bookGuidanceApi = {
     };
   },
 
-  async getMapEndpoints(): Promise<GuidanceMapEndpoint[]> {
-    const response = await apiClient.get<LibraryEndpointDto[]>("/endpoints");
+  async getMapEndpoints(mapId?: string): Promise<GuidanceMapEndpoint[]> {
+    const endpointUrl = mapId ? `/maps/${encodeURIComponent(mapId)}/endpoints` : "/endpoints";
+    const response = await apiClient.get<LibraryEndpointDto[]>(endpointUrl);
     return response.data
       .filter((endpoint) => (
         typeof endpoint.id === "string"
-        && typeof endpoint.mapId === "string"
+        && (!mapId || endpoint.mapId === mapId)
         && typeof endpoint.name === "string"
+        && (!endpoint.endpointType || ["WAYPOINT", "CHARGER", "PARK"].includes(endpoint.endpointType))
         && Number.isFinite(endpoint.positionX)
         && Number.isFinite(endpoint.positionY)
         && Number.isFinite(endpoint.theta)
@@ -142,11 +147,25 @@ export const bookGuidanceApi = {
         id: endpoint.id,
         mapId: endpoint.mapId,
         name: endpoint.name,
+        ...(endpoint.endpointType ? { endpointType: endpoint.endpointType } : {}),
         x: endpoint.positionX,
         y: endpoint.positionY,
         theta: endpoint.theta,
         isActive: endpoint.isActive,
       }));
+  },
+
+  async getMapZones(mapId: string): Promise<GuidanceMapZone[]> {
+    const response = await apiClient.get<LibraryZoneDto[]>(`/maps/${encodeURIComponent(mapId)}/zones`);
+    return response.data.filter((zone) => (
+      typeof zone.id === "string"
+      && zone.mapId === mapId
+      && ["KEEP_OUT", "SPEED_LIMIT", "NO_STOP"].includes(zone.zoneType)
+      && [zone.minX, zone.minY, zone.maxX, zone.maxY].every(Number.isFinite)
+      && zone.minX <= zone.maxX
+      && zone.minY <= zone.maxY
+      && typeof zone.isActive === "boolean"
+    ));
   },
 
   async getRuntimes(): Promise<RobotRuntime[]> {

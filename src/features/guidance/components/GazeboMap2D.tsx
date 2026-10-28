@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
-import type { GuidanceMapEndpoint, RobotPose } from "../types/guidance.types";
+import type { GuidanceMapEndpoint, GuidanceMapZone, RobotPose } from "../types/guidance.types";
 import { getOccupancyPaths, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
 import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
@@ -20,6 +20,7 @@ export interface GazeboMap2DProps {
   destination?: RobotPose | null;
   destinationLabel?: string;
   mapEndpoints?: GuidanceMapEndpoint[];
+  mapZones?: GuidanceMapZone[];
   selectedEndpointId?: string | null;
   path?: { x: number; y: number }[] | null;
   mapMetadata?: GazeboMapMetadata;
@@ -34,6 +35,7 @@ export function GazeboMap2D({
   destination,
   destinationLabel,
   mapEndpoints = [],
+  mapZones = [],
   selectedEndpointId,
   path,
   mapMetadata,
@@ -58,6 +60,29 @@ export function GazeboMap2D({
         && pixel.y >= 0 && pixel.y <= map.imageHeight
       )),
     [mapEndpoints, selectedEndpointId, map],
+  );
+  const zoneOverlays = useMemo(
+    () => mapZones
+      .filter((zone) => zone.isActive)
+      .map((zone) => {
+        const corners = [
+          { x: zone.minX, y: zone.minY },
+          { x: zone.maxX, y: zone.minY },
+          { x: zone.maxX, y: zone.maxY },
+          { x: zone.minX, y: zone.maxY },
+        ].map((corner) => worldToGazeboPixel(corner, map));
+        const color = zone.zoneType === "KEEP_OUT"
+          ? "#ef4444"
+          : zone.zoneType === "SPEED_LIMIT"
+            ? "#f59e0b"
+            : "#8b5cf6";
+        const label = zone.zoneType.replaceAll("_", " ");
+        const labelWidth = Math.max(10, Math.min(24, label.length * 1.15 + 2));
+        const labelX = Math.max(1, Math.min(...corners.map((point) => point.x)) + 1);
+        const labelY = Math.max(1, Math.min(...corners.map((point) => point.y)) + 1);
+        return { zone, corners, color, label, labelWidth, labelX, labelY };
+      }),
+    [mapZones, map],
   );
   const label = (destinationLabel ?? "Vị trí sách").slice(0, 12);
   const labelWidth = Math.max(12, Math.min(24, label.length * 1.35 + 2.5));
@@ -107,6 +132,42 @@ export function GazeboMap2D({
         ))}
         <Rect x={0.15} y={0.15} width={map.imageWidth - 0.3} height={map.imageHeight - 0.3} fill="none" stroke="#cbd5e1" strokeWidth={0.3} />
 
+        {zoneOverlays.map(({ zone, corners, color, label, labelWidth, labelX, labelY }) => {
+          const boundedLabelX = Math.max(1, Math.min(labelX, map.imageWidth - labelWidth - 1));
+          const boundedLabelY = Math.max(1, Math.min(labelY, map.imageHeight - 4.7));
+          return (
+            <G key={`map-zone-${zone.id}`}>
+              <Polygon
+                points={corners.map((point) => `${point.x},${point.y}`).join(" ")}
+                fill={color}
+                fillOpacity={0.2}
+                stroke={color}
+                strokeWidth={0.35}
+              />
+              <Rect
+                x={boundedLabelX}
+                y={boundedLabelY}
+                width={labelWidth}
+                height={3.7}
+                rx={0.9}
+                fill="#ffffff"
+                fillOpacity={0.92}
+                stroke={color}
+                strokeWidth={0.22}
+              />
+              <SvgText
+                x={boundedLabelX + 1}
+                y={boundedLabelY + 2.5}
+                fill="#334155"
+                fontSize={1.75}
+                fontWeight="700"
+              >
+                {label}
+              </SvgText>
+            </G>
+          );
+        })}
+
         {routePoints.length > 1 && (
           <>
             <Polyline points={routeString} fill="none" stroke="#1d4ed8" strokeOpacity={0.18} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
@@ -115,6 +176,16 @@ export function GazeboMap2D({
         )}
 
         {endpointMarkers.map(({ endpoint, pixel }) => {
+          const endpointColor = endpoint.endpointType === "CHARGER"
+            ? "#f97316"
+            : endpoint.endpointType === "PARK"
+              ? "#8b5cf6"
+              : "#047857";
+          const endpointTint = endpoint.endpointType === "CHARGER"
+            ? "#fff7ed"
+            : endpoint.endpointType === "PARK"
+              ? "#f5f3ff"
+              : "#ecfdf5";
           const endpointLabel = endpoint.name.trim().slice(0, 16);
           const endpointLabelWidth = Math.max(10, Math.min(24, endpointLabel.length * 1.25 + 2));
           const endpointLabelX = pixel.x > map.imageWidth - endpointLabelWidth - 3
@@ -124,22 +195,22 @@ export function GazeboMap2D({
 
           return (
             <G key={`library-endpoint-${endpoint.id}`}>
-              <Circle cx={pixel.x} cy={pixel.y} r={2.3} fill="#047857" fillOpacity={0.16} />
-              <Circle cx={pixel.x} cy={pixel.y} r={1.1} fill="#ecfdf5" stroke="#047857" strokeWidth={0.55} />
+              <Circle cx={pixel.x} cy={pixel.y} r={2.3} fill={endpointColor} fillOpacity={0.16} />
+              <Circle cx={pixel.x} cy={pixel.y} r={1.1} fill={endpointTint} stroke={endpointColor} strokeWidth={0.55} />
               <Rect
                 x={endpointLabelX}
                 y={endpointLabelY}
                 width={endpointLabelWidth}
                 height={3.7}
                 rx={0.9}
-                fill="#f0fdf4"
-                stroke="#86efac"
+                fill={endpointTint}
+                stroke={endpointColor}
                 strokeWidth={0.22}
               />
               <SvgText
                 x={endpointLabelX + 1}
                 y={endpointLabelY + 2.5}
-                fill="#166534"
+                fill={endpointColor}
                 fontSize={1.75}
                 fontWeight="700"
               >

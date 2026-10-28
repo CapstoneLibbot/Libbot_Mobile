@@ -17,6 +17,7 @@ import { useBookDetail } from "@/features/catalog/hooks/useBookDetail";
 import { hasNavigationEndpoint } from "@/features/guidance/api/bookGuidance.api";
 import { GazeboMap2D } from "@/features/guidance/components/GazeboMap2D";
 import { useRobotRuntimeTelemetry } from "@/features/guidance/hooks/useRobotRuntimeTelemetry";
+import { useRobotMapOverlays } from "@/features/guidance/hooks/useRobotMapOverlays";
 import type { RobotPose } from "@/features/guidance/types/guidance.types";
 import { useFacility } from "../hooks/useFacility";
 
@@ -43,6 +44,14 @@ export function FacilityDetailScreen({
   const { runtime, realtimeConnected } = useRobotRuntimeTelemetry(runtimeId);
   const { data: book, isLoading: bookLoading, isError: bookError } = useBookDetail(bookId ?? "");
   const selectedCopy = book?.copies?.find((copy) => copy.id === bookItemId) ?? null;
+  const {
+    mapMetadata,
+    mapEndpoints,
+    mapZones,
+    mapError,
+    endpointsError,
+    zonesError,
+  } = useRobotMapOverlays(selectedCopy?.endpoint?.endpointId);
   const destination: RobotPose | null = hasNavigationEndpoint(selectedCopy?.endpoint)
     ? { x: selectedCopy.endpoint.x, y: selectedCopy.endpoint.y, yaw: selectedCopy.endpoint.theta }
     : null;
@@ -104,10 +113,17 @@ export function FacilityDetailScreen({
         robotConnected={Boolean(runtime?.connected && !runtime.stale)}
         runtimeLabel={runtime?.kind === "REAL" ? "REAL" : "SIM"}
         destination={destination}
+        mapEndpoints={mapEndpoints}
+        mapZones={mapZones}
+        selectedEndpointId={selectedCopy?.endpoint?.endpointId}
+        mapMetadata={mapMetadata ?? undefined}
         destinationLabel={selectedCopy?.shelf ?? selectedCopy?.barcode ?? facility.shelfCode ?? "Vị trí sách"}
         path={plannedPath}
         testID="facility-gazebo-map"
       />
+      {mapError && <AppText variant="caption" color={colors.subtext}>{mapError}</AppText>}
+      {endpointsError && <AppText variant="caption" color={colors.subtext}>{endpointsError}</AppText>}
+      {zonesError && <AppText variant="caption" color={colors.subtext}>{zonesError}</AppText>}
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
           <View

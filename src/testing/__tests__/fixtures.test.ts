@@ -28,9 +28,9 @@ describe("Testing Fixtures Contract Validation", () => {
     for (const fac of facilitiesFixture) {
       expect(fac.id).toBeDefined();
       expect(fac.name.length).toBeGreaterThan(0);
-      expect(fac.description.length).toBeGreaterThan(0);
       expect(fac.type.length).toBeGreaterThan(0);
-      expect(fac.floor).toBeGreaterThanOrEqual(1);
+      expect(fac.mapId.length).toBeGreaterThan(0);
+      expect(fac.mapName.length).toBeGreaterThan(0);
     }
   });
 

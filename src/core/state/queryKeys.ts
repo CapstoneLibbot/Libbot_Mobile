@@ -7,7 +7,7 @@ export const queryKeys = {
   },
   facilities: {
     all: ["facilities"] as const,
-    list: () => ["facilities", "list"] as const,
+    list: (filter?: { query?: string; type?: string }) => ["facilities", "list", filter ?? {}] as const,
     detail: (facilityId: string) =>
       ["facilities", "detail", facilityId] as const,
   },

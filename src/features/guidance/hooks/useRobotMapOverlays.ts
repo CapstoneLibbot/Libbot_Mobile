@@ -15,7 +15,7 @@ export interface RobotMapOverlays {
 }
 
 /** Loads the same map and map-scoped overlays for every Mobile map surface. */
-export function useRobotMapOverlays(selectedEndpointId?: string | null): RobotMapOverlays {
+export function useRobotMapOverlays(selectedEndpointId?: string | null, requestedMapId?: string | null): RobotMapOverlays {
   const [mapMetadata, setMapMetadata] = useState<GazeboMapMetadata | null>(null);
   const [mapEndpoints, setMapEndpoints] = useState<GuidanceMapEndpoint[]>([]);
   const [mapZones, setMapZones] = useState<GuidanceMapZone[]>([]);
@@ -32,9 +32,9 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null): RobotMa
       if (requestInProgress) return;
       requestInProgress = true;
       try {
-        const latest = await bookGuidanceApi.getLatestRobotMap();
+        const latest = requestedMapId ? null : await bookGuidanceApi.getLatestRobotMap();
         if (!mounted) return;
-        if (!latest) {
+        if (!requestedMapId && !latest) {
           loadedMapId.current = null;
           setMapMetadata(null);
           setMapEndpoints([]);
@@ -46,27 +46,27 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null): RobotMa
         }
         setMapError(null);
 
-        let requestedMapId = latest.id;
-        if (selectedEndpointId) {
+        let targetMapId = requestedMapId ?? latest!.id;
+        if (!requestedMapId && selectedEndpointId) {
           try {
             const allEndpoints = await bookGuidanceApi.getMapEndpoints();
             const selectedEndpoint = allEndpoints.find((endpoint) => (
               endpoint.id.toLowerCase() === selectedEndpointId.toLowerCase()
             ));
-            if (selectedEndpoint) requestedMapId = selectedEndpoint.mapId;
+            if (selectedEndpoint) targetMapId = selectedEndpoint.mapId;
           } catch {
             // Fall back to the latest robot map if the destination endpoint cannot be resolved.
           }
         }
 
-        if (requestedMapId !== loadedMapId.current) {
+        if (targetMapId !== loadedMapId.current) {
           let nextMap = null;
           try {
-            nextMap = await bookGuidanceApi.getRobotMap(requestedMapId);
+            nextMap = await bookGuidanceApi.getRobotMap(targetMapId);
           } catch {
             // Try the current robot map if the endpoint's map is not a saved occupancy map.
           }
-          if (!nextMap && requestedMapId !== latest.id) {
+          if (!nextMap && latest && targetMapId !== latest.id) {
             try {
               nextMap = await bookGuidanceApi.getRobotMap(latest.id);
             } catch {
@@ -75,10 +75,10 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null): RobotMa
           }
           if (!mounted) return;
           if (!nextMap) {
-            setMapError("Dữ liệu map mới nhất không hợp lệ; đang giữ map đã tải trước đó.");
+            setMapError(requestedMapId ? "Dữ liệu map của khu vực không hợp lệ." : "Dữ liệu map mới nhất không hợp lệ; đang giữ map đã tải trước đó.");
             return;
           }
-          loadedMapId.current = nextMap.id ?? requestedMapId;
+          loadedMapId.current = nextMap.id ?? targetMapId;
           setMapMetadata(nextMap);
           setMapEndpoints([]);
           setMapZones([]);
@@ -124,7 +124,7 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null): RobotMa
       mounted = false;
       clearInterval(timer);
     };
-  }, [selectedEndpointId]);
+  }, [selectedEndpointId, requestedMapId]);
 
   return { mapMetadata, mapEndpoints, mapZones, mapError, endpointsError, zonesError };
 }

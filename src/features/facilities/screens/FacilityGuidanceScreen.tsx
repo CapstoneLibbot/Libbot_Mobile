@@ -1,0 +1,86 @@
+import { CheckCircle2, MapPin, Radio, Shield, Zap } from "lucide-react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useKioskStore } from "@/core/state";
+import { AppHeader, AppText } from "@/shared/ui";
+import { useResponsiveLayout } from "@/shared/layout";
+import { colors, radius, spacing } from "@/shared/theme";
+import { bookGuidanceApi, type RobotRuntime } from "@/features/guidance/api/bookGuidance.api";
+import { GazeboMap2D } from "@/features/guidance/components/GazeboMap2D";
+import { useRobotRuntimeTelemetry } from "@/features/guidance/hooks/useRobotRuntimeTelemetry";
+import { useRobotMapOverlays } from "@/features/guidance/hooks/useRobotMapOverlays";
+import { facilityGuidanceApi, type FacilityGuidanceExecution } from "../api/facilityGuidance.api";
+import { useFacility } from "../hooks/useFacility";
+
+export interface FacilityGuidanceScreenProps { facilityId: string; onGoToFeedback: (missionId: string) => void; onBack: () => void; }
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Không thể kết nối với LiBot."; }
+
+export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: FacilityGuidanceScreenProps): React.ReactElement {
+  const { insets, isCompactWidth } = useResponsiveLayout();
+  const recordInteraction = useKioskStore((state) => state.recordInteraction);
+  const { data: facility, isLoading: facilityLoading, error: facilityError } = useFacility(facilityId);
+  const [runtimes, setRuntimes] = useState<RobotRuntime[]>([]);
+  const [runtimeId, setRuntimeId] = useState("real");
+  const [armLeaseId, setArmLeaseId] = useState<string | null>(null);
+  const [started, setStarted] = useState<{ missionId: string; executionId: string } | null>(null);
+  const [execution, setExecution] = useState<FacilityGuidanceExecution | null>(null);
+  const [arrived, setArrived] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const sentEvents = useRef(new Set<string>());
+  const completed = useRef(false);
+  const { runtime, refreshRuntime, realtimeConnected } = useRobotRuntimeTelemetry(runtimeId);
+  const { mapMetadata, mapEndpoints, mapZones, mapError } = useRobotMapOverlays(facility?.location.endpoint.endpointId, facility?.location.mapId);
+  const realRuntimes = runtimes.filter((item) => item.kind?.toUpperCase() === "REAL" || item.id.toLowerCase() === "real");
+  const ready = Boolean(runtime?.id === runtimeId && runtime.connected && !runtime.stale && runtime.telemetry?.localizationState?.toUpperCase() === "LOCALIZED");
+  const destination = facility?.location.endpoint;
+  const terminal = ["completed", "failed"].includes(execution?.status?.toLowerCase() ?? "");
+  const failed = execution?.status?.toLowerCase() === "failed";
+
+  useEffect(() => { let mounted = true; void bookGuidanceApi.getRuntimes().then((items) => { if (!mounted) return; const real = items.filter((item) => item.kind?.toUpperCase() === "REAL" || item.id.toLowerCase() === "real"); setRuntimes(real); if (real[0] && !real.some((item) => item.id === runtimeId)) setRuntimeId(real[0].id); }).catch((error) => { if (mounted) setMessage(errorMessage(error)); }); return () => { mounted = false; }; }, [runtimeId]);
+
+  const complete = useCallback(async (succeeded: boolean, detail?: string) => { if (!started || completed.current) return; completed.current = true; try { await facilityGuidanceApi.complete(started.missionId, succeeded, detail); } catch { /* task completion is best effort */ } }, [started]);
+  useEffect(() => {
+    if (!started || terminal || arrived) return;
+    let active = true;
+    const tick = async () => {
+      try {
+        const state = await facilityGuidanceApi.getExecution(started.executionId);
+        if (!active) return;
+        setExecution(state);
+        const eventType = state.expectedEventType?.toUpperCase();
+        if (eventType === "RATING_SUBMIT") {
+          await complete(true);
+          if (active) setArrived(true);
+          return;
+        }
+        if (eventType && !sentEvents.current.has(eventType)) {
+          sentEvents.current.add(eventType);
+          if (eventType === "FACILITY_SELECTED") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { selected_facility_id: facilityId });
+          if (eventType === "FACILITY_ACTION") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { action: "START_GUIDANCE" });
+        }
+        if (state.status.toLowerCase() === "completed") await complete(true);
+        if (state.status.toLowerCase() === "failed") await complete(false, state.error ?? state.message ?? undefined);
+      } catch (error) { if (active) setMessage(errorMessage(error)); }
+    };
+    void tick(); const timer = setInterval(() => void tick(), 1200); return () => { active = false; clearInterval(timer); };
+  }, [started, terminal, arrived, facilityId, complete]);
+
+  const arm = async () => { recordInteraction(); setBusy(true); setMessage(null); try { const lease = await bookGuidanceApi.arm(runtimeId); setArmLeaseId(lease.leaseId); await refreshRuntime(); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } };
+  const start = async () => { recordInteraction(); if (!facility || !destination || !ready || !armLeaseId) return; setBusy(true); setMessage(null); try { const response = await facilityGuidanceApi.start({ query: facility.name, runtimeId, armLeaseId }); sentEvents.current.clear(); completed.current = false; setArrived(false); setStarted({ missionId: response.missionId, executionId: response.executionId }); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } };
+  const status = ready ? "Sẵn sàng" : "Chưa sẵn sàng";
+  const fallbackReal = realRuntimes.length ? realRuntimes : [{ id: "real", displayName: "Robot thật", kind: "REAL" } as RobotRuntime];
+  return <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+    <AppHeader title="Dẫn đường đến khu vực" subtitle="Robot thật • vị trí và lộ trình trực tiếp" onBack={onBack} />
+    <ScrollView contentContainerStyle={[styles.content, !isCompactWidth && styles.contentWide]}>
+      <View style={styles.card}><MapPin size={19} color="#1d4ed8" /><View style={styles.details}><AppText variant="subtitle">{facility?.name ?? "Đang tải khu vực…"}</AppText><AppText variant="caption" color={colors.subtext}>{facility?.location.mapName}</AppText></View><AppText variant="caption" color={ready ? "#047857" : "#9a6700"}>{status}</AppText></View>
+      <View style={styles.runtimeRow}><AppText variant="caption" color={colors.subtext}>ROBOT THẬT</AppText><View style={styles.runtimeChoices}>{fallbackReal.map((item) => <Pressable key={item.id} disabled={Boolean(started)} onPress={() => { setRuntimeId(item.id); setArmLeaseId(null); }} style={[styles.runtimeChoice, runtimeId === item.id && styles.runtimeChoiceSelected]}><AppText variant="caption" color={runtimeId === item.id ? "#fff" : colors.textSecondary}>{item.displayName}</AppText></Pressable>)}</View></View>
+      {destination ? <GazeboMap2D robot={runtime?.telemetry?.pose ?? null} robotConnected={Boolean(runtime?.connected && !runtime.stale)} runtimeLabel="REAL" destination={{ x: destination.x, y: destination.y, yaw: destination.theta }} destinationLabel={facility?.name ?? "Khu vực"} mapEndpoints={mapEndpoints} mapZones={mapZones} selectedEndpointId={destination.endpointId} path={runtime?.telemetry?.plannedPath ?? []} mapMetadata={mapMetadata ?? undefined} testID="facility-guidance-map" /> : null}
+      {mapError ? <AppText variant="caption" color={colors.danger}>{mapError}</AppText> : null}
+      {message || facilityError ? <View style={styles.error}><AppText variant="body" color={colors.danger}>{message ?? errorMessage(facilityError)}</AppText></View> : null}
+      {!started ? <><Pressable disabled={busy || !ready || Boolean(armLeaseId)} onPress={arm} style={[styles.arm, (busy || !ready || Boolean(armLeaseId)) && styles.disabled]}>{busy ? <ActivityIndicator color="#1d4ed8" /> : <Shield size={17} color="#1d4ed8" />}<AppText variant="subtitle" color="#1d4ed8">{armLeaseId ? "Robot đã ARM" : "ARM robot thật"}</AppText></Pressable><Pressable disabled={busy || facilityLoading || !destination || !ready || !armLeaseId} onPress={start} style={[styles.primary, (busy || facilityLoading || !destination || !ready || !armLeaseId) && styles.disabled]}>{busy ? <ActivityIndicator color="#fff" /> : <Zap size={17} color="#fff" fill="#fff" />}<AppText variant="subtitle" color="#fff">Dẫn đường đến đây</AppText></Pressable></> : <View style={styles.workflow}><Radio size={18} color={failed ? "#be123c" : "#1d4ed8"} /><View style={styles.details}><AppText variant="subtitle">{execution?.status?.toLowerCase() === "completed" ? "Đã đến khu vực" : failed ? "Workflow thất bại" : "LiBot đang dẫn đường"}</AppText><AppText variant="caption" color={colors.subtext}>{execution?.currentStep ?? "Đang chuẩn bị workflow"} · {realtimeConnected ? "Realtime" : "Polling"}</AppText></View>{execution?.status?.toLowerCase() === "completed" ? <CheckCircle2 size={22} color="#059669" /> : null}</View>}
+      {started && (arrived || (terminal && !failed)) ? <Pressable onPress={() => onGoToFeedback(started.missionId)} style={styles.primary}><CheckCircle2 size={17} color="#fff" /><AppText variant="subtitle" color="#fff">Đánh giá chuyến đi</AppText></Pressable> : null}
+    </ScrollView>
+  </View>;
+}
+const styles = StyleSheet.create({ screen: { flex: 1, backgroundColor: "#f7f9fc" }, content: { padding: spacing.md, gap: spacing.sm, width: "100%", maxWidth: 840, alignSelf: "center" }, contentWide: { paddingHorizontal: spacing.lg }, card: { padding: 12, backgroundColor: "#fff", borderRadius: radius.md, borderWidth: 1, borderColor: "#e2e8f0", flexDirection: "row", alignItems: "center", gap: 10 }, details: { flex: 1, gap: 3 }, runtimeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, runtimeChoices: { flexDirection: "row", gap: 7 }, runtimeChoice: { minHeight: 40, paddingHorizontal: 11, justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: "#dbe2ea", backgroundColor: "#fff" }, runtimeChoiceSelected: { backgroundColor: "#1d4ed8", borderColor: "#1d4ed8" }, arm: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: "#bfdbfe", backgroundColor: "#eff6ff", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9 }, primary: { minHeight: 52, borderRadius: 15, backgroundColor: "#1d4ed8", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10, paddingHorizontal: 14 }, disabled: { opacity: 0.47 }, workflow: { padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: "#dbeafe", backgroundColor: "#eff6ff", flexDirection: "row", alignItems: "center", gap: 10 }, error: { padding: 12, borderRadius: 12, backgroundColor: "#fff1f2" } });

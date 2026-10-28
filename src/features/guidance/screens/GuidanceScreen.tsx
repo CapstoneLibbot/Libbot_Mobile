@@ -64,7 +64,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   const [book, setBook] = useState<Book | null>(null);
   const [loadedBookId, setLoadedBookId] = useState<string | null>(null);
   const [runtimes, setRuntimes] = useState<RobotRuntime[]>([]);
-  const [runtimeId, setRuntimeId] = useState(session?.bookId === bookId && session.bookItemId === bookItemId ? session.runtimeId : "sim");
+  const [runtimeId, setRuntimeId] = useState(session?.bookId === bookId && session.bookItemId === bookItemId ? session.runtimeId : "real");
   const [execution, setExecution] = useState<BookGuidanceExecution | null>(null);
   const [armLeaseId, setArmLeaseId] = useState<string | null>(session?.armLeaseId ?? null);
   const [busy, setBusy] = useState(false);
@@ -97,7 +97,6 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
   const selectedSavedRobotMap = savedRobotMap;
   const robotPose = runtimeMatchesSelection ? runtime?.telemetry?.pose ?? null : null;
   const route = runtimeMatchesSelection ? runtime?.telemetry?.plannedPath?.map((point) => ({ ...point, yaw: 0 })) ?? [] : [];
-  const isReal = runtime?.kind?.toUpperCase() === "REAL" || runtimeId.toLowerCase() === "real";
   const runtimeReady = Boolean(runtimeMatchesSelection && runtime?.connected && !runtime.stale && runtime.telemetry?.localizationState?.toUpperCase() === "LOCALIZED");
   const workflowStatus = activeSession?.status ?? "waiting";
 
@@ -122,9 +121,10 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
     void bookGuidanceApi.getRuntimes()
       .then((items) => {
         if (!mounted) return;
-        setRuntimes(items);
-        const selected = items.find((item) => item.id === runtimeId);
-        if (!selected && items.length > 0) setRuntimeId(items[0].id);
+        const realRuntimes = items.filter((item) => item.kind?.toUpperCase() === "REAL" || item.id.toLowerCase() === "real");
+        setRuntimes(realRuntimes);
+        const selected = realRuntimes.find((item) => item.id === runtimeId);
+        if (!selected && realRuntimes.length > 0) setRuntimeId(realRuntimes[0].id);
       })
       .catch((error: unknown) => { if (mounted) setErrorMessage(getErrorMessage(error)); });
     return () => { mounted = false; };
@@ -217,7 +217,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
       setErrorMessage("Robot đang offline, telemetry cũ hoặc chưa định vị. Chưa thể bắt đầu dẫn đường.");
       return;
     }
-    if (isReal && !armLeaseId) {
+    if (!armLeaseId) {
       setErrorMessage("Hãy ARM robot thật trước khi bắt đầu dẫn đường.");
       return;
     }
@@ -230,7 +230,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         runtimeId,
         bookId: currentBook.id,
         bookItemId: selectedCopy.id,
-        ...(isReal && armLeaseId ? { armLeaseId } : {}),
+        armLeaseId,
       });
       const next: GuidanceSession = {
         missionId: started.missionId,
@@ -238,7 +238,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         runtimeId: started.runtimeId || runtimeId,
         bookId: currentBook.id,
         bookItemId: selectedCopy.id,
-        armLeaseId: isReal ? armLeaseId ?? undefined : undefined,
+        armLeaseId: armLeaseId ?? undefined,
         status: "starting",
       };
       sentEvents.current.clear();
@@ -284,7 +284,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         <View style={styles.runtimeRow}>
           <AppText variant="caption" color={colors.subtext}>ROBOT RUNTIME</AppText>
           <View style={styles.runtimeChoices}>
-            {(runtimes.length ? runtimes : [{ id: "sim", displayName: "Gazebo SIM", kind: "SIM" } as RobotRuntime, { id: "real", displayName: "Robot thật", kind: "REAL" } as RobotRuntime]).map((item) => (
+            {(runtimes.length ? runtimes : [{ id: "real", displayName: "Robot thật", kind: "REAL" } as RobotRuntime]).map((item) => (
               <Pressable
                 key={item.id}
                 onPress={() => { if (!activeSession) { setRuntimeId(item.id); setArmLeaseId(null); setErrorMessage(null); } }}
@@ -293,7 +293,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
                 accessibilityLabel={`Chọn ${item.displayName}`}
                 style={[styles.runtimeChoice, runtimeId === item.id && styles.runtimeChoiceSelected, activeSession && styles.choiceDisabled]}
               >
-                <AppText variant="caption" color={runtimeId === item.id ? "#fff" : colors.textSecondary}>{item.kind === "REAL" ? "Robot thật" : "Gazebo SIM"}</AppText>
+                <AppText variant="caption" color={runtimeId === item.id ? "#fff" : colors.textSecondary}>Robot thật</AppText>
               </Pressable>
             ))}
           </View>
@@ -302,7 +302,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
         <GazeboMap2D
           robot={robotPose}
           robotConnected={Boolean(runtime?.connected && !runtime.stale)}
-          runtimeLabel={selectedSavedRobotMap ? `MAP V${selectedSavedRobotMap.version}` : runtime?.kind === "REAL" ? "REAL" : "SIM"}
+          runtimeLabel={selectedSavedRobotMap ? `MAP V${selectedSavedRobotMap.version}` : "REAL"}
           destination={destination}
           destinationLabel={selectedCopy?.shelf ?? "Vị trí sách"}
           mapEndpoints={mapEndpoints}
@@ -359,7 +359,7 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
 
         {errorMessage && <View style={styles.errorBox}><AppText variant="body" color="#9f1239">{errorMessage}</AppText></View>}
 
-        {isReal && !activeSession && (
+        {!activeSession && (
           <Pressable disabled={!runtimeMatchesSelection || !runtime?.connected || runtime.stale || busy || Boolean(armLeaseId)} onPress={handleArm} style={[styles.armButton, (busy || !runtimeMatchesSelection || !runtime?.connected || runtime.stale || Boolean(armLeaseId)) && styles.buttonDisabled]}>
             {busy ? <ActivityIndicator color="#1d4ed8" /> : <Shield size={17} color="#1d4ed8" />}
             <AppText variant="subtitle" color="#1d4ed8">{armLeaseId ? "Robot đã ARM" : "ARM robot thật (bắt buộc)"}</AppText>
@@ -380,9 +380,9 @@ export function GuidanceScreen({ bookId, bookItemId, onGoToFeedback, onBackToSea
           </View>
         ) : (
           <Pressable
-            disabled={busy || bookLoading || !copyAvailable || !destination || !runtimeReady || (isReal && !armLeaseId) || env.isMock}
+            disabled={busy || bookLoading || !copyAvailable || !destination || !runtimeReady || !armLeaseId || env.isMock}
             onPress={handleStart}
-            style={[styles.primaryButton, (busy || bookLoading || !copyAvailable || !destination || !runtimeReady || (isReal && !armLeaseId) || env.isMock) && styles.buttonDisabled]}
+            style={[styles.primaryButton, (busy || bookLoading || !copyAvailable || !destination || !runtimeReady || !armLeaseId || env.isMock) && styles.buttonDisabled]}
           >
             {busy ? <ActivityIndicator color="#fff" /> : <Zap size={17} color="#fff" fill="#fff" />}
             <AppText variant="subtitle" color="#fff">{busy ? "Đang gửi BookGuidance…" : "Dẫn đường đến bản sao này"}</AppText>

@@ -3,11 +3,11 @@ import type { FacilitiesRepository } from "@/features/facilities/types/facility.
 import type { GuidanceRepository } from "@/features/guidance/types/guidance.types";
 import type { FeedbackRepository } from "@/features/feedback/types/feedback.types";
 import { MockCatalogRepository } from "@/testing/fakes/mockCatalogRepository";
-import { MockFacilitiesRepository } from "@/testing/fakes/mockFacilitiesRepository";
 import { MockGuidanceRepository } from "@/testing/fakes/mockGuidanceRepository";
 import { MockFeedbackRepository } from "@/testing/fakes/mockFeedbackRepository";
 import { env } from "@/config/env";
 import { HttpCatalogRepository } from "@/features/catalog/api/catalog.api";
+import { HttpFacilitiesRepository } from "@/features/facilities/api/facilityGuidance.api";
 
 export interface AppRepositories {
   catalog: CatalogRepository;
@@ -20,7 +20,7 @@ export const appRepositories: AppRepositories = {
   catalog: env.isMock
     ? new MockCatalogRepository()
     : new HttpCatalogRepository(),
-  facilities: new MockFacilitiesRepository(),
+  facilities: new HttpFacilitiesRepository(),
   guidance: new MockGuidanceRepository(),
   feedback: new MockFeedbackRepository(),
 };

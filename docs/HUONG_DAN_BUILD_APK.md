@@ -34,8 +34,14 @@ File APK chạy độc lập trên điện thoại, do đó **tuyệt đối kh�
    EXPO_PUBLIC_SIGNALR_URL=http://192.168.1.50:5205/robotHub
    EXPO_PUBLIC_MAP_PROVIDER=google
    EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...
+   EXPO_PUBLIC_XIAOZHI_WS_URL=ws://192.168.1.50:8000/xiaozhi/v1/
+   EXPO_PUBLIC_VOICE_KIOSK_ID=libot-kiosk-01
    ```
 > ⚠️ **Lưu ý:** Điện thoại Android và máy Mac chạy backend phải kết nối **chung một mạng Wi-Fi**.
+
+Với voice, Xiaozhi cũng phải đang chạy và URL WebSocket phải dùng IP LAN của
+máy chạy Xiaozhi. Không dùng `localhost`. Hướng dẫn đầy đủ để dựng Backend,
+SQL Server và Xiaozhi nằm tại [Team setup và voice](TEAM_SETUP_VOICE.md).
 
 ### B. Kiểm tra cấu hình Google Maps
 Trong [app.config.ts](file:///Users/mac/Projects/captones/Libbot_Mobile/app.config.ts), mục `android.config.googleMaps.apiKey` phải có giá trị API Key hợp lệ (hoặc ít nhất một chuỗi placeholder không rỗng) để thư viện native `react-native-maps` không gây crash ứng dụng khi khởi động.
@@ -65,10 +71,11 @@ Máy Mac của bạn đã được cài đặt đầy đủ môi trường Andro
 
 Chỉ cần chạy lệnh:
 ```bash
+npx expo prebuild --platform android # chỉ cần nếu clone mới chưa có android/
 npm run build:apk:local
 ```
 
-*(Bản chất lệnh này sẽ tự động nạp `ANDROID_HOME` và `JAVA_HOME` rồi gọi `npx eas-cli@latest build --platform android --profile preview --local`).*
+*(Lệnh tự nạp `.env`, `ANDROID_HOME` và `JAVA_HOME`, sau đó build Gradle trực tiếp. Nhờ vậy các biến `EXPO_PUBLIC_*` được nhúng vào APK.)*
 
 - **Ưu điểm:**
   - Hoàn toàn miễn phí, không giới hạn số lần build.
@@ -136,7 +143,3 @@ npx eas-cli@latest build --platform android --profile preview
 | **Lỗi `ERESOLVE could not resolve` khi chạy `npm ci`** | Xung đột phiên bản peer giữa React 19 và React DOM. | Dự án đã có sẵn file `.npmrc` chứa `legacy-peer-deps=true`. Đảm bảo file `.npmrc` luôn tồn tại trong thư mục gốc. |
 | **Lỗi `ANDROID_HOME not found` hoặc `Java not found`** | Chạy lệnh `eas build` rời rạc ở terminal mới mà chưa nạp đường dẫn SDK. | Dùng lệnh `npm run build:apk:local` (lệnh này đã tự nạp sẵn cả 2 biến môi trường). |
 | **Bản đồ không hiển thị** | Thiếu Google Maps API Key hoặc API Key chưa được kích hoạt Android Maps SDK trên Google Cloud Console. | Cập nhật API Key vào `.env` (`EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`) và `app.config.ts`. |
-
-
-adb install -r build-1791125359126.apk
-npx expo run:android

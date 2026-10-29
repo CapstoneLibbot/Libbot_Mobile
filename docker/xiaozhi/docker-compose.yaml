@@ -1,0 +1,16 @@
+services:
+  xiaozhi-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: libot-xiaozhi-server:local
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${XIAOZHI_WS_PORT:-8000}:8000"
+      - "127.0.0.1:${XIAOZHI_HTTP_PORT:-8003}:8003"
+    volumes:
+      - ./data:/opt/xiaozhi-esp32-server/data

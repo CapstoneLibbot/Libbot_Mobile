@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@config-plugins/react-native-webrtc": "^15.0.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@hookform/resolvers": "^5.9.1",
     "@microsoft/signalr": "^10.0.11",
@@ -11,6 +10,7 @@
     "@tanstack/react-query": "^5.104.0",
     "axios": "^1.20.0",
     "expo": "~57.0.26",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "^57.0.20",
     "expo-dev-client": "~57.0.19",
     "expo-font": "~57.0.4",
@@ -30,7 +30,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
-    "react-native-webrtc": "^155.0.1",
+    "xiaozhi-audio": "file:./modules/xiaozhi-audio",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
@@ -54,7 +54,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "validate": "npm run typecheck && npm run lint && npm test && npx expo install --check && npx expo-doctor",
-    "build:apk:local": "export ANDROID_HOME=$HOME/Library/Android/sdk && export JAVA_HOME=$(/usr/libexec/java_home) && export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator && npx eas-cli@latest build --platform android --profile preview --local",
+    "build:apk:local": "set -a && . ./.env && set +a && export NODE_ENV=production && export ANDROID_HOME=$HOME/Library/Android/sdk && export JAVA_HOME=$(/usr/libexec/java_home) && export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator && (cd android && ./gradlew --no-daemon :app:assembleRelease) && cp android/app/build/outputs/apk/release/app-release.apk build-$(date +%s).apk",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview"
   },
   "engines": {

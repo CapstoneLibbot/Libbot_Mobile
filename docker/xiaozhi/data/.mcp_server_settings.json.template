@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "libot_voice_tools": {
+      "url": "${LIBBOT_BE_MCP_URL}",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer ${LIBBOT_VOICE_TOOLS_TOKEN}"
+      },
+      "timeout": 5,
+      "sse_read_timeout": 30,
+      "terminate_on_close": false
+    }
+  }
+}

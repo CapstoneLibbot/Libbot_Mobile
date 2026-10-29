@@ -21,11 +21,13 @@ import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 export interface IdleAttractScreenProps {
   onNavigateToSearch: () => void;
   onNavigateToFacilities: () => void;
+  onNavigateToBook: (bookId: string) => void;
 }
 
 export function IdleAttractScreen({
   onNavigateToSearch,
   onNavigateToFacilities,
+  onNavigateToBook,
 }: IdleAttractScreenProps): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -131,6 +133,7 @@ export function IdleAttractScreen({
       <VoiceListeningModal
         visible={isVoiceModalOpen}
         onClose={handleCloseVoice}
+        onSelectBook={onNavigateToBook}
       />
 
       <View

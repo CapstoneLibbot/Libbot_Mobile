@@ -73,4 +73,25 @@ describe("env configuration and validation (src/config/env.ts)", () => {
     expect(devEnv.apiBaseUrl).toBeUndefined();
     expect(devEnv.isDev).toBe(true);
   });
+
+  it("enables Xiaozhi only with a LAN WebSocket URL and kiosk id", () => {
+    const voiceEnv = parseEnv({
+      NODE_ENV: "development",
+      EXPO_PUBLIC_XIAOZHI_WS_URL: "ws://192.168.100.43:8000/xiaozhi/v1/",
+      EXPO_PUBLIC_VOICE_KIOSK_ID: "libot-kiosk-01",
+    });
+
+    expect(voiceEnv.xiaozhiWsUrl).toBe("ws://192.168.100.43:8000/xiaozhi/v1/");
+    expect(voiceEnv.xiaozhiWsUrl).toContain("/xiaozhi/v1/");
+    expect(voiceEnv.voiceKioskId).toBe("libot-kiosk-01");
+  });
+
+  it("rejects a local or HTTP Xiaozhi address", () => {
+    expect(() =>
+      parseEnv({ EXPO_PUBLIC_XIAOZHI_WS_URL: "http://192.168.1.8:8000" }),
+    ).toThrow(/ws/);
+    expect(() =>
+      parseEnv({ EXPO_PUBLIC_XIAOZHI_WS_URL: "ws://localhost:8000" }),
+    ).toThrow(/localhost/);
+  });
 });

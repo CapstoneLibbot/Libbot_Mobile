@@ -1,0 +1,71 @@
+# Render this template with ./render-config.sh after copying .env.example to .env.
+# It overlays the upstream config shipped in the server container.
+server:
+  ip: 0.0.0.0
+  port: 8000
+  http_port: 8003
+  websocket: ws://${XIAOZHI_LAN_IP}:${XIAOZHI_WS_PORT}/xiaozhi/v1/
+  vision_explain: http://${XIAOZHI_LAN_IP}:8003/mcp/vision/explain
+  timezone_offset: +7
+  auth:
+    enabled: false
+
+log:
+  log_level: INFO
+  log_dir: tmp
+
+delete_audio: true
+close_connection_no_voice_time: 120
+tts_timeout: 15
+tool_call_timeout: 30
+enable_wakeup_words_response_cache: true
+enable_greeting: false
+enable_stop_tts_notify: false
+enable_websocket_ping: true
+tts_audio_send_delay: 0
+
+prompt: |
+  Bạn là LiBot, trợ lý giọng nói của thư viện.
+  BẮT BUỘC chỉ trả lời bằng tiếng Việt tự nhiên, ngắn gọn, thân thiện và rõ ràng.
+  Tuyệt đối không trả lời bằng tiếng Trung, tiếng Anh hoặc ngôn ngữ khác, kể cả khi đầu vào không rõ.
+  Khi người dùng hỏi sách, gọi tool search_books; khi hỏi khu vực thư viện, gọi tool search_areas.
+  Chỉ khẳng định dữ liệu sách hoặc khu vực khi đã nhận dữ liệu từ tool LiBot.
+  Đọc tối đa ba kết quả, nêu số bản còn sẵn cho sách và tên tầng cho khu vực.
+  Nếu tool trả về không có kết quả, chỉ nói không tìm thấy. Không suy diễn vị trí hoặc điều khiển robot.
+
+system_error_response: "LiBot đang gặp sự cố kết nối. Bạn vui lòng thử lại sau."
+end_prompt:
+  enable: false
+
+selected_module:
+  ASR: MobileTextOnly
+  LLM: DeepSeekFlash
+  TTS: MobileTextOnly
+  Memory: nomem
+  Intent: function_call
+
+Intent:
+  function_call:
+    type: function_call
+    functions: []
+
+LLM:
+  DeepSeekFlash:
+    type: openai
+    base_url: "https://api.deepseek.com"
+    model_name: "${DEEPSEEK_MODEL}"
+    api_key: "${DEEPSEEK_API_KEY}"
+    temperature: 0.2
+    # The Xiaozhi OpenAI adapter disables DeepSeek thinking automatically.
+    # 512 is enough for one tool call or a short Vietnamese fallback response.
+    max_tokens: 512
+    top_p: 1
+    frequency_penalty: 0
+
+ASR:
+  MobileTextOnly:
+    type: mobile_text_only
+
+TTS:
+  MobileTextOnly:
+    type: mobile_text_only

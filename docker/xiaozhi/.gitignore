@@ -1,0 +1,5 @@
+.env
+data/.config.yaml
+data/.mcp_server_settings.json
+models/
+logs/

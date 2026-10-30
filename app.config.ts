@@ -20,15 +20,19 @@ const config: ExpoConfig = {
         backgroundColor: "#E6F4FE",
       },
     ],
-    "expo-font",
-    "expo-secure-store",
     [
-      "@config-plugins/react-native-webrtc",
+      "expo-build-properties",
       {
-        microphonePermission:
-          "Cho phép LiBot sử dụng microphone để hỗ trợ tìm sách và địa điểm trong thư viện.",
+        android: {
+          // The kiosk intentionally talks to LAN-only development services over
+          // HTTP and WebSocket. This must survive a fresh `expo prebuild` and
+          // EAS build, not only a locally generated AndroidManifest.xml.
+          usesCleartextTraffic: true,
+        },
       },
     ],
+    "expo-font",
+    "expo-secure-store",
     ["expo-screen-orientation", { initialOrientation: "LANDSCAPE" }],
   ],
   ios: {

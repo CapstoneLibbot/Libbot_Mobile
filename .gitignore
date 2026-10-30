@@ -5,6 +5,8 @@ node_modules
 .expo
 dist
 build
+build-*.apk
+__pycache__/
 
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
@@ -47,3 +49,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Build artifacts of the local Xiaozhi Expo module
+/modules/xiaozhi-audio/android/.cxx/
+/modules/xiaozhi-audio/android/.gradle/
+/modules/xiaozhi-audio/android/build/

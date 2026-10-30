@@ -56,8 +56,26 @@ EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...
 
 Do not put credentials or secrets in `EXPO_PUBLIC_*` variables; they are visible inside the compiled app.
 
+### Xiaozhi voice (Android development/EAS build)
+
+The kiosk enables the Xiaozhi transport only when both public, LAN-only values
+are configured. They identify the server and kiosk; neither is a secret.
+
+```dotenv
+EXPO_PUBLIC_XIAOZHI_WS_URL=ws://192.168.100.43:8000/xiaozhi/v1/
+EXPO_PUBLIC_VOICE_KIOSK_ID=libot-kiosk-01
+```
+
+Do not use `localhost` for an Android device. The native `xiaozhi-audio` module
+uses Android `SpeechRecognizer` and Android Text-to-Speech with `vi-VN`, so it
+requires a development build or EAS APK; Expo Go cannot load it. Build locally
+with `npx expo run:android` or create the configured EAS build. The DeepSeek key
+and MCP bearer token stay on the Xiaozhi/BE hosts and must never be added to
+these public variables.
+
 ## Documentation
 
+- [Team setup: Backend, Xiaozhi voice, Mobile and Android APK](docs/TEAM_SETUP_VOICE.md)
 - [Hướng dẫn build file APK cài máy Android](docs/HUONG_DAN_BUILD_APK.md)
 - [Architecture: current state and target](docs/MOBILE_ARCHITECTURE.md)
 - [Detailed refactor specification for agents](docs/REFACTOR_SPEC.md)

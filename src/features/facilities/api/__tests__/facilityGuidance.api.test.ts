@@ -30,8 +30,8 @@ describe("facilityGuidanceApi", () => {
 
   it("uses facility workflow endpoints", async () => {
     post.mockResolvedValueOnce({ data: { missionId: "m", executionId: "e", runtimeId: "real", workflowId: "w" } });
-    await facilityGuidanceApi.start({ query: "Phòng đọc", runtimeId: "real", armLeaseId: "lease" });
-    expect(post).toHaveBeenCalledWith("/facility-guidance/start", { query: "Phòng đọc", runtimeId: "real", armLeaseId: "lease" });
+    await facilityGuidanceApi.start({ query: "Phòng đọc", facilityId: "f-1", runtimeId: "real", armLeaseId: "lease" });
+    expect(post).toHaveBeenCalledWith("/facility-guidance/start", { query: "Phòng đọc", facilityId: "f-1", runtimeId: "real", armLeaseId: "lease" });
   });
 
   it("filters repository results by API type", async () => {

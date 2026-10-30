@@ -13,7 +13,34 @@ import { facilityGuidanceApi, type FacilityGuidanceExecution } from "../api/faci
 import { useFacility } from "../hooks/useFacility";
 
 export interface FacilityGuidanceScreenProps { facilityId: string; onGoToFeedback: (missionId: string) => void; onBack: () => void; }
-function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Không thể kết nối với LiBot."; }
+function errorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    const details = (error as { details?: unknown }).details;
+    if (typeof details === "object" && details !== null) {
+      const body = details as { message?: unknown; robot?: unknown };
+      if (typeof body.message === "string") return body.message;
+      if (typeof body.robot === "object" && body.robot !== null) {
+        const robot = body.robot as { message?: unknown; error?: unknown };
+        if (typeof robot.message === "string") return robot.message;
+        if (typeof robot.error === "string") return robot.error;
+      }
+    }
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "Không thể kết nối với LiBot.";
+}
+
+function workflowFailureMessage(execution: FacilityGuidanceExecution | null): string | undefined {
+  if (!execution) return undefined;
+  const results = execution.result?.results ?? [];
+  const failedStep = execution.result?.failed_step ?? execution.currentStep ?? undefined;
+  const failedResult = results.find((item) => item.step === failedStep)
+    ?? results.find((item) => ["error", "failed", "timeout"].includes(item.result?.status?.toLowerCase() ?? ""));
+  return [failedStep, failedResult?.result?.nav2_result_code, failedResult?.result?.message, execution.error, execution.message]
+    .filter(Boolean)
+    .join(" · ") || undefined;
+}
 
 export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: FacilityGuidanceScreenProps): React.ReactElement {
   const { insets, isCompactWidth } = useResponsiveLayout();
@@ -28,14 +55,17 @@ export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: F
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const sentEvents = useRef(new Set<string>());
+  const pollInFlight = useRef(false);
   const completed = useRef(false);
   const { runtime, refreshRuntime, realtimeConnected } = useRobotRuntimeTelemetry(runtimeId);
-  const { mapMetadata, mapEndpoints, mapZones, mapError } = useRobotMapOverlays(facility?.location.endpoint.endpointId, facility?.location.mapId);
+  const { mapMetadata, mapEndpoints, mapZones, mapError } = useRobotMapOverlays(facility?.location.endpoint.endpointId);
   const realRuntimes = runtimes.filter((item) => item.kind?.toUpperCase() === "REAL" || item.id.toLowerCase() === "real");
   const ready = Boolean(runtime?.id === runtimeId && runtime.connected && !runtime.stale && runtime.telemetry?.localizationState?.toUpperCase() === "LOCALIZED");
   const destination = facility?.location.endpoint;
+  const hasDestination = Boolean(destination && [destination.x, destination.y, destination.theta].every(Number.isFinite));
   const terminal = ["completed", "failed"].includes(execution?.status?.toLowerCase() ?? "");
   const failed = execution?.status?.toLowerCase() === "failed";
+  const failureDetails = failed ? workflowFailureMessage(execution) : undefined;
 
   useEffect(() => { let mounted = true; void bookGuidanceApi.getRuntimes().then((items) => { if (!mounted) return; const real = items.filter((item) => item.kind?.toUpperCase() === "REAL" || item.id.toLowerCase() === "real"); setRuntimes(real); if (real[0] && !real.some((item) => item.id === runtimeId)) setRuntimeId(real[0].id); }).catch((error) => { if (mounted) setMessage(errorMessage(error)); }); return () => { mounted = false; }; }, [runtimeId]);
 
@@ -44,6 +74,8 @@ export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: F
     if (!started || terminal || arrived) return;
     let active = true;
     const tick = async () => {
+      if (!active || pollInFlight.current) return;
+      pollInFlight.current = true;
       try {
         const state = await facilityGuidanceApi.getExecution(started.executionId);
         if (!active) return;
@@ -54,20 +86,27 @@ export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: F
           if (active) setArrived(true);
           return;
         }
-        if (eventType && !sentEvents.current.has(eventType)) {
-          sentEvents.current.add(eventType);
-          if (eventType === "FACILITY_SELECTED") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { selected_facility_id: facilityId });
-          if (eventType === "FACILITY_ACTION") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { action: "START_GUIDANCE" });
+        const eventKey = eventType ? `${started.executionId}:${eventType}` : null;
+        if (eventType && eventKey && !sentEvents.current.has(eventKey)) {
+          sentEvents.current.add(eventKey);
+          try {
+            if (eventType === "FACILITY_SELECTED") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { selected_facility_id: facilityId });
+            if (eventType === "FACILITY_ACTION") await facilityGuidanceApi.submitEvent(started.executionId, eventType, { action: "START_GUIDANCE" });
+          } catch (eventError) {
+            sentEvents.current.delete(eventKey);
+            throw eventError;
+          }
         }
         if (state.status.toLowerCase() === "completed") await complete(true);
         if (state.status.toLowerCase() === "failed") await complete(false, state.error ?? state.message ?? undefined);
       } catch (error) { if (active) setMessage(errorMessage(error)); }
+      finally { pollInFlight.current = false; }
     };
     void tick(); const timer = setInterval(() => void tick(), 1200); return () => { active = false; clearInterval(timer); };
   }, [started, terminal, arrived, facilityId, complete]);
 
   const arm = async () => { recordInteraction(); setBusy(true); setMessage(null); try { const lease = await bookGuidanceApi.arm(runtimeId); setArmLeaseId(lease.leaseId); await refreshRuntime(); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } };
-  const start = async () => { recordInteraction(); if (!facility || !destination || !ready || !armLeaseId) return; setBusy(true); setMessage(null); try { const response = await facilityGuidanceApi.start({ query: facility.name, runtimeId, armLeaseId }); sentEvents.current.clear(); completed.current = false; setArrived(false); setStarted({ missionId: response.missionId, executionId: response.executionId }); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } };
+  const start = async () => { recordInteraction(); if (!facility || !hasDestination || !ready || !armLeaseId) return; setBusy(true); setMessage(null); try { const response = await facilityGuidanceApi.start({ query: facility.name, facilityId: facility.id, runtimeId, armLeaseId }); sentEvents.current.clear(); completed.current = false; setArrived(false); setExecution(null); setStarted({ missionId: response.missionId, executionId: response.executionId }); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } };
   const status = ready ? "Sẵn sàng" : "Chưa sẵn sàng";
   const fallbackReal = realRuntimes.length ? realRuntimes : [{ id: "real", displayName: "Robot thật", kind: "REAL" } as RobotRuntime];
   return <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
@@ -78,7 +117,7 @@ export function FacilityGuidanceScreen({ facilityId, onGoToFeedback, onBack }: F
       {destination ? <GazeboMap2D robot={runtime?.telemetry?.pose ?? null} robotConnected={Boolean(runtime?.connected && !runtime.stale)} runtimeLabel="REAL" destination={{ x: destination.x, y: destination.y, yaw: destination.theta }} destinationLabel={facility?.name ?? "Khu vực"} mapEndpoints={mapEndpoints} mapZones={mapZones} selectedEndpointId={destination.endpointId} path={runtime?.telemetry?.plannedPath ?? []} mapMetadata={mapMetadata ?? undefined} testID="facility-guidance-map" /> : null}
       {mapError ? <AppText variant="caption" color={colors.danger}>{mapError}</AppText> : null}
       {message || facilityError ? <View style={styles.error}><AppText variant="body" color={colors.danger}>{message ?? errorMessage(facilityError)}</AppText></View> : null}
-      {!started ? <><Pressable disabled={busy || !ready || Boolean(armLeaseId)} onPress={arm} style={[styles.arm, (busy || !ready || Boolean(armLeaseId)) && styles.disabled]}>{busy ? <ActivityIndicator color="#1d4ed8" /> : <Shield size={17} color="#1d4ed8" />}<AppText variant="subtitle" color="#1d4ed8">{armLeaseId ? "Robot đã ARM" : "ARM robot thật"}</AppText></Pressable><Pressable disabled={busy || facilityLoading || !destination || !ready || !armLeaseId} onPress={start} style={[styles.primary, (busy || facilityLoading || !destination || !ready || !armLeaseId) && styles.disabled]}>{busy ? <ActivityIndicator color="#fff" /> : <Zap size={17} color="#fff" fill="#fff" />}<AppText variant="subtitle" color="#fff">Dẫn đường đến đây</AppText></Pressable></> : <View style={styles.workflow}><Radio size={18} color={failed ? "#be123c" : "#1d4ed8"} /><View style={styles.details}><AppText variant="subtitle">{execution?.status?.toLowerCase() === "completed" ? "Đã đến khu vực" : failed ? "Workflow thất bại" : "LiBot đang dẫn đường"}</AppText><AppText variant="caption" color={colors.subtext}>{execution?.currentStep ?? "Đang chuẩn bị workflow"} · {realtimeConnected ? "Realtime" : "Polling"}</AppText></View>{execution?.status?.toLowerCase() === "completed" ? <CheckCircle2 size={22} color="#059669" /> : null}</View>}
+      {!started ? <><Pressable disabled={busy || !ready || Boolean(armLeaseId)} onPress={arm} style={[styles.arm, (busy || !ready || Boolean(armLeaseId)) && styles.disabled]}>{busy ? <ActivityIndicator color="#1d4ed8" /> : <Shield size={17} color="#1d4ed8" />}<AppText variant="subtitle" color="#1d4ed8">{armLeaseId ? "Robot đã ARM" : "ARM robot thật"}</AppText></Pressable><Pressable disabled={busy || facilityLoading || !hasDestination || !ready || !armLeaseId} onPress={start} style={[styles.primary, (busy || facilityLoading || !hasDestination || !ready || !armLeaseId) && styles.disabled]}>{busy ? <ActivityIndicator color="#fff" /> : <Zap size={17} color="#fff" fill="#fff" />}<AppText variant="subtitle" color="#fff">Dẫn đường đến đây</AppText></Pressable></> : <View style={styles.workflow}><Radio size={18} color={failed ? "#be123c" : "#1d4ed8"} /><View style={styles.details}><AppText variant="subtitle">{execution?.status?.toLowerCase() === "completed" ? "Đã đến khu vực" : failed ? "Workflow thất bại" : "LiBot đang dẫn đường"}</AppText><AppText variant="caption" color={colors.subtext}>{execution?.currentStep ?? "Đang chuẩn bị workflow"} · {realtimeConnected ? "Realtime" : "Polling"}</AppText>{failureDetails ? <AppText variant="caption" color={colors.danger}>{failureDetails}</AppText> : null}</View>{execution?.status?.toLowerCase() === "completed" ? <CheckCircle2 size={22} color="#059669" /> : null}</View>}
       {started && (arrived || (terminal && !failed)) ? <Pressable onPress={() => onGoToFeedback(started.missionId)} style={styles.primary}><CheckCircle2 size={17} color="#fff" /><AppText variant="subtitle" color="#fff">Đánh giá chuyến đi</AppText></Pressable> : null}
     </ScrollView>
   </View>;

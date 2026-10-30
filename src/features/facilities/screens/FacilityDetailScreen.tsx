@@ -16,7 +16,7 @@ export function FacilityDetailScreen({ facilityId, onBack, onStartGuidance }: Fa
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const { data: facility, isLoading, isError, error, refetch } = useFacility(facilityId);
   const { runtime } = useRobotRuntimeTelemetry("real");
-  const { mapMetadata, mapEndpoints, mapZones, mapError, endpointsError, zonesError } = useRobotMapOverlays(facility?.location.endpoint.endpointId, facility?.location.mapId);
+  const { mapMetadata, mapEndpoints, mapZones, mapError, endpointsError, zonesError } = useRobotMapOverlays(facility?.location.endpoint.endpointId);
   if (isLoading) return <View style={styles.container}><AppHeader title="Khu vực" onBack={onBack} /><AppLoading message="Đang tải thông tin khu vực..." /></View>;
   if (isError || !facility) return <View style={styles.container}><AppHeader title="Khu vực" onBack={onBack} />{isError ? <AppErrorState title="Không thể tải khu vực" message={error?.message ?? "Đã xảy ra lỗi."} onRetry={refetch} /> : <AppEmptyState title="Không tìm thấy khu vực" message="Khu vực không còn tồn tại." actionTitle="Quay lại" onAction={onBack} />}</View>;
   const canViewLocation = facility.actions.includes("VIEW_LOCATION");

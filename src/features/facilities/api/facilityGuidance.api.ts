@@ -49,7 +49,9 @@ export interface FacilityGuidanceStartResponse {
 export interface FacilityGuidanceExecution {
   status: string;
   currentStep?: string | null;
+  currentStepType?: string | null;
   expectedEventType?: string | null;
+  allowedValues?: string[];
   error?: string | null;
   message?: string | null;
   result?: {
@@ -95,14 +97,14 @@ export const facilityGuidanceApi = {
     }
   },
 
-  async start(request: { query: string; runtimeId: string; armLeaseId?: string }): Promise<FacilityGuidanceStartResponse> {
+  async start(request: { query: string; facilityId: string; runtimeId: string; armLeaseId?: string }): Promise<FacilityGuidanceStartResponse> {
     const response = await apiClient.post<FacilityGuidanceStartResponse>("/facility-guidance/start", request);
     return response.data;
   },
 
   async getExecution(executionId: string): Promise<FacilityGuidanceExecution> {
-    const response = await apiClient.get<FacilityGuidanceExecution>(`/facility-guidance/executions/${encodeURIComponent(executionId)}`);
-    return response.data;
+    const response = await apiClient.get<{ execution: FacilityGuidanceExecution }>(`/facility-guidance/executions/${encodeURIComponent(executionId)}`);
+    return response.data.execution;
   },
 
   async submitEvent(executionId: string, eventType: string, data: Record<string, unknown>): Promise<void> {

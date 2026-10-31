@@ -164,6 +164,10 @@ export const bookGuidanceApi = {
       && [zone.minX, zone.minY, zone.maxX, zone.maxY].every(Number.isFinite)
       && zone.minX <= zone.maxX
       && zone.minY <= zone.maxY
+      && ((zone.width == null && zone.height == null)
+        || (Number.isFinite(zone.width) && (zone.width ?? 0) > 0
+          && Number.isFinite(zone.height) && (zone.height ?? 0) > 0))
+      && Number.isFinite(zone.rotationAngle ?? 0)
       && typeof zone.isActive === "boolean"
     ));
   },

@@ -27,6 +27,9 @@ export interface GuidanceMapZone {
   minY: number;
   maxX: number;
   maxY: number;
+  width?: number | null;
+  height?: number | null;
+  rotationAngle?: number;
   isActive: boolean;
 }
 

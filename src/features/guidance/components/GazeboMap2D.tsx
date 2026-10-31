@@ -65,12 +65,28 @@ export function GazeboMap2D({
     () => mapZones
       .filter((zone) => zone.isActive)
       .map((zone) => {
-        const corners = [
-          { x: zone.minX, y: zone.minY },
-          { x: zone.maxX, y: zone.minY },
-          { x: zone.maxX, y: zone.maxY },
-          { x: zone.minX, y: zone.maxY },
-        ].map((corner) => worldToGazeboPixel(corner, map));
+        const centerX = (zone.minX + zone.maxX) / 2;
+        const centerY = (zone.minY + zone.maxY) / 2;
+        const angle = zone.rotationAngle ?? 0;
+        const cosine = Math.cos(angle);
+        const sine = Math.sin(angle);
+        const corners = zone.width != null && zone.height != null
+          ? [
+              [-zone.width / 2, -zone.height / 2],
+              [zone.width / 2, -zone.height / 2],
+              [zone.width / 2, zone.height / 2],
+              [-zone.width / 2, zone.height / 2],
+            ].map(([localX, localY]) => ({
+              x: centerX + cosine * localX - sine * localY,
+              y: centerY + sine * localX + cosine * localY,
+            }))
+          : [
+              { x: zone.minX, y: zone.minY },
+              { x: zone.maxX, y: zone.minY },
+              { x: zone.maxX, y: zone.maxY },
+              { x: zone.minX, y: zone.maxY },
+            ];
+        const pixels = corners.map((corner) => worldToGazeboPixel(corner, map));
         const color = zone.zoneType === "KEEP_OUT"
           ? "#ef4444"
           : zone.zoneType === "SPEED_LIMIT"
@@ -78,9 +94,9 @@ export function GazeboMap2D({
             : "#8b5cf6";
         const label = zone.zoneType.replaceAll("_", " ");
         const labelWidth = Math.max(10, Math.min(24, label.length * 1.15 + 2));
-        const labelX = Math.max(1, Math.min(...corners.map((point) => point.x)) + 1);
-        const labelY = Math.max(1, Math.min(...corners.map((point) => point.y)) + 1);
-        return { zone, corners, color, label, labelWidth, labelX, labelY };
+        const labelX = Math.max(1, Math.min(...pixels.map((point) => point.x)) + 1);
+        const labelY = Math.max(1, Math.min(...pixels.map((point) => point.y)) + 1);
+        return { zone, corners: pixels, color, label, labelWidth, labelX, labelY };
       }),
     [mapZones, map],
   );

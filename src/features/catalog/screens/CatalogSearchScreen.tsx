@@ -176,7 +176,7 @@ function BookCoverThumb({
 
 export interface CatalogSearchScreenProps {
   onSelectBook: (bookId: string) => void;
-  onStartGuidance: (bookId: string, bookItemId: string) => void;
+  onStartGuidance: (endpointId: string) => void;
   onBackToIdle: () => void;
 }
 
@@ -250,7 +250,7 @@ export function CatalogSearchScreen({
         handleViewDetail(book.id);
         return;
       }
-      onStartGuidance(detail.id, firstLocatedCopy.id);
+      onStartGuidance(firstLocatedCopy.endpoint!.endpointId);
     } catch {
       handleViewDetail(book.id);
     }

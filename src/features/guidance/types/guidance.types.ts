@@ -56,8 +56,7 @@ export interface GuidanceSession {
   missionId: string;
   executionId: string;
   runtimeId: string;
-  bookId: string;
-  bookItemId: string;
+  endpointId: string;
   armLeaseId?: string;
   status: "starting" | "waiting" | "navigating" | "completed" | "failed";
 }

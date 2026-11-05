@@ -20,14 +20,6 @@ const RATING_LEVELS = [
   { rating: 5, emoji: "🤩", label: "Tuyệt vời!" },
 ];
 
-const FEEDBACK_TAGS = [
-  "Đến đúng kệ sách",
-  "Di chuyển nhanh chóng",
-  "Màn hình dễ quan sát",
-  "Tốc độ đi vừa phải",
-  "Dễ tương tác",
-];
-
 export interface FeedbackScreenProps {
   missionId: string;
   onComplete: () => void;
@@ -45,9 +37,6 @@ export function FeedbackScreen({
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
 
   const [selectedRating, setSelectedRating] = useState<number>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>([
-    "Đến đúng kệ sách",
-  ]);
   const [comment, setComment] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -58,13 +47,6 @@ export function FeedbackScreen({
     setSelectedRating(rating);
   };
 
-  const handleToggleTag = (tag: string) => {
-    recordInteraction();
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-    );
-  };
-
   const handleSubmit = async () => {
     recordInteraction();
     setErrorMessage(null);
@@ -73,7 +55,6 @@ export function FeedbackScreen({
       await submitFeedbackMutation.mutateAsync({
         missionId: missionId ?? "unknown-mission",
         rating: selectedRating,
-        tags: selectedTags,
         comment: comment.trim() || undefined,
         kioskSessionId,
       });
@@ -154,37 +135,6 @@ export function FeedbackScreen({
                     numberOfLines={1}
                   >
                     {item.label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Quick Tags */}
-          <AppText variant="subtitle" style={styles.tagsHeading}>
-            Điểm bạn thích ở chuyến đi này:
-          </AppText>
-          <View style={[styles.tagWrap, isCompact && styles.tagWrapCompact]}>
-            {FEEDBACK_TAGS.map((tag) => {
-              const isSelected = selectedTags.includes(tag);
-              return (
-                <Pressable
-                  key={tag}
-                  onPress={() => handleToggleTag(tag)}
-                  style={[
-                    styles.tagChip,
-                    isSelected && styles.tagChipSelected,
-                    isCompact && styles.tagChipCompact,
-                  ]}
-                  accessibilityRole="button"
-                >
-                  <AppText
-                    variant="body"
-                    color={isSelected ? colors.surface : colors.textSecondary}
-                    style={isSelected ? styles.boldLabel : undefined}
-                  >
-                    {isSelected ? "✓ " : "+ "}
-                    {tag}
                   </AppText>
                 </Pressable>
               );

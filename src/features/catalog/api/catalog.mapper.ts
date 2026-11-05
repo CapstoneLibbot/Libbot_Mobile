@@ -130,7 +130,7 @@ export function mapBookDetailToBook(dto: BookGuidanceDetailDto): Book {
     title: dto.title || "Chưa có tiêu đề",
     author: dto.author || "Không rõ tác giả",
     category: dto.classification?.trim() || "Khác",
-    description: "",
+    description: dto.description?.trim() || "",
     available: isAvailable,
     availableCopies,
     totalCopies,

@@ -12,6 +12,8 @@ export interface BookItem {
   shelf?: string;
   shelfSlot?: string;
   aisle?: string;
+  /** Legacy client compatibility only; detail UI derives capability from endpoint presence. */
+  actions?: string[];
   floor?: number;
   location?: BookLocationDto | null;
   endpoint?: NavigationEndpointDto | null;

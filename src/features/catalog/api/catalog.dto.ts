@@ -8,6 +8,8 @@ export interface BookSearchItemDto {
   title: string;
   author: string;
   classification?: string | null;
+  /** Legacy field tolerated for older mocked responses; the backend no longer emits it. */
+  actions?: string[];
   availableCopies: number;
   image?: string | null;
 }
@@ -58,8 +60,9 @@ export interface BookGuidanceDetailDto {
   publisher?: string | null;
   publicationYear?: number | null;
   classification?: string | null;
-  actions: string[];
+  actions?: string[];
   image?: string | null;
+  description?: string | null;
   bookItems?: BookGuidanceBookItemDto[];
 }
 

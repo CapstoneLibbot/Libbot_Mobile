@@ -12,6 +12,7 @@ export interface AppHeaderProps {
   backLabel?: string;
   rightActionLabel?: string;
   onRightAction?: () => void;
+  rightAccessory?: React.ReactNode;
 }
 
 export function AppHeader({
@@ -21,6 +22,7 @@ export function AppHeader({
   backLabel = "Quay lại",
   rightActionLabel,
   onRightAction,
+  rightAccessory,
 }: AppHeaderProps): React.ReactElement {
   const { insets, isNarrowHeight, isCompactWidth } = useResponsiveLayout();
 
@@ -71,7 +73,7 @@ export function AppHeader({
 
       {/* Right Action */}
       <View style={styles.rightContainer}>
-        {rightActionLabel && onRightAction ? (
+        {rightAccessory ?? (rightActionLabel && onRightAction ? (
           <Pressable
             onPress={onRightAction}
             style={[
@@ -92,7 +94,7 @@ export function AppHeader({
               {rightActionLabel}
             </AppText>
           </Pressable>
-        ) : null}
+        ) : null)}
       </View>
     </View>
   );

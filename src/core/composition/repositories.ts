@@ -5,6 +5,7 @@ import type { FeedbackRepository } from "@/features/feedback/types/feedback.type
 import { MockCatalogRepository } from "@/testing/fakes/mockCatalogRepository";
 import { MockGuidanceRepository } from "@/testing/fakes/mockGuidanceRepository";
 import { MockFeedbackRepository } from "@/testing/fakes/mockFeedbackRepository";
+import { HttpFeedbackRepository } from "@/features/feedback/api/feedback.api";
 import { env } from "@/config/env";
 import { HttpCatalogRepository } from "@/features/catalog/api/catalog.api";
 import { HttpFacilitiesRepository } from "@/features/facilities/api/facilityGuidance.api";
@@ -22,7 +23,7 @@ export const appRepositories: AppRepositories = {
     : new HttpCatalogRepository(),
   facilities: new HttpFacilitiesRepository(),
   guidance: new MockGuidanceRepository(),
-  feedback: new MockFeedbackRepository(),
+  feedback: env.isMock ? new MockFeedbackRepository() : new HttpFeedbackRepository(),
 };
 
 export const getCatalogRepository = (): CatalogRepository =>

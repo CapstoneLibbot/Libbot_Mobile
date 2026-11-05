@@ -110,7 +110,7 @@ export function GazeboMap2D({
   if (!mapMetadata) {
     return (
       <View style={[styles.frame, styles.emptyFrame, frameStyle]} testID={testID}>
-        <Text style={styles.emptyText}>Đang tải map robot mới nhất từ BE…</Text>
+        <Text style={styles.emptyText}>Đang tải map robot…</Text>
       </View>
     );
   }

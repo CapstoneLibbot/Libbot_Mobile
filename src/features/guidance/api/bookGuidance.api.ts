@@ -1,5 +1,4 @@
 import { apiClient } from "@/services/api/client";
-import type { NavigationEndpointDto } from "@/features/catalog/api/catalog.dto";
 import type { GuidanceMapEndpoint, GuidanceMapZone } from "../types/guidance.types";
 import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
@@ -13,7 +12,6 @@ interface LibraryEndpointDto {
   theta: number;
   isActive: boolean;
 }
-
 type LibraryZoneDto = GuidanceMapZone;
 
 export interface RobotRuntimeTelemetry {
@@ -25,6 +23,16 @@ export interface RobotRuntimeTelemetry {
   plannedPath?: { x: number; y: number }[] | null;
   error?: string | null;
   battery?: number | null;
+}
+
+export interface NavigationEndpoint {
+  id: string;
+  mapId: string;
+  name: string;
+  positionX: number;
+  positionY: number;
+  theta: number;
+  isActive: boolean;
 }
 
 export interface RobotRuntime {
@@ -39,10 +47,8 @@ export interface RobotRuntime {
 }
 
 export interface BookGuidanceStartRequest {
-  query: string;
   runtimeId: string;
-  bookId: string;
-  bookItemId: string;
+  endpointId: string;
   armLeaseId?: string;
 }
 
@@ -182,6 +188,19 @@ export const bookGuidanceApi = {
     return response.data;
   },
 
+  async getEndpoint(endpointId: string): Promise<NavigationEndpoint | null> {
+    try {
+      const response = await apiClient.get<NavigationEndpoint>(
+        `/endpoints/${encodeURIComponent(endpointId)}`,
+      );
+      return response.data;
+    } catch (error: unknown) {
+      if (typeof error === "object" && error !== null && "status" in error
+        && (error as { status: number }).status === 404) return null;
+      throw error;
+    }
+  },
+
   async arm(runtimeId: string): Promise<RuntimeArmLease> {
     const response = await apiClient.post<RuntimeArmLease>(`/robot-runtimes/${encodeURIComponent(runtimeId)}/arm`);
     return response.data;
@@ -214,7 +233,3 @@ export const bookGuidanceApi = {
     });
   },
 };
-
-export function hasNavigationEndpoint(endpoint?: NavigationEndpointDto | null): endpoint is NavigationEndpointDto {
-  return Boolean(endpoint && Number.isFinite(endpoint.x) && Number.isFinite(endpoint.y) && Number.isFinite(endpoint.theta));
-}

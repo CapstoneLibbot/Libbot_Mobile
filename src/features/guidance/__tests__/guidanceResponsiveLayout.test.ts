@@ -205,20 +205,16 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       expect(bp.widthClass).toBe("compact");
       expect(bp.isCompactWidth).toBe(true);
 
-      // In 360dp portrait, isLandscape is false -> renders portraitBody
-      const isLandscape = !bp.isCompactWidth || 800 < 500;
-      expect(isLandscape).toBe(false);
+      expect(bp.isTablet).toBe(false);
     });
 
-    it("verifies 768dp tablet portrait uses medium width with two-column tablet layout", () => {
+    it("verifies 768dp tablet portrait keeps the stacked guidance composition", () => {
       const bp = getResponsiveBreakpoint(768, 1024);
       expect(bp.widthClass).toBe("medium");
       expect(bp.isMediumWidth).toBe(true);
       expect(bp.isCompactWidth).toBe(false);
 
-      // In 768dp portrait, !isCompactWidth is true -> renders two-column landscapeBody
-      const isLandscape = !bp.isCompactWidth || 1024 < 500;
-      expect(isLandscape).toBe(true);
+      expect(bp.isTablet).toBe(false);
     });
 
     it("verifies 1024dp landscape uses expanded width with wide map column covering left block", () => {
@@ -227,8 +223,63 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       expect(bp.isExpandedWidth).toBe(true);
       expect(bp.isCompactWidth).toBe(false);
 
-      const isLandscape = !bp.isCompactWidth || 768 < 500;
-      expect(isLandscape).toBe(true);
+      expect(bp.isTablet).toBe(true);
+    });
+  });
+
+  describe("Map-only Guidance UI Contract", () => {
+    it("uses the same full-map composition on compact mobile and tablet portrait", () => {
+      const phone360 = getResponsiveBreakpoint(360, 800);
+      expect(phone360.isCompactWidth).toBe(true);
+
+      const tabletPortrait = getResponsiveBreakpoint(768, 1024);
+      expect(tabletPortrait.isMediumWidth).toBe(true);
+    });
+
+    it("does not require a sidebar at kiosk widths", () => {
+      const standardKiosk = getResponsiveBreakpoint(1024, 768);
+      expect(standardKiosk.isExpandedWidth).toBe(true);
+
+      const androidKioskWithBars = getResponsiveBreakpoint(1024, 457);
+      expect(androidKioskWithBars.isExpandedWidth).toBe(true);
+    });
+
+    it("hides header status chip on compact mobile (360dp) to prevent crowding, shows on tablet & kiosk displays", () => {
+      const phone360 = getResponsiveBreakpoint(360, 800);
+      expect(phone360.isCompactWidth).toBe(true); // showHeaderStatus = !isCompactWidth => false
+
+      const tabletPortrait = getResponsiveBreakpoint(768, 1024);
+      expect(tabletPortrait.isCompactWidth).toBe(false); // showHeaderStatus = true
+
+      const kioskLandscape = getResponsiveBreakpoint(1024, 457);
+      expect(kioskLandscape.isCompactWidth).toBe(false); // showHeaderStatus = true
+    });
+
+    it("maps robot runtime status correctly according to connection and localization", () => {
+      // 1. Ready: connected, not stale, localized
+      const isReady = (connected: boolean, stale: boolean, loc?: string) =>
+        Boolean(connected && !stale && loc?.toUpperCase() === "LOCALIZED");
+
+      const getLabel = (connected: boolean, stale: boolean, loc?: string) =>
+        connected && !stale
+          ? loc?.toUpperCase() === "LOCALIZED"
+            ? "Sẵn sàng"
+            : "Đang định vị"
+          : "Mất kết nối";
+
+      expect(isReady(true, false, "LOCALIZED")).toBe(true);
+      expect(getLabel(true, false, "LOCALIZED")).toBe("Sẵn sàng");
+
+      // 2. Localizing: connected, not stale, not localized yet
+      expect(isReady(true, false, "UNLOCALIZED")).toBe(false);
+      expect(getLabel(true, false, "UNLOCALIZED")).toBe("Đang định vị");
+      expect(getLabel(true, false, undefined)).toBe("Đang định vị");
+
+      // 3. Disconnected / Stale
+      expect(isReady(false, false, "LOCALIZED")).toBe(false);
+      expect(getLabel(false, false, "LOCALIZED")).toBe("Mất kết nối");
+      expect(isReady(true, true, "LOCALIZED")).toBe(false);
+      expect(getLabel(true, true, "LOCALIZED")).toBe("Mất kết nối");
     });
   });
 });

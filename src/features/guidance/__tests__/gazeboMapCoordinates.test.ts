@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getEndpointsForTargetMap, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import {
+  getRotatedMapBounds,
+  inferHorizontalRotationAngle,
+  rotateMapPixel,
+} from "../utils/guidanceMapOrientation";
 import type { GuidanceMapEndpoint } from "../types/guidance.types";
 
 const COORDINATE_FRAME = {
@@ -43,5 +48,41 @@ describe("Gazebo map world coordinates", () => {
       "same-map",
     ]);
     expect(getEndpointsForTargetMap(endpoints, "missing")).toEqual([]);
+  });
+
+  it("rotates a diagonal occupancy map so its dominant axis is horizontal", () => {
+    const width = 100;
+    const height = 60;
+    const cells = Array.from({ length: width * height }, () => -1);
+    for (let x = 8; x < 92; x += 1) {
+      const visualY = Math.round(12 + x * 0.35);
+      const rawY = height - visualY - 1;
+      cells[rawY * width + x] = 0;
+    }
+
+    const angle = inferHorizontalRotationAngle(width, height, cells);
+    const bounds = getRotatedMapBounds(width, height, angle);
+    const start = rotateMapPixel({ x: 12, y: height - 17 }, width, height, angle, bounds);
+    const end = rotateMapPixel({ x: 88, y: height - 43 }, width, height, angle, bounds);
+
+    expect(angle).not.toBe(0);
+    expect(Math.abs(end.y - start.y)).toBeLessThan(1);
+  });
+
+  it("does not rotate square or unknown occupancy maps", () => {
+    expect(inferHorizontalRotationAngle(20, 20, Array(400).fill(0))).toBe(0);
+    expect(inferHorizontalRotationAngle(20, 10, Array(200).fill(-1))).toBe(0);
+    expect(inferHorizontalRotationAngle(20, 10)).toBe(0);
+  });
+
+  it("keeps robot, endpoint, and route geometry aligned after display rotation", () => {
+    const angle = Math.PI / 4;
+    const bounds = getRotatedMapBounds(100, 60, angle);
+    const robot = rotateMapPixel({ x: 20, y: 20 }, 100, 60, angle, bounds);
+    const endpoint = rotateMapPixel({ x: 80, y: 40 }, 100, 60, angle, bounds);
+
+    expect(Math.hypot(endpoint.x - robot.x, endpoint.y - robot.y)).toBeCloseTo(
+      Math.hypot(80 - 20, 40 - 20),
+    );
   });
 });

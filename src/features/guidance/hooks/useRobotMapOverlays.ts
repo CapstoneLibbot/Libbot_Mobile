@@ -14,8 +14,17 @@ export interface RobotMapOverlays {
   zonesError: string | null;
 }
 
+export interface RobotMapOverlayOptions {
+  includeZones?: boolean;
+}
+
 /** Loads the same map and map-scoped overlays for every Mobile map surface. */
-export function useRobotMapOverlays(selectedEndpointId?: string | null, requestedMapId?: string | null): RobotMapOverlays {
+export function useRobotMapOverlays(
+  selectedEndpointId?: string | null,
+  requestedMapId?: string | null,
+  options?: RobotMapOverlayOptions,
+): RobotMapOverlays {
+  const includeZones = options?.includeZones ?? true;
   const [mapMetadata, setMapMetadata] = useState<GazeboMapMetadata | null>(null);
   const [mapEndpoints, setMapEndpoints] = useState<GuidanceMapEndpoint[]>([]);
   const [mapZones, setMapZones] = useState<GuidanceMapZone[]>([]);
@@ -90,24 +99,30 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null, requeste
         const mapId = loadedMapId.current;
         if (!mapId) return;
 
-        const [endpointResult, zoneResult] = await Promise.allSettled([
-          bookGuidanceApi.getMapEndpoints(mapId),
-          bookGuidanceApi.getMapZones(mapId),
-        ]);
-        if (!mounted) return;
-
-        if (endpointResult.status === "fulfilled") {
-          setMapEndpoints(endpointResult.value.filter((endpoint) => endpoint.isActive));
+        try {
+          const endpoints = await bookGuidanceApi.getMapEndpoints(mapId);
+          if (!mounted) return;
+          setMapEndpoints(endpoints.filter((endpoint) => endpoint.isActive));
           setEndpointsError(null);
-        } else {
+        } catch {
+          if (!mounted) return;
           setMapEndpoints([]);
           setEndpointsError("Không tải được các endpoint trên map này.");
         }
 
-        if (zoneResult.status === "fulfilled") {
-          setMapZones(zoneResult.value.filter((zone) => zone.isActive));
+        if (!includeZones) {
+          setMapZones([]);
           setZonesError(null);
-        } else {
+          return;
+        }
+
+        try {
+          const zones = await bookGuidanceApi.getMapZones(mapId);
+          if (!mounted) return;
+          setMapZones(zones.filter((zone) => zone.isActive));
+          setZonesError(null);
+        } catch {
+          if (!mounted) return;
           setMapZones([]);
           setZonesError("Không tải được các zone trên map này.");
         }
@@ -124,7 +139,7 @@ export function useRobotMapOverlays(selectedEndpointId?: string | null, requeste
       mounted = false;
       clearInterval(timer);
     };
-  }, [selectedEndpointId, requestedMapId]);
+  }, [selectedEndpointId, requestedMapId, includeZones]);
 
   return { mapMetadata, mapEndpoints, mapZones, mapError, endpointsError, zonesError };
 }

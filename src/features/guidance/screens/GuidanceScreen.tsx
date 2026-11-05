@@ -112,10 +112,10 @@ export function GuidanceScreen({
   const {
     mapMetadata: savedRobotMap,
     mapEndpoints,
-    mapZones,
     endpointsError: mapEndpointsError,
-    zonesError: mapZonesError,
-  } = useRobotMapOverlays(endpoint?.id, endpoint?.mapId);
+  } = useRobotMapOverlays(endpoint?.id, endpoint?.mapId, {
+    includeZones: false,
+  });
   const destination = useMemo<RobotPose | null>(
     () =>
       endpoint && endpoint.isActive
@@ -421,11 +421,12 @@ export function GuidanceScreen({
           destination={destination}
           destinationLabel={endpoint?.name ?? "Đích dẫn đường"}
           mapEndpoints={mapEndpoints}
-          mapZones={mapZones}
           selectedEndpointId={endpoint?.id}
           path={route}
           mapMetadata={selectedSavedRobotMap ?? undefined}
           frameStyle={styles.mapFrame}
+          fillContainer
+          autoRotate
           testID="gazebo-guidance-map"
         />
 
@@ -449,10 +450,10 @@ export function GuidanceScreen({
             </AppText>
           </View>
         )}
-        {(mapEndpointsError || mapZonesError) && (
+        {mapEndpointsError && (
           <View style={styles.mapWarningOverlay}>
             <AppText variant="caption" color={colors.danger}>
-              {mapEndpointsError ?? mapZonesError}
+              {mapEndpointsError}
             </AppText>
           </View>
         )}

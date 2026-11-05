@@ -3,6 +3,11 @@ import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import type { GuidanceMapEndpoint, GuidanceMapZone, RobotPose } from "../types/guidance.types";
 import { getOccupancyPaths, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
+import {
+  getRotatedMapBounds,
+  inferHorizontalRotationAngle,
+  rotateMapPixel,
+} from "../utils/guidanceMapOrientation";
 import type { GazeboMapMetadata } from "../utils/gazeboMapCoordinates";
 
 const EMPTY_MAP: GazeboMapMetadata = {
@@ -25,6 +30,10 @@ export interface GazeboMap2DProps {
   path?: { x: number; y: number }[] | null;
   mapMetadata?: GazeboMapMetadata;
   frameStyle?: StyleProp<ViewStyle>;
+  /** Fill the parent region while preserving the occupancy map's aspect ratio. */
+  fillContainer?: boolean;
+  /** Rotate the display to align the map's dominant axis horizontally. */
+  autoRotate?: boolean;
   testID?: string;
 }
 
@@ -40,11 +49,33 @@ export function GazeboMap2D({
   path,
   mapMetadata,
   frameStyle,
+  fillContainer = false,
+  autoRotate = false,
   testID = "gazebo-map-2d",
 }: GazeboMap2DProps): React.ReactElement {
   const map = mapMetadata ?? EMPTY_MAP;
+  const displayRotation = autoRotate
+    ? inferHorizontalRotationAngle(map.imageWidth, map.imageHeight, map.cells)
+    : 0;
+  const displayBounds = getRotatedMapBounds(
+    map.imageWidth,
+    map.imageHeight,
+    displayRotation,
+  );
+  const displayTransform = displayRotation
+    ? `translate(${displayBounds.width / 2} ${displayBounds.height / 2}) rotate(${(displayRotation * 180) / Math.PI}) translate(${-map.imageWidth / 2} ${-map.imageHeight / 2})`
+    : undefined;
   const robotPixel = robot ? worldToGazeboPixel(robot, map) : null;
   const targetPixel = destination ? worldToGazeboPixel(destination, map) : null;
+  const displayTargetPixel = targetPixel
+    ? rotateMapPixel(
+        targetPixel,
+        map.imageWidth,
+        map.imageHeight,
+        displayRotation,
+        displayBounds,
+      )
+    : null;
   const routePoints = useMemo(
     () => (path ?? []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)).map((point) => worldToGazeboPixel(point, map)),
     [path, map],
@@ -102,28 +133,50 @@ export function GazeboMap2D({
   );
   const label = (destinationLabel ?? "Vị trí sách").slice(0, 12);
   const labelWidth = Math.max(12, Math.min(24, label.length * 1.35 + 2.5));
-  const labelX = targetPixel && targetPixel.x > map.imageWidth * 0.66
-    ? targetPixel.x - labelWidth - 2
-    : (targetPixel?.x ?? 0) + 2;
-  const labelY = Math.max(1, (targetPixel?.y ?? 0) - 6);
+  const labelX = displayTargetPixel && displayTargetPixel.x > displayBounds.width * 0.66
+    ? displayTargetPixel.x - labelWidth - 2
+    : (displayTargetPixel?.x ?? 0) + 2;
+  const labelY = Math.max(1, (displayTargetPixel?.y ?? 0) - 6);
 
   if (!mapMetadata) {
     return (
-      <View style={[styles.frame, styles.emptyFrame, frameStyle]} testID={testID}>
+      <View
+        style={[
+          styles.frame,
+          fillContainer ? styles.fillFrame : styles.emptyFrame,
+          styles.emptyContent,
+          frameStyle,
+        ]}
+        testID={testID}
+      >
         <Text style={styles.emptyText}>Đang tải map robot…</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.frame, { aspectRatio: map.imageWidth / map.imageHeight }, frameStyle]} testID={testID}>
+    <View
+      style={[
+        styles.frame,
+        fillContainer
+          ? styles.fillFrame
+          : [
+              styles.constrainedFrame,
+              { aspectRatio: map.imageWidth / map.imageHeight },
+            ],
+        frameStyle,
+      ]}
+      testID={testID}
+    >
       <Svg
         width="100%"
         height="100%"
-        viewBox={`0 0 ${map.imageWidth} ${map.imageHeight}`}
+        viewBox={`0 0 ${displayBounds.width} ${displayBounds.height}`}
         preserveAspectRatio="xMidYMid meet"
         accessibilityLabel="Bản đồ occupancy Gazebo 2D"
       >
+        <Rect x={0} y={0} width={displayBounds.width} height={displayBounds.height} fill="#f1f5f9" />
+        <G transform={displayTransform}>
         <Rect x={0} y={0} width={map.imageWidth} height={map.imageHeight} fill="#f1f5f9" />
         {map.cells
           ? <>
@@ -202,36 +255,10 @@ export function GazeboMap2D({
             : endpoint.endpointType === "PARK"
               ? "#f5f3ff"
               : "#ecfdf5";
-          const endpointLabel = endpoint.name.trim().slice(0, 16);
-          const endpointLabelWidth = Math.max(10, Math.min(24, endpointLabel.length * 1.25 + 2));
-          const endpointLabelX = pixel.x > map.imageWidth - endpointLabelWidth - 3
-            ? pixel.x - endpointLabelWidth - 2
-            : pixel.x + 2;
-          const endpointLabelY = pixel.y < 6 ? pixel.y + 2.2 : pixel.y - 5;
-
           return (
             <G key={`library-endpoint-${endpoint.id}`}>
               <Circle cx={pixel.x} cy={pixel.y} r={2.3} fill={endpointColor} fillOpacity={0.16} />
               <Circle cx={pixel.x} cy={pixel.y} r={1.1} fill={endpointTint} stroke={endpointColor} strokeWidth={0.55} />
-              <Rect
-                x={endpointLabelX}
-                y={endpointLabelY}
-                width={endpointLabelWidth}
-                height={3.7}
-                rx={0.9}
-                fill={endpointTint}
-                stroke={endpointColor}
-                strokeWidth={0.22}
-              />
-              <SvgText
-                x={endpointLabelX + 1}
-                y={endpointLabelY + 2.5}
-                fill={endpointColor}
-                fontSize={1.75}
-                fontWeight="700"
-              >
-                {endpointLabel}
-              </SvgText>
             </G>
           );
         })}
@@ -241,8 +268,6 @@ export function GazeboMap2D({
             <Circle cx={targetPixel.x} cy={targetPixel.y} r={3.7} fill="#f97316" fillOpacity={0.16} />
             <Circle cx={targetPixel.x} cy={targetPixel.y} r={1.65} fill="#fff7ed" stroke="#ea580c" strokeWidth={0.65} />
             <Circle cx={targetPixel.x} cy={targetPixel.y} r={0.55} fill="#ea580c" />
-            <Rect x={labelX} y={labelY} width={labelWidth} height={4.2} rx={1.1} fill="#fff7ed" stroke="#fdba74" strokeWidth={0.25} />
-            <SvgText x={labelX + 1.2} y={labelY + 2.8} fill="#9a3412" fontSize={2.15} fontWeight="700">{label}</SvgText>
           </G>
         )}
 
@@ -251,6 +276,49 @@ export function GazeboMap2D({
             <Circle r={3.7} fill="#0ea5e9" fillOpacity={0.16} />
             <Circle r={1.9} fill="#f0f9ff" stroke="#0284c7" strokeWidth={0.7} />
             <Polygon points="2.3,0 -1.25,-1.25 -1.25,1.25" fill="#0284c7" />
+          </G>
+        )}
+        </G>
+
+        {endpointMarkers.map(({ endpoint, pixel }) => {
+          const endpointColor = endpoint.endpointType === "CHARGER"
+            ? "#f97316"
+            : endpoint.endpointType === "PARK"
+              ? "#8b5cf6"
+              : "#047857";
+          const endpointTint = endpoint.endpointType === "CHARGER"
+            ? "#fff7ed"
+            : endpoint.endpointType === "PARK"
+              ? "#f5f3ff"
+              : "#ecfdf5";
+          const displayPixel = rotateMapPixel(
+            pixel,
+            map.imageWidth,
+            map.imageHeight,
+            displayRotation,
+            displayBounds,
+          );
+          const endpointLabel = endpoint.name.trim().slice(0, 16);
+          const endpointLabelWidth = Math.max(10, Math.min(24, endpointLabel.length * 1.25 + 2));
+          const endpointLabelX = displayPixel.x > displayBounds.width - endpointLabelWidth - 3
+            ? displayPixel.x - endpointLabelWidth - 2
+            : displayPixel.x + 2;
+          const endpointLabelY = displayPixel.y < 6 ? displayPixel.y + 2.2 : displayPixel.y - 5;
+
+          return (
+            <G key={`library-endpoint-label-${endpoint.id}`}>
+              <Rect x={endpointLabelX} y={endpointLabelY} width={endpointLabelWidth} height={3.7} rx={0.9} fill={endpointTint} stroke={endpointColor} strokeWidth={0.22} />
+              <SvgText x={endpointLabelX + 1} y={endpointLabelY + 2.5} fill={endpointColor} fontSize={1.75} fontWeight="700">
+                {endpointLabel}
+              </SvgText>
+            </G>
+          );
+        })}
+
+        {displayTargetPixel && destination && (
+          <G>
+            <Rect x={labelX} y={labelY} width={labelWidth} height={4.2} rx={1.1} fill="#fff7ed" stroke="#fdba74" strokeWidth={0.25} />
+            <SvgText x={labelX + 1.2} y={labelY + 2.8} fill="#9a3412" fontSize={2.15} fontWeight="700">{label}</SvgText>
           </G>
         )}
 
@@ -263,10 +331,10 @@ export function GazeboMap2D({
         </G>
 
         <G>
-          <Line x1={3} y1={map.imageHeight - 4} x2={13} y2={map.imageHeight - 4} stroke="#334155" strokeWidth={0.6} />
-          <Line x1={3} y1={map.imageHeight - 5} x2={3} y2={map.imageHeight - 3} stroke="#334155" strokeWidth={0.5} />
-          <Line x1={13} y1={map.imageHeight - 5} x2={13} y2={map.imageHeight - 3} stroke="#334155" strokeWidth={0.5} />
-          <SvgText x={14.5} y={map.imageHeight - 3.1} fill="#475569" fontSize={2.1}>0.5 m</SvgText>
+          <Line x1={3} y1={displayBounds.height - 4} x2={13} y2={displayBounds.height - 4} stroke="#334155" strokeWidth={0.6} />
+          <Line x1={3} y1={displayBounds.height - 5} x2={3} y2={displayBounds.height - 3} stroke="#334155" strokeWidth={0.5} />
+          <Line x1={13} y1={displayBounds.height - 5} x2={13} y2={displayBounds.height - 3} stroke="#334155" strokeWidth={0.5} />
+          <SvgText x={14.5} y={displayBounds.height - 3.1} fill="#475569" fontSize={2.1}>0.5 m</SvgText>
         </G>
       </Svg>
     </View>
@@ -276,16 +344,23 @@ export function GazeboMap2D({
 const styles = StyleSheet.create({
   frame: {
     width: "100%",
-    maxHeight: 430,
     overflow: "hidden",
     borderRadius: 16,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
     borderColor: "#cbd5e1",
   },
+  constrainedFrame: {
+    maxHeight: 430,
+  },
+  fillFrame: {
+    flex: 1,
+    alignSelf: "stretch",
+  },
   emptyFrame: {
     minHeight: 220,
-    aspectRatio: undefined,
+  },
+  emptyContent: {
     justifyContent: "center",
     alignItems: "center",
     padding: 24,

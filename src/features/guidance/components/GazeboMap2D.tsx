@@ -1,9 +1,11 @@
-import React, { useMemo } from "react";
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import React, { useMemo, useState } from "react";
+import { LayoutChangeEvent, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import type { GuidanceMapEndpoint, GuidanceMapZone, RobotPose } from "../types/guidance.types";
 import { getOccupancyPaths, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
 import {
+  ContentBoundingBox,
+  getContentBoundingBox,
   getRotatedMapBounds,
   inferHorizontalRotationAngle,
   rotateMapPixel,
@@ -34,6 +36,18 @@ export interface GazeboMap2DProps {
   fillContainer?: boolean;
   /** Rotate the display to align the map's dominant axis horizontally. */
   autoRotate?: boolean;
+  /** Explicit rotation angle in radians (e.g. -11 * Math.PI / 180 to straighten the room). Overrides autoRotate. */
+  rotationAngle?: number;
+  /** Crop the viewBox tightly to the room content and landmarks instead of the full raw occupancy image. */
+  cropToContent?: boolean;
+  /** Zoom factor (e.g. 1.0 = 100%, 1.4 = 140%). Defaults to 1.0. */
+  zoom?: number;
+  /** SVG preserveAspectRatio (e.g. "none" to cover full container width & height, or "xMidYMid meet"). Defaults to "xMidYMid meet". */
+  preserveAspectRatio?: string;
+  /** Show the map name badge tag at top-left. Defaults to false. */
+  showMapTag?: boolean;
+  /** Show the scale bar at bottom-left. Defaults to false. */
+  showScaleBar?: boolean;
   testID?: string;
 }
 
@@ -51,12 +65,20 @@ export function GazeboMap2D({
   frameStyle,
   fillContainer = false,
   autoRotate = false,
+  rotationAngle,
+  cropToContent = false,
+  zoom = 1,
+  preserveAspectRatio = "xMidYMid meet",
+  showMapTag = false,
+  showScaleBar = false,
   testID = "gazebo-map-2d",
 }: GazeboMap2DProps): React.ReactElement {
   const map = mapMetadata ?? EMPTY_MAP;
-  const displayRotation = autoRotate
-    ? inferHorizontalRotationAngle(map.imageWidth, map.imageHeight, map.cells)
-    : 0;
+  const displayRotation = rotationAngle !== undefined
+    ? rotationAngle
+    : autoRotate
+      ? inferHorizontalRotationAngle(map.imageWidth, map.imageHeight, map.cells)
+      : 0;
   const displayBounds = getRotatedMapBounds(
     map.imageWidth,
     map.imageHeight,
@@ -138,9 +160,74 @@ export function GazeboMap2D({
     : (displayTargetPixel?.x ?? 0) + 2;
   const labelY = Math.max(1, (displayTargetPixel?.y ?? 0) - 6);
 
+  const contentBox = useMemo<ContentBoundingBox>(() => {
+    if (!cropToContent || !mapMetadata) {
+      return { x: 0, y: 0, width: displayBounds.width, height: displayBounds.height };
+    }
+    const extraPixels: { x: number; y: number }[] = [];
+    if (robotPixel) extraPixels.push(robotPixel);
+    if (targetPixel) extraPixels.push(targetPixel);
+    for (const ep of endpointMarkers) {
+      extraPixels.push(ep.pixel);
+    }
+    return getContentBoundingBox(
+      map.imageWidth,
+      map.imageHeight,
+      displayRotation,
+      displayBounds,
+      map.cells,
+      map.obstacles,
+      extraPixels,
+    );
+  }, [
+    cropToContent,
+    mapMetadata,
+    map.imageWidth,
+    map.imageHeight,
+    displayRotation,
+    displayBounds,
+    map.cells,
+    map.obstacles,
+    robotPixel,
+    targetPixel,
+    endpointMarkers,
+  ]);
+
+  const [containerAspect, setContainerAspect] = useState<number | null>(null);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      const nextAspect = width / height;
+      setContainerAspect((prev) => {
+        if (prev != null && Math.abs(prev - nextAspect) < 0.01) return prev;
+        return nextAspect;
+      });
+    }
+  };
+
+  const zoomFactor = Math.max(0.5, Math.min(3.5, zoom ?? 1));
+  let viewBoxW = contentBox.width / zoomFactor;
+  let viewBoxH = contentBox.height / zoomFactor;
+
+  if (preserveAspectRatio !== "none" && fillContainer && containerAspect && containerAspect > 0 && contentBox.height > 0) {
+    const contentAspect = contentBox.width / contentBox.height;
+    if (containerAspect >= contentAspect) {
+      // Container is wider than the room: expand viewBox width to match container aspect ratio
+      viewBoxW = viewBoxH * containerAspect;
+    } else {
+      // Container is taller than the room: expand viewBox height to match container aspect ratio
+      viewBoxH = viewBoxW / containerAspect;
+    }
+  }
+
+  const viewBoxX = contentBox.x + (contentBox.width - viewBoxW) / 2;
+  const viewBoxY = contentBox.y + (contentBox.height - viewBoxH) / 2;
+
   if (!mapMetadata) {
     return (
       <View
+        onLayout={handleLayout}
         style={[
           styles.frame,
           fillContainer ? styles.fillFrame : styles.emptyFrame,
@@ -156,6 +243,7 @@ export function GazeboMap2D({
 
   return (
     <View
+      onLayout={handleLayout}
       style={[
         styles.frame,
         fillContainer
@@ -171,11 +259,11 @@ export function GazeboMap2D({
       <Svg
         width="100%"
         height="100%"
-        viewBox={`0 0 ${displayBounds.width} ${displayBounds.height}`}
-        preserveAspectRatio="xMidYMid meet"
+        viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxW} ${viewBoxH}`}
+        preserveAspectRatio={preserveAspectRatio}
         accessibilityLabel="Bản đồ occupancy Gazebo 2D"
       >
-        <Rect x={0} y={0} width={displayBounds.width} height={displayBounds.height} fill="#f1f5f9" />
+        <Rect x={viewBoxX} y={viewBoxY} width={viewBoxW} height={viewBoxH} fill="#f1f5f9" />
         <G transform={displayTransform}>
         <Rect x={0} y={0} width={map.imageWidth} height={map.imageHeight} fill="#f1f5f9" />
         {map.cells
@@ -322,20 +410,24 @@ export function GazeboMap2D({
           </G>
         )}
 
-        <G>
-          <Rect x={2} y={2} width={runtimeLabel ? 29 : 24} height={4.7} rx={1.4} fill="#ffffff" fillOpacity={0.94} stroke="#cbd5e1" strokeWidth={0.25} />
-          <Circle cx={4.1} cy={4.35} r={0.8} fill={robotConnected ? "#10b981" : "#94a3b8"} />
-          <SvgText x={5.8} y={5.2} fill="#334155" fontSize={2.25} fontWeight="700">
-            {runtimeLabel ? `THƯ VIỆN · ${runtimeLabel.slice(0, 8)}` : "BẢN ĐỒ THƯ VIỆN"}
-          </SvgText>
-        </G>
+        {showMapTag && (
+          <G>
+            <Rect x={viewBoxX + 2} y={viewBoxY + 2} width={runtimeLabel ? 29 : 24} height={4.7} rx={1.4} fill="#ffffff" fillOpacity={0.94} stroke="#cbd5e1" strokeWidth={0.25} />
+            <Circle cx={viewBoxX + 4.1} cy={viewBoxY + 4.35} r={0.8} fill={robotConnected ? "#10b981" : "#94a3b8"} />
+            <SvgText x={viewBoxX + 5.8} y={viewBoxY + 5.2} fill="#334155" fontSize={2.25} fontWeight="700">
+              {runtimeLabel ? `THƯ VIỆN · ${runtimeLabel.slice(0, 8)}` : "BẢN ĐỒ THƯ VIỆN"}
+            </SvgText>
+          </G>
+        )}
 
-        <G>
-          <Line x1={3} y1={displayBounds.height - 4} x2={13} y2={displayBounds.height - 4} stroke="#334155" strokeWidth={0.6} />
-          <Line x1={3} y1={displayBounds.height - 5} x2={3} y2={displayBounds.height - 3} stroke="#334155" strokeWidth={0.5} />
-          <Line x1={13} y1={displayBounds.height - 5} x2={13} y2={displayBounds.height - 3} stroke="#334155" strokeWidth={0.5} />
-          <SvgText x={14.5} y={displayBounds.height - 3.1} fill="#475569" fontSize={2.1}>0.5 m</SvgText>
-        </G>
+        {showScaleBar && (
+          <G>
+            <Line x1={viewBoxX + 3} y1={viewBoxY + viewBoxH - 4} x2={viewBoxX + 13} y2={viewBoxY + viewBoxH - 4} stroke="#334155" strokeWidth={0.6} />
+            <Line x1={viewBoxX + 3} y1={viewBoxY + viewBoxH - 5} x2={viewBoxX + 3} y2={viewBoxY + viewBoxH - 3} stroke="#334155" strokeWidth={0.5} />
+            <Line x1={viewBoxX + 13} y1={viewBoxY + viewBoxH - 5} x2={viewBoxX + 13} y2={viewBoxY + viewBoxH - 3} stroke="#334155" strokeWidth={0.5} />
+            <SvgText x={viewBoxX + 14.5} y={viewBoxY + viewBoxH - 3.1} fill="#475569" fontSize={2.1}>0.5 m</SvgText>
+          </G>
+        )}
       </Svg>
     </View>
   );
@@ -356,6 +448,8 @@ const styles = StyleSheet.create({
   fillFrame: {
     flex: 1,
     alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyFrame: {
     minHeight: 220,

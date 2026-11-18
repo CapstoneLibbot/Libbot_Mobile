@@ -9,17 +9,11 @@ import {
   toVoiceToolResult,
   type VoiceToolResult,
 } from "../utils/voiceToolResult";
+import { type VoiceSessionPhase } from "../domain/voiceSessionState";
 
 export { type VoiceToolResult } from "../utils/voiceToolResult";
 
-export type XiaozhiVoiceStatus =
-  | "idle"
-  | "connecting"
-  | "listening"
-  | "thinking"
-  | "speaking"
-  | "disconnected"
-  | "error";
+export type XiaozhiVoiceStatus = VoiceSessionPhase;
 
 export interface VoiceConversationEntry {
   id: string;
@@ -58,6 +52,7 @@ export function useXiaozhiVoiceSession() {
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [assistantText, setAssistantText] = useState<string | null>(null);
+  const [voiceActivitySequence, setVoiceActivitySequence] = useState(0);
   const [conversation, setConversation] = useState<VoiceConversationEntry[]>(
     [],
   );
@@ -67,7 +62,14 @@ export function useXiaozhiVoiceSession() {
   const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasGreetedRef = useRef(false);
   const greetingInProgressRef = useRef(false);
+  const greetingRef = useRef(OPENING_GREETING);
   const pendingAssistantIdRef = useRef<string | null>(null);
+  const nativeSessionEndedRef = useRef(true);
+  const endingPromiseRef = useRef<Promise<void> | null>(null);
+
+  const recordVoiceActivity = useCallback(() => {
+    setVoiceActivitySequence((previous) => previous + 1);
+  }, []);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
@@ -133,22 +135,29 @@ export function useXiaozhiVoiceSession() {
   const handleEvent = useCallback(
     (event: XiaozhiNativeEvent) => {
       switch (event.type) {
+        case "speech_started":
+          // This is emitted by Android as soon as it detects human speech,
+          // before a partial/final transcript is available.
+          recordVoiceActivity();
+          setStatus("listening");
+          return;
         case "connected":
           reconnectAttemptRef.current = 0;
           setError(null);
           if (!hasGreetedRef.current) {
             hasGreetedRef.current = true;
             greetingInProgressRef.current = true;
-            setAssistantText(OPENING_GREETING);
+            const greeting = greetingRef.current;
+            setAssistantText(greeting);
             setConversation([
               {
                 id: createConversationId(),
                 speaker: "assistant",
-                text: OPENING_GREETING,
+                text: greeting,
               },
             ]);
             setStatus("speaking");
-            void XiaozhiAudio?.speakGreeting(OPENING_GREETING);
+            void XiaozhiAudio?.speakGreeting(greeting);
           } else {
             void XiaozhiAudio?.resumeCapture();
           }
@@ -162,6 +171,7 @@ export function useXiaozhiVoiceSession() {
           return;
         case "stt":
           if (event.text?.trim()) {
+            recordVoiceActivity();
             const userText = event.text.trim();
             const assistantId = createConversationId();
             pendingAssistantIdRef.current = assistantId;
@@ -185,6 +195,7 @@ export function useXiaozhiVoiceSession() {
           // Android SpeechRecognizer emits this locally while the person is
           // talking. It is intentionally not sent to the LLM until final.
           setTranscript(event.text || null);
+          recordVoiceActivity();
           setStatus("listening");
           return;
         case "thinking":
@@ -252,29 +263,50 @@ export function useXiaozhiVoiceSession() {
           return;
       }
     },
-    [armResponseTimeout, clearResponseTimer, reconnect],
+    [armResponseTimeout, clearResponseTimer, reconnect, recordVoiceActivity],
   );
 
-  const stop = useCallback(() => {
+  const resetLocalSession = useCallback(() => {
     wantsSessionRef.current = false;
     clearReconnectTimer();
     clearResponseTimer();
     reconnectAttemptRef.current = 0;
     hasGreetedRef.current = false;
     greetingInProgressRef.current = false;
+    greetingRef.current = OPENING_GREETING;
     pendingAssistantIdRef.current = null;
-    void XiaozhiAudio?.disconnect();
     setStatus("idle");
     setTranscript(null);
     setAssistantText(null);
+    setVoiceActivitySequence(0);
     setConversation([]);
   }, [clearReconnectTimer, clearResponseTimer]);
 
-  const start = useCallback(async () => {
-    stop();
+  const stop = useCallback(async (): Promise<void> => {
+    resetLocalSession();
+    setStatus("ending");
+    if (nativeSessionEndedRef.current) return;
+    if (!endingPromiseRef.current) {
+      nativeSessionEndedRef.current = true;
+      endingPromiseRef.current = Promise.resolve(XiaozhiAudio?.endSession())
+        .catch(() => {
+          // The modal can still close if Android has already torn the session down.
+        })
+        .finally(() => {
+          endingPromiseRef.current = null;
+        });
+    }
+    await endingPromiseRef.current;
+  }, [resetLocalSession]);
+
+  const start = useCallback(async (greeting = OPENING_GREETING) => {
+    await endingPromiseRef.current;
+    resetLocalSession();
+    nativeSessionEndedRef.current = false;
     wantsSessionRef.current = true;
     hasGreetedRef.current = false;
     greetingInProgressRef.current = false;
+    greetingRef.current = greeting;
     setError(null);
     try {
       await requestMicrophonePermission();
@@ -287,13 +319,13 @@ export function useXiaozhiVoiceSession() {
       );
       setStatus("error");
     }
-  }, [connect, stop]);
+  }, [connect, resetLocalSession]);
 
   useEffect(() => {
     const subscription = addXiaozhiEventListener(handleEvent);
     return () => {
       subscription?.remove();
-      stop();
+      void stop();
     };
   }, [handleEvent, stop]);
 
@@ -302,6 +334,7 @@ export function useXiaozhiVoiceSession() {
     error,
     transcript,
     assistantText,
+    voiceActivitySequence,
     conversation,
     start,
     stop,

@@ -7,18 +7,19 @@ export type XiaozhiNativeEvent = {
     | "error"
     | "stt"
     | "stt_partial"
+    | "speech_started"
     | "thinking"
     | "tts"
     | "listening"
-    | "tool_result";
+    | "tool_result"
+    | "session_ended";
   text?: string;
   state?: string;
   code?: string;
-  tool?: "search_books" | "search_areas";
+  tool?: "search_books";
   query?: string;
   totalMatches?: number;
   books?: XiaozhiVoiceBook[];
-  areas?: XiaozhiVoiceArea[];
 };
 
 /** Presentation-safe records sent by the LiBot Xiaozhi server after an MCP tool call. */
@@ -26,15 +27,7 @@ export interface XiaozhiVoiceBook {
   bookId: string;
   title: string;
   author: string;
-  isbn?: string;
-  classification?: string;
-  availableCopies: number;
-}
-
-export interface XiaozhiVoiceArea {
-  name: string;
-  floorName: string;
-  floorNumber: number;
+  canGuide: boolean;
 }
 
 export interface XiaozhiAudioNativeModule {
@@ -47,6 +40,7 @@ export interface XiaozhiAudioNativeModule {
   speakGreeting(text: string): Promise<void>;
   resumeCapture(): Promise<void>;
   abort(): Promise<void>;
+  endSession(): Promise<void>;
 }
 
 const XiaozhiAudio =

@@ -34,6 +34,12 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-secure-store",
     ["expo-screen-orientation", { initialOrientation: "LANDSCAPE" }],
+    [
+      "react-native-vosk",
+      {
+        models: ["assets/models/model-vn-vn"],
+      },
+    ],
   ],
   ios: {
     bundleIdentifier: "com.yourorg.libot",
@@ -42,6 +48,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.yourorg.libot",
+    permissions: ["RECORD_AUDIO"],
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/android-icon-foreground.png",

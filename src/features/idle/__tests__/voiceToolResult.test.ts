@@ -14,7 +14,7 @@ describe("toVoiceToolResult", () => {
             bookId: "book-1",
             title: "Clean Code",
             author: "Robert C. Martin",
-            availableCopies: 3,
+            canGuide: true,
           },
         ],
       }),
@@ -27,7 +27,7 @@ describe("toVoiceToolResult", () => {
           bookId: "book-1",
           title: "Clean Code",
           author: "Robert C. Martin",
-          availableCopies: 3,
+          canGuide: true,
         },
       ],
     });

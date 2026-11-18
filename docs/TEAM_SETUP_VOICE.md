@@ -90,8 +90,8 @@ lsof -nP -iTCP:5205 -sTCP:LISTEN
 
 ## 5. Khởi động Xiaozhi
 
-Xiaozhi nằm trong Mobile repository ở `docker/xiaozhi`. Nó gọi chính xác hai
-MCP tool read-only của BE: `search_books` và `search_areas`.
+Xiaozhi nằm trong Mobile repository ở `docker/xiaozhi`. Nó gọi `search_books`
+và chỉ gọi `start_book_guidance` sau khi người dùng đã xác nhận dẫn đường.
 
 ```bash
 cd Libbot_Mobile/docker/xiaozhi

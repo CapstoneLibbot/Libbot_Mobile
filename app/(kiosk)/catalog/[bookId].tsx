@@ -11,8 +11,14 @@ export default function BookDetailRoute(): React.ReactElement {
       onBack={() => {
         router.back();
       }}
-      onOpenFacility={(facilityId) => {
-        router.push(`/(kiosk)/facilities/${facilityId}`);
+      onOpenFacility={(facilityId, meta) => {
+        const queryParams = new URLSearchParams();
+        if (meta?.bookTitle) queryParams.set("bookTitle", meta.bookTitle);
+        if (meta?.locationLabel) queryParams.set("locationLabel", meta.locationLabel);
+        const queryStr = queryParams.toString();
+        router.push(
+          `/(kiosk)/facilities/${encodeURIComponent(facilityId)}${queryStr ? `?${queryStr}` : ""}` as any,
+        );
       }}
       onStartGuidance={(endpointId) => {
         router.push(`/(kiosk)/guidance/map?endpointId=${encodeURIComponent(endpointId)}`);

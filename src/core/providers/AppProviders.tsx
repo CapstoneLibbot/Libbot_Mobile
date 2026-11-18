@@ -40,7 +40,9 @@ export function AppProviders({
 
   return (
     <SafeAreaProvider>
-      <QueryProvider>{children}</QueryProvider>
+      <QueryProvider>
+        {children}
+      </QueryProvider>
     </SafeAreaProvider>
   );
 }

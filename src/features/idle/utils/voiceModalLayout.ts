@@ -23,25 +23,6 @@ export interface InsetsLike {
 export const DEFAULT_LIBOT_GREETING =
   "Xin chào! Thư viện mở cửa phục vụ từ 07:30 đến 21:00 các ngày trong tuần. Tôi có thể giúp bạn tìm sách hoặc khu vực.";
 
-export function voiceTitle(status: string): string {
-  if (status === "thinking") return "LiBot đang tìm thông tin";
-  if (status === "speaking") return "LiBot đang trả lời";
-  if (status === "connecting" || status === "disconnected")
-    return "LiBot đang kết nối";
-  if (status === "error") return "LiBot cần được thử lại";
-  return "LiBot đang lắng nghe";
-}
-
-export function voiceDescription(status: string, error: string | null): string {
-  if (error) return error;
-  if (status === "connecting") return "Đang kết nối trợ lý giọng nói…";
-  if (status === "disconnected") return "Đang kết nối lại…";
-  if (status === "thinking") return "Đang tìm thông tin trong thư viện…";
-  if (status === "speaking") return "LiBot đang trả lời…";
-  if (status === "error") return "Vui lòng đóng và thử lại.";
-  return "Bạn có thể nói tên sách, tác giả hoặc khu vực bạn muốn tìm";
-}
-
 export function computeVoiceModalLayout(
   width: number,
   height: number,

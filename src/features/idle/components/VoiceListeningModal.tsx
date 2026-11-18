@@ -27,18 +27,19 @@ import { useVoiceSession } from "../hooks/useVoiceSession";
 import {
   computeVoiceModalLayout,
   DEFAULT_LIBOT_GREETING,
-  voiceDescription,
-  voiceTitle,
 } from "../utils/voiceModalLayout";
+import { getVoiceSessionCopy } from "../domain/voiceSessionState";
 
 export {
   DEFAULT_LIBOT_GREETING,
-  voiceDescription,
-  voiceTitle,
 } from "../utils/voiceModalLayout";
+export {
+  getVoiceSessionCopy as voiceSessionCopy,
+} from "../domain/voiceSessionState";
 
 export interface VoiceListeningModalProps {
   visible: boolean;
+  activation?: "manual" | "wake";
   onClose: () => void;
   onSelectBook: (bookId: string) => void;
 }
@@ -91,7 +92,7 @@ function ToolResultCards({
                   color={colors.primary}
                   numberOfLines={1}
                 >
-                  Còn {book.availableCopies} bản
+                  {book.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường"}
                 </AppText>
               </View>
             </Pressable>
@@ -107,36 +108,7 @@ function ToolResultCards({
     );
   }
 
-  if (result.areas.length === 0) return null;
-  return (
-    <View style={styles.resultList}>
-      <AppText variant="caption" color={colors.subtext}>
-        {result.totalMatches} kết quả phù hợp
-      </AppText>
-      {result.areas.map((area, index) => (
-        <View
-          key={`${area.name}-${area.floorNumber}-${index}`}
-          style={styles.resultCard}
-        >
-          <View style={styles.resultIcon}>
-            <MessageCircle color={colors.primary} size={20} />
-          </View>
-          <View style={styles.resultCopy}>
-            <AppText
-              variant="body"
-              style={styles.resultTitle}
-              numberOfLines={2}
-            >
-              {area.name}
-            </AppText>
-            <AppText variant="caption" color={colors.primary} numberOfLines={1}>
-              {area.floorName || `Tầng ${area.floorNumber}`}
-            </AppText>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
+  return null;
 }
 
 function ConversationMessageEntry({
@@ -190,13 +162,23 @@ function ConversationMessageEntry({
 function VoiceListeningModalInner({
   onClose,
   onSelectBook,
+  activation = "manual",
 }: Omit<VoiceListeningModalProps, "visible">): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const setVoiceActive = useKioskStore((state) => state.setVoiceActive);
   const { width, height, insets } = useResponsiveLayout();
-  const { status, error, transcript, conversation, start, stop } =
+  const {
+    status,
+    error,
+    transcript,
+    conversation,
+    start,
+    stop,
+    voiceActivitySequence,
+  } =
     useVoiceSession();
   const conversationRef = useRef<ScrollView>(null);
+  const statusCopy = getVoiceSessionCopy(status, error);
 
   // Responsive layout dimensions
   const layout = computeVoiceModalLayout(width, height, insets);
@@ -216,17 +198,21 @@ function VoiceListeningModalInner({
   const [bar5] = useState(() => new Animated.Value(14));
   const [bar6] = useState(() => new Animated.Value(22));
   const [bar7] = useState(() => new Animated.Value(10));
+  const closeInFlightRef = useRef(false);
 
   const handleClose = useCallback(() => {
-    stop();
-    setVoiceActive(false);
-    recordInteraction();
-    onClose();
+    if (closeInFlightRef.current) return Promise.resolve();
+    closeInFlightRef.current = true;
+    return stop().finally(() => {
+      setVoiceActive(false);
+      recordInteraction();
+      onClose();
+    });
   }, [onClose, recordInteraction, setVoiceActive, stop]);
 
   const handleSelectBook = useCallback(
-    (bookId: string) => {
-      handleClose();
+    async (bookId: string) => {
+      await handleClose();
       onSelectBook(bookId);
     },
     [handleClose, onSelectBook],
@@ -257,11 +243,24 @@ function VoiceListeningModalInner({
     });
   }, [expandProgress, recordInteraction]);
 
+  // A shared kiosk must not leave an abandoned reader's conversation on
+  // screen. Native `speech_started` resets this timer before Google Speech
+  // Recognizer can publish a transcript, so a reader is never closed out
+  // while saying a short answer such as "đồng ý".
+  useEffect(() => {
+    if (status !== "listening") return;
+    const timer = setTimeout(
+      handleClose,
+      IDLE_MENU_CONFIG.voiceModalAutoCloseMs,
+    );
+    return () => clearTimeout(timer);
+  }, [handleClose, status, voiceActivitySequence]);
+
   // Session lifecycle and waveform loops
   useEffect(() => {
     setVoiceActive(true);
     recordInteraction();
-    void start();
+    void start(activation === "wake" ? "Tôi nghe đây" : undefined);
 
     const animateBar = (
       val: Animated.Value,
@@ -299,7 +298,7 @@ function VoiceListeningModalInner({
     loops.forEach((loop) => loop.start());
 
     return () => {
-      stop();
+      void stop();
       loops.forEach((loop) => loop.stop());
       setVoiceActive(false);
     };
@@ -312,6 +311,7 @@ function VoiceListeningModalInner({
     bar6,
     bar7,
     layout.isNarrowHeight,
+    activation,
     recordInteraction,
     setVoiceActive,
     start,
@@ -455,7 +455,7 @@ function VoiceListeningModalInner({
                   style={styles.voiceTitle}
                   numberOfLines={1}
                 >
-                  {voiceTitle(status)}
+                  {statusCopy.title}
                 </AppText>
                 <AppText
                   variant="body"
@@ -463,7 +463,7 @@ function VoiceListeningModalInner({
                   style={styles.voiceDescription}
                   numberOfLines={2}
                 >
-                  {voiceDescription(status, error)}
+                  {statusCopy.description}
                 </AppText>
               </View>
 
@@ -726,7 +726,7 @@ function VoiceListeningModalInner({
               style={styles.voiceTitle}
               numberOfLines={1}
             >
-              {voiceTitle(status)}
+              {statusCopy.title}
             </AppText>
             <AppText
               variant="body"
@@ -734,7 +734,7 @@ function VoiceListeningModalInner({
               style={styles.voiceDescription}
               numberOfLines={2}
             >
-              {voiceDescription(status, error)}
+              {statusCopy.description}
             </AppText>
           </View>
 
@@ -862,6 +862,7 @@ function VoiceListeningModalInner({
 
 export function VoiceListeningModal({
   visible,
+  activation,
   onClose,
   onSelectBook,
 }: VoiceListeningModalProps): React.ReactElement | null {
@@ -869,6 +870,7 @@ export function VoiceListeningModal({
   return (
     <VoiceListeningModalInner
       key="voice-modal-active"
+      activation={activation}
       onClose={onClose}
       onSelectBook={onSelectBook}
     />

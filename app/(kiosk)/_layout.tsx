@@ -1,6 +1,6 @@
 import { useIdleTimeout, useKioskOrientation } from "@/core";
 import { useKeepAwake } from "expo-keep-awake";
-import { router, Stack } from "expo-router";
+import { router, Stack, usePathname } from "expo-router";
 import React from "react";
 
 export default function KioskLayout(): React.ReactElement {
@@ -10,10 +10,14 @@ export default function KioskLayout(): React.ReactElement {
   // Enforce landscape orientation dynamically while inside the kiosk route tree
   useKioskOrientation();
 
+  const pathname = usePathname();
+
   // Reset session and return to idle when kiosk is inactive and no mission is active
   useIdleTimeout({
     onTimeout: () => {
-      router.replace("/(kiosk)/idle");
+      if (pathname && !pathname.endsWith("/idle") && pathname !== "/") {
+        router.replace("/(kiosk)/idle");
+      }
     },
   });
 

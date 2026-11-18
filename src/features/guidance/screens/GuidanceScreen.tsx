@@ -85,7 +85,8 @@ export function GuidanceScreen({
   onGoToFeedback,
   onBackToSearch,
 }: GuidanceScreenProps): React.ReactElement {
-  const { insets, isCompactWidth } = useResponsiveLayout();
+  const { insets, isCompactWidth, width, height } = useResponsiveLayout();
+  const isLandscape = width > height;
   const session = useKioskStore((state) => state.activeGuidanceSession);
   const setSession = useKioskStore((state) => state.setActiveGuidanceSession);
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
@@ -100,6 +101,7 @@ export function GuidanceScreen({
   const [armLeaseId, setArmLeaseId] = useState<string | null>(
     session?.armLeaseId ?? null,
   );
+  const mapRotationDeg = 0;
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const pollInFlight = useRef(false);
@@ -409,105 +411,138 @@ export function GuidanceScreen({
           ) : undefined
         }
       />
-      <View style={styles.mapArea}>
-        <GazeboMap2D
-          robot={robotPose}
-          robotConnected={Boolean(runtime?.connected && !runtime.stale)}
-          runtimeLabel={
-            selectedSavedRobotMap
-              ? `MAP V${selectedSavedRobotMap.version}`
-              : "REAL"
-          }
-          destination={destination}
-          destinationLabel={endpoint?.name ?? "Đích dẫn đường"}
-          mapEndpoints={mapEndpoints}
-          selectedEndpointId={endpoint?.id}
-          path={route}
-          mapMetadata={selectedSavedRobotMap ?? undefined}
-          frameStyle={styles.mapFrame}
-          fillContainer
-          autoRotate
-          testID="gazebo-guidance-map"
-        />
+      <View style={isLandscape ? styles.bodyLandscape : styles.bodyPortrait}>
+        <View style={styles.mapArea}>
+          <GazeboMap2D
+            robot={robotPose}
+            robotConnected={Boolean(runtime?.connected && !runtime.stale)}
+            runtimeLabel={
+              selectedSavedRobotMap
+                ? `MAP V${selectedSavedRobotMap.version}`
+                : "REAL"
+            }
+            destination={destination}
+            destinationLabel={endpoint?.name ?? "Đích dẫn đường"}
+            mapEndpoints={mapEndpoints}
+            selectedEndpointId={endpoint?.id}
+            path={route}
+            mapMetadata={selectedSavedRobotMap ?? undefined}
+            frameStyle={styles.mapFrame}
+            fillContainer
+            rotationAngle={(mapRotationDeg * Math.PI) / 180}
+            cropToContent
+            preserveAspectRatio="none"
+            showMapTag={false}
+            showScaleBar={false}
+            testID="gazebo-guidance-map"
+          />
 
-        {!endpointLoaded && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator color={colors.primary} />
-            <AppText variant="caption">Đang tải endpoint…</AppText>
-          </View>
-        )}
-        {endpointLoaded && !destination && (
-          <View style={styles.errorOverlay}>
-            <AppText variant="body" color={colors.danger}>
-              Endpoint này không còn active hoặc thiếu tọa độ hợp lệ.
-            </AppText>
-          </View>
-        )}
-        {errorMessage && (
-          <View style={styles.errorOverlay} testID="guidance-error-overlay">
-            <AppText variant="body" color={colors.danger}>
-              {errorMessage}
-            </AppText>
-          </View>
-        )}
-        {mapEndpointsError && (
-          <View style={styles.mapWarningOverlay}>
-            <AppText variant="caption" color={colors.danger}>
-              {mapEndpointsError}
-            </AppText>
-          </View>
-        )}
-      </View>
-
-      <View
-        style={[
-          styles.actionBar,
-          {
-            paddingBottom: Math.max(insets.bottom, spacing.sm),
-            paddingLeft: Math.max(insets.left, spacing.md),
-            paddingRight: Math.max(insets.right, spacing.md),
-          },
-        ]}
-      >
-        <Pressable
-          disabled={armDisabled}
-          onPress={handleArm}
-          style={[styles.armButton, armDisabled && styles.buttonDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel={
-            armLeaseId ? "Robot đã ARM" : "ARM robot thật (bắt buộc)"
-          }
-        >
-          {busy && !armLeaseId ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <Shield size={18} color={colors.primary} />
+          {!endpointLoaded && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator color={colors.primary} />
+              <AppText variant="caption">Đang tải endpoint…</AppText>
+            </View>
           )}
-          <AppText variant="subtitle" color={colors.primary} style={styles.actionButtonText}>
-            {armLeaseId ? "Robot đã ARM" : "ARM robot thật"}
-          </AppText>
-        </Pressable>
-
-        <Pressable
-          disabled={startDisabled}
-          onPress={handleStart}
-          style={[styles.primaryButton, startDisabled && styles.buttonDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel="Dẫn đường đến sách"
-        >
-          {busy ? (
-            <ActivityIndicator color={colors.surface} />
-          ) : (
-            <Zap size={18} color={colors.surface} fill={colors.surface} />
+          {endpointLoaded && !destination && (
+            <View style={styles.errorOverlay}>
+              <AppText variant="body" color={colors.danger}>
+                Endpoint này không còn active hoặc thiếu tọa độ hợp lệ.
+              </AppText>
+            </View>
           )}
-          <AppText variant="subtitle" color={colors.surface} style={styles.actionButtonText}>
-            {activeSession
-              ? "Đang dẫn đường…"
-              : busy
-                ? "Đang gửi…"
-                : "Dẫn đường"}
-          </AppText>
-        </Pressable>
+          {errorMessage && (
+            <View style={styles.errorOverlay} testID="guidance-error-overlay">
+              <AppText variant="body" color={colors.danger}>
+                {errorMessage}
+              </AppText>
+            </View>
+          )}
+          {mapEndpointsError && (
+            <View style={styles.mapWarningOverlay}>
+              <AppText variant="caption" color={colors.danger}>
+                {mapEndpointsError}
+              </AppText>
+            </View>
+          )}
+        </View>
+
+        {/* Side Panel (Landscape) or Bottom Action Bar (Portrait) */}
+        <View
+          style={[
+            isLandscape ? styles.sidePanel : styles.actionBar,
+            {
+              paddingBottom: Math.max(insets.bottom, isLandscape ? spacing.md : spacing.sm),
+              paddingRight: Math.max(insets.right, spacing.md),
+              paddingLeft: isLandscape ? spacing.md : Math.max(insets.left, spacing.md),
+            },
+          ]}
+        >
+          {isLandscape && (
+            <View style={styles.destinationCard}>
+              <AppText variant="caption" color={colors.textSecondary} style={styles.destinationCardSub}>
+                ĐÍCH ĐẾN
+              </AppText>
+              <AppText variant="subtitle" color={colors.text} numberOfLines={2} style={styles.destinationCardTitle}>
+                {endpoint?.name ?? "Đang tải…"}
+              </AppText>
+              {destination && (
+                <AppText variant="caption" color={colors.subtext} style={styles.destinationCoords}>
+                  X: {destination.x.toFixed(2)}m · Y: {destination.y.toFixed(2)}m
+                </AppText>
+              )}
+            </View>
+          )}
+
+          <View style={isLandscape ? styles.sideActionsContainer : styles.bottomActionsContainer}>
+            <Pressable
+              disabled={armDisabled}
+              onPress={handleArm}
+              style={[
+                styles.armButton,
+                isLandscape && styles.armButtonLandscape,
+                armDisabled && styles.buttonDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                armLeaseId ? "Robot đã ARM" : "ARM robot thật (bắt buộc)"
+              }
+            >
+              {busy && !armLeaseId ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Shield size={18} color={colors.primary} />
+              )}
+              <AppText variant="subtitle" color={colors.primary} style={styles.actionButtonText}>
+                {armLeaseId ? "Robot đã ARM" : "ARM robot thật"}
+              </AppText>
+            </Pressable>
+
+            <Pressable
+              disabled={startDisabled}
+              onPress={handleStart}
+              style={[
+                styles.primaryButton,
+                isLandscape && styles.primaryButtonLandscape,
+                startDisabled && styles.buttonDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Dẫn đường đến sách"
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.surface} />
+              ) : (
+                <Zap size={18} color={colors.surface} fill={colors.surface} />
+              )}
+              <AppText variant="subtitle" color={colors.surface} style={styles.actionButtonText}>
+                {activeSession
+                  ? "Đang dẫn đường…"
+                  : busy
+                    ? "Đang gửi…"
+                    : "Dẫn đường"}
+              </AppText>
+            </Pressable>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -515,11 +550,21 @@ export function GuidanceScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  bodyLandscape: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  bodyPortrait: {
+    flex: 1,
+    flexDirection: "column",
+  },
   mapArea: {
     flex: 1,
     minHeight: 0,
     position: "relative",
-    backgroundColor: colors.surface,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
   },
   mapFrame: {
     flex: 1,
@@ -527,6 +572,7 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 0,
     borderWidth: 0,
+    backgroundColor: "#f1f5f9",
   },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   headerStatus: {
@@ -570,6 +616,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.card,
   },
+  sidePanel: {
+    width: 290,
+    backgroundColor: colors.surface,
+    borderLeftWidth: 1,
+    borderColor: colors.borderLight,
+    padding: spacing.md,
+    justifyContent: "space-between",
+  },
+  destinationCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: spacing.xs,
+  },
+  destinationCardSub: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  destinationCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+  destinationCoords: {
+    fontSize: 12,
+  },
+  sideActionsContainer: {
+    gap: spacing.sm,
+  },
+  bottomActionsContainer: {
+    flex: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
   actionBar: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -594,6 +677,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+  armButtonLandscape: {
+    flex: 0,
+    width: "100%",
+  },
   primaryButton: {
     flex: 1,
     minHeight: 52,
@@ -605,6 +692,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     ...shadows.card,
+  },
+  primaryButtonLandscape: {
+    flex: 0,
+    width: "100%",
   },
   buttonWaiting: { backgroundColor: colors.primaryDark },
   buttonDisabled: { opacity: 0.47 },

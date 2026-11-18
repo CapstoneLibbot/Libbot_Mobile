@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getEndpointsForTargetMap, worldToGazeboPixel } from "../utils/gazeboMapCoordinates";
 import {
+  getContentBoundingBox,
   getRotatedMapBounds,
   inferHorizontalRotationAngle,
   rotateMapPixel,
@@ -84,5 +85,20 @@ describe("Gazebo map world coordinates", () => {
     expect(Math.hypot(endpoint.x - robot.x, endpoint.y - robot.y)).toBeCloseTo(
       Math.hypot(80 - 20, 40 - 20),
     );
+  });
+
+  it("calculates tight content bounding box for rooms with padding", () => {
+    const width = 100;
+    const height = 100;
+    const bounds = { width: 100, height: 100 };
+    const extraPoints = [
+      { x: 30, y: 30 },
+      { x: 70, y: 70 },
+    ];
+    const box = getContentBoundingBox(width, height, 0, bounds, undefined, undefined, extraPoints);
+    expect(box.x).toBeLessThan(30);
+    expect(box.y).toBeLessThan(30);
+    expect(box.x + box.width).toBeGreaterThan(70);
+    expect(box.y + box.height).toBeGreaterThan(70);
   });
 });

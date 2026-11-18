@@ -1,5 +1,5 @@
 import { Mic } from "lucide-react-native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Svg, {
   Defs,
@@ -17,6 +17,7 @@ import { LiBotActionMenu } from "../components/LiBotActionMenu";
 import { RobotFace, RobotFaceRef } from "../components/RobotFace";
 import { VoiceListeningModal } from "../components/VoiceListeningModal";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
+import { useKioskVoiceCoordinator } from "../hooks/useKioskVoiceCoordinator";
 
 export interface IdleAttractScreenProps {
   onNavigateToSearch: () => void;
@@ -36,8 +37,6 @@ export function IdleAttractScreen({
 
   const robotFaceRef = useRef<RobotFaceRef>(null);
   const isNavigatingRef = useRef(false);
-
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   // Single-flight navigation handler to search (Tìm sách)
   const handleNavigateToSearch = useCallback(() => {
@@ -63,16 +62,11 @@ export function IdleAttractScreen({
     onNavigateToFacilities();
   }, [onNavigateToFacilities, recordInteraction, resetKioskSession]);
 
-  // Handle Voice action from separate bottom-right FAB
-  const handleOpenVoice = useCallback(() => {
-    recordInteraction();
-    setIsVoiceModalOpen(true);
-  }, [recordInteraction]);
-
-  const handleCloseVoice = useCallback(() => {
-    recordInteraction();
-    setIsVoiceModalOpen(false);
-  }, [recordInteraction]);
+  // Voice Coordinator: điều phối nhả/nhận mic giữa Vosk và Xiaozhi có buffer an toàn
+  const voice = useKioskVoiceCoordinator({
+    isConnected,
+    onRecordInteraction: recordInteraction,
+  });
 
   // Touching the robot face triggers the playful eye reaction without navigating
   const handleFaceTouch = useCallback(() => {
@@ -110,7 +104,7 @@ export function IdleAttractScreen({
 
       {/* Independent Voice FAB (Bottom-Right, Safe Area aware) */}
       <Pressable
-        onPress={handleOpenVoice}
+        onPress={voice.openManualVoice}
         style={({ pressed }) => [
           styles.voiceFabButton,
           {
@@ -131,8 +125,9 @@ export function IdleAttractScreen({
 
       {/* Voice Listening Simulation Modal */}
       <VoiceListeningModal
-        visible={isVoiceModalOpen}
-        onClose={handleCloseVoice}
+        visible={voice.isVoiceModalOpen}
+        activation={voice.voiceActivation}
+        onClose={voice.closeVoice}
         onSelectBook={onNavigateToBook}
       />
 
@@ -161,9 +156,7 @@ export function IdleAttractScreen({
               ]}
             />
             <AppText variant="caption" color={colors.textSecondary}>
-              {isConnected
-                ? "LiBot Kiosk Sẵn Sàng Phục Vụ"
-                : "Đang chạy chế độ dữ liệu nội bộ"}
+              {voice.statusLabel}
             </AppText>
           </View>
         </View>

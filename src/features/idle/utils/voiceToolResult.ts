@@ -1,22 +1,15 @@
 import type {
   XiaozhiNativeEvent,
-  XiaozhiVoiceArea,
   XiaozhiVoiceBook,
 } from "xiaozhi-audio";
 
 export type VoiceToolResult =
-  | {
-      kind: "books";
-      query: string;
-      totalMatches: number;
-      books: XiaozhiVoiceBook[];
-    }
-  | {
-      kind: "areas";
-      query: string;
-      totalMatches: number;
-      areas: XiaozhiVoiceArea[];
-    };
+  {
+    kind: "books";
+    query: string;
+    totalMatches: number;
+    books: XiaozhiVoiceBook[];
+  };
 
 function isBook(value: unknown): value is XiaozhiVoiceBook {
   return Boolean(
@@ -24,16 +17,7 @@ function isBook(value: unknown): value is XiaozhiVoiceBook {
     typeof value === "object" &&
     typeof (value as XiaozhiVoiceBook).bookId === "string" &&
     typeof (value as XiaozhiVoiceBook).title === "string" &&
-    typeof (value as XiaozhiVoiceBook).availableCopies === "number",
-  );
-}
-
-function isArea(value: unknown): value is XiaozhiVoiceArea {
-  return Boolean(
-    value &&
-    typeof value === "object" &&
-    typeof (value as XiaozhiVoiceArea).name === "string" &&
-    typeof (value as XiaozhiVoiceArea).floorNumber === "number",
+    typeof (value as XiaozhiVoiceBook).canGuide === "boolean",
   );
 }
 
@@ -51,14 +35,6 @@ export function toVoiceToolResult(
       query: typeof event.query === "string" ? event.query : "",
       totalMatches,
       books: Array.isArray(event.books) ? event.books.filter(isBook) : [],
-    };
-  }
-  if (event.tool === "search_areas") {
-    return {
-      kind: "areas",
-      query: typeof event.query === "string" ? event.query : "",
-      totalMatches,
-      areas: Array.isArray(event.areas) ? event.areas.filter(isArea) : [],
     };
   }
   return null;

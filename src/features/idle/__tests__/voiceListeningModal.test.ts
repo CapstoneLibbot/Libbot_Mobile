@@ -2,12 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { useKioskStore } from "@/core/state";
 import {
   computeVoiceModalLayout,
-  voiceDescription,
-  voiceTitle,
   DEFAULT_LIBOT_GREETING,
   type InsetsLike,
 } from "../utils/voiceModalLayout";
 import { type VoiceToolResult } from "../hooks/useXiaozhiVoiceSession";
+import { getVoiceSessionCopy } from "../domain/voiceSessionState";
 
 describe("VoiceListeningModal UI/UX Specifications Contract", () => {
   const zeroInsets: InsetsLike = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -82,29 +81,29 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
 
   describe("Status Titles, Descriptions, and Default Greeting", () => {
     it("maps voice status to clear, localized Vietnamese titles", () => {
-      expect(voiceTitle("listening")).toBe("LiBot đang lắng nghe");
-      expect(voiceTitle("thinking")).toBe("LiBot đang tìm thông tin");
-      expect(voiceTitle("speaking")).toBe("LiBot đang trả lời");
-      expect(voiceTitle("connecting")).toBe("LiBot đang kết nối");
-      expect(voiceTitle("disconnected")).toBe("LiBot đang kết nối");
-      expect(voiceTitle("error")).toBe("LiBot cần được thử lại");
+      expect(getVoiceSessionCopy("listening", null).title).toBe("LiBot đang lắng nghe");
+      expect(getVoiceSessionCopy("thinking", null).title).toBe("LiBot đang tìm thông tin");
+      expect(getVoiceSessionCopy("speaking", null).title).toBe("LiBot đang trả lời");
+      expect(getVoiceSessionCopy("connecting", null).title).toBe("LiBot đang kết nối");
+      expect(getVoiceSessionCopy("disconnected", null).title).toBe("LiBot đang kết nối lại");
+      expect(getVoiceSessionCopy("error", null).title).toBe("LiBot cần được thử lại");
     });
 
     it("maps voice descriptions accurately and prioritizes explicit error strings", () => {
-      expect(voiceDescription("listening", null)).toBe(
+      expect(getVoiceSessionCopy("listening", null).description).toBe(
         "Bạn có thể nói tên sách, tác giả hoặc khu vực bạn muốn tìm",
       );
-      expect(voiceDescription("thinking", null)).toBe(
+      expect(getVoiceSessionCopy("thinking", null).description).toBe(
         "Đang tìm thông tin trong thư viện…",
       );
-      expect(voiceDescription("speaking", null)).toBe("LiBot đang trả lời…");
-      expect(voiceDescription("connecting", null)).toBe(
+      expect(getVoiceSessionCopy("speaking", null).description).toBe("LiBot đang trả lời…");
+      expect(getVoiceSessionCopy("connecting", null).description).toBe(
         "Đang kết nối trợ lý giọng nói…",
       );
 
       const customError = "Microphone không khả dụng";
-      expect(voiceDescription("error", customError)).toBe(customError);
-      expect(voiceDescription("listening", customError)).toBe(customError);
+      expect(getVoiceSessionCopy("error", customError).description).toBe(customError);
+      expect(getVoiceSessionCopy("listening", customError).description).toBe(customError);
     });
 
     it("provides the default LiBot greeting when conversation history is empty", () => {
@@ -189,7 +188,7 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
   });
 
   describe("Tool Result Book Card & Area Card Contract", () => {
-    it("verifies book card data shape: title, author, availableCopies, and triggers onSelectBook", () => {
+    it("verifies book card data shape: title, author, guidance state, and triggers onSelectBook", () => {
       const onSelectBook = vi.fn();
       const handleClose = vi.fn();
 
@@ -207,7 +206,7 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
             bookId: "b-clean-code-01",
             title: "Clean Code: Kỹ Năng Lập Trình",
             author: "Robert C. Martin",
-            availableCopies: 3,
+            canGuide: true,
           },
         ],
       };
@@ -215,7 +214,7 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
       const book = bookResult.books[0];
       expect(book.title).toBe("Clean Code: Kỹ Năng Lập Trình");
       expect(book.author).toBe("Robert C. Martin");
-      expect(`Còn ${book.availableCopies} bản`).toBe("Còn 3 bản");
+      expect(book.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường").toBe("Có thể dẫn đường");
 
       // Clicking either the card body or the detail button opens the book detail
       handleSelectBook(book.bookId);
@@ -228,46 +227,14 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
         bookId: "b-99",
         title: "Sách Cổ Không Rõ Tác Giả",
         author: "",
-        availableCopies: 1,
+        canGuide: false,
       };
 
       const displayAuthor =
         bookWithoutAuthor.author || "Chưa có thông tin tác giả";
       expect(displayAuthor).toBe("Chưa có thông tin tác giả");
-      expect(`Còn ${bookWithoutAuthor.availableCopies} bản`).toBe("Còn 1 bản");
+      expect(bookWithoutAuthor.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường").toBe("Chưa thể dẫn đường");
     });
 
-    it("verifies area result cards display name and floor without navigation action", () => {
-      const areaResult: VoiceToolResult = {
-        kind: "areas",
-        query: "khu vực đọc",
-        totalMatches: 2,
-        areas: [
-          {
-            name: "Phòng đọc mở",
-            floorNumber: 2,
-            floorName: "Tầng 2",
-          },
-          {
-            name: "Khu vực mượn trả",
-            floorNumber: 1,
-            floorName: "Tầng 1",
-          },
-        ],
-      };
-
-      if (areaResult.kind !== "areas") {
-        throw new Error("Expected areas tool result");
-      }
-
-      const area1 = areaResult.areas[0];
-      const area2 = areaResult.areas[1];
-
-      expect(area1.name).toBe("Phòng đọc mở");
-      expect(area1.floorName || `Tầng ${area1.floorNumber}`).toBe("Tầng 2");
-
-      expect(area2.name).toBe("Khu vực mượn trả");
-      expect(area2.floorName || `Tầng ${area2.floorNumber}`).toBe("Tầng 1");
-    });
   });
 });

@@ -24,7 +24,10 @@ import { useBookDetail } from "../hooks/useBookDetail";
 export interface BookDetailScreenProps {
   bookId: string;
   onBack: () => void;
-  onOpenFacility: (facilityId: string) => void;
+  onOpenFacility: (
+    facilityId: string,
+    meta?: { bookTitle?: string; locationLabel?: string },
+  ) => void;
   onStartGuidance: (endpointId: string) => void;
 }
 
@@ -85,9 +88,11 @@ export function BookDetailScreen({
 
   // Desktop / kiosk landscape uses two-column layout (42% / 58%)
   const isTwoColumn = Boolean(isTablet || (!isCompactWidth && width > height));
-  const facilityId = selectedCopy?.aisle?.toLowerCase().includes("b")
-    ? "fac-shelf-r"
-    : "fac-shelf-a";
+  const facilityId =
+    endpoint?.endpointId ||
+    (selectedCopy?.aisle?.toLowerCase().includes("b")
+      ? "fac-shelf-r"
+      : "fac-shelf-a");
 
   return (
     <View style={styles.screen}>
@@ -325,13 +330,18 @@ export function BookDetailScreen({
 
         <View style={styles.actions}>
           <Pressable
+            disabled={!canStartGuidance && !facilityId}
             onPress={() => {
               recordInteraction();
-              onOpenFacility(facilityId);
+              onOpenFacility(facilityId, {
+                bookTitle: book.title,
+                locationLabel,
+              });
             }}
             style={[
               styles.mapButton,
               isCompactWidth && styles.mapButtonCompact,
+              !canStartGuidance && !facilityId && styles.disabled,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Xem sơ đồ vị trí"

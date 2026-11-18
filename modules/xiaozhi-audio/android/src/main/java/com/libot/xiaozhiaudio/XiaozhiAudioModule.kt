@@ -65,6 +65,11 @@ class XiaozhiAudioModule : Module() {
       session.abort()
       promise.resolve(null)
     }
+    AsyncFunction("endSession") { promise: Promise ->
+      // Resolve only after Android microphone and TTS resources are released.
+      // JS uses this as the ownership hand-off barrier before restarting Vosk.
+      session.endSession { promise.resolve(null) }
+    }
     OnDestroy { session.disconnect() }
   }
 
@@ -88,17 +93,29 @@ private class XiaozhiAudioSession(
   @Volatile private var submittedSpeechTurn = false
   @Volatile private var textToSpeech: TextToSpeech? = null
   @Volatile private var textToSpeechReady = false
+  @Volatile private var socketReady = false
   private val queuedTtsText = ArrayDeque<String>()
   private val activeUtterances = mutableSetOf<String>()
+  private var activeTtsUtteranceId: String? = null
   private var utteranceSequence = 0L
   private var serverTtsStopped = false
   private var pendingGreetingText: String? = null
   private var greetingUtteranceId: String? = null
   private var pendingConnect: Promise? = null
+  private var connectedUrl: String? = null
+  private var connectedDeviceId: String? = null
 
   fun connect(url: String, deviceId: String, promise: Promise) {
+    if (webSocket != null && !intentionallyClosed && connectedUrl == url && connectedDeviceId == deviceId) {
+      if (socketReady) emit(mapOf("type" to "connected"))
+      promise.resolve(null)
+      return
+    }
     disconnect()
     intentionallyClosed = false
+    socketReady = false
+    connectedUrl = url
+    connectedDeviceId = deviceId
     prepareNativeTts()
     pendingConnect = promise
     val request = Request.Builder()
@@ -130,6 +147,7 @@ private class XiaozhiAudioSession(
         // It must never reject or release the active voice session.
         if (webSocket !== socket) return
         webSocket = null
+        socketReady = false
         Log.e(LOG_TAG, "websocket_failed: ${throwable.message}", throwable)
         pendingConnect?.reject("XIAOZHI_CONNECT_FAILED", throwable.message ?: "Kết nối Xiaozhi thất bại.", throwable)
         pendingConnect = null
@@ -143,6 +161,7 @@ private class XiaozhiAudioSession(
       override fun onClosed(socket: WebSocket, code: Int, reason: String) {
         if (webSocket !== socket) return
         webSocket = null
+        socketReady = false
         Log.i(LOG_TAG, "websocket_closed code=$code reason=$reason")
         releaseAudio()
         if (!intentionallyClosed) emit(mapOf("type" to "disconnected", "code" to code.toString()))
@@ -158,8 +177,33 @@ private class XiaozhiAudioSession(
     // be recognised as belonging to this intentionally closed old socket.
     val socket = webSocket
     webSocket = null
+    socketReady = false
+    connectedUrl = null
+    connectedDeviceId = null
     socket?.close(1000, "client closed")
     releaseAudio()
+  }
+
+  /**
+   * Ends a reader's session. `onReleased` runs on the main thread only after
+   * SpeechRecognizer and TextToSpeech have both been stopped and shut down.
+   */
+  fun endSession(onReleased: () -> Unit) {
+    abort()
+    intentionallyClosed = true
+    pendingConnect?.resolve(null)
+    pendingConnect = null
+    val socket = webSocket
+    webSocket = null
+    socketReady = false
+    connectedUrl = null
+    connectedDeviceId = null
+    socket?.close(1000, "reader session ended")
+    releaseAudio {
+      Log.i(LOG_TAG, "audio_released session_end")
+      emit(mapOf("type" to "session_ended"))
+      onReleased()
+    }
   }
 
   fun abort() {
@@ -210,6 +254,7 @@ private class XiaozhiAudioSession(
       val message = JSONObject(text)
       when (message.optString("type")) {
         "hello" -> {
+          socketReady = true
           pendingConnect?.resolve(null)
           pendingConnect = null
           emit(mapOf("type" to "connected"))
@@ -230,46 +275,28 @@ private class XiaozhiAudioSession(
         }
         "tool_result" -> {
           val tool = message.optString("tool")
-          if (tool != "search_books" && tool != "search_areas") return
+          if (tool != "search_books") return
           val event = mutableMapOf<String, Any?>(
             "type" to "tool_result",
             "tool" to tool,
             "query" to message.optString("query"),
             "totalMatches" to message.optInt("totalMatches", 0),
           )
-          if (tool == "search_books") {
-            val books = mutableListOf<Map<String, Any?>>()
-            val source = message.optJSONArray("books")
-            for (index in 0 until (source?.length() ?: 0)) {
-              val book = source?.optJSONObject(index) ?: continue
-              val bookId = book.optString("bookId")
-              val title = book.optString("title")
-              if (bookId.isBlank() || title.isBlank()) continue
-              books.add(mapOf(
-                "bookId" to bookId,
-                "title" to title,
-                "author" to book.optString("author"),
-                "isbn" to book.optString("isbn"),
-                "classification" to book.optString("classification"),
-                "availableCopies" to book.optInt("availableCopies", 0),
-              ))
-            }
-            event["books"] = books
-          } else {
-            val areas = mutableListOf<Map<String, Any?>>()
-            val source = message.optJSONArray("areas")
-            for (index in 0 until (source?.length() ?: 0)) {
-              val area = source?.optJSONObject(index) ?: continue
-              val name = area.optString("name")
-              if (name.isBlank()) continue
-              areas.add(mapOf(
-                "name" to name,
-                "floorName" to area.optString("floorName"),
-                "floorNumber" to area.optInt("floorNumber", 0),
-              ))
-            }
-            event["areas"] = areas
+          val books = mutableListOf<Map<String, Any?>>()
+          val source = message.optJSONArray("books")
+          for (index in 0 until (source?.length() ?: 0)) {
+            val book = source?.optJSONObject(index) ?: continue
+            val bookId = book.optString("bookId")
+            val title = book.optString("title")
+            if (bookId.isBlank() || title.isBlank()) continue
+            books.add(mapOf(
+              "bookId" to bookId,
+              "title" to title,
+              "author" to book.optString("author"),
+              "canGuide" to book.optBoolean("canGuide", false),
+            ))
           }
+          event["books"] = books
           emit(event)
         }
         // The server can report a listening state during the handshake. The
@@ -303,7 +330,12 @@ private class XiaozhiAudioSession(
         emit(mapOf("type" to "listening"))
         recognizer.setRecognitionListener(object : RecognitionListener {
           override fun onReadyForSpeech(params: Bundle?) = Unit
-          override fun onBeginningOfSpeech() = Unit
+          override fun onBeginningOfSpeech() {
+            // A reader has started a turn even before Google can provide a
+            // partial transcript. Let React Native reset its idle timer now;
+            // otherwise a slow recognizer can close the modal mid-sentence.
+            emit(mapOf("type" to "speech_started"))
+          }
           override fun onRmsChanged(rmsdB: Float) = Unit
           override fun onBufferReceived(buffer: ByteArray?) = Unit
           override fun onEndOfSpeech() {
@@ -406,8 +438,13 @@ private class XiaozhiAudioSession(
             activeUtterances.remove(utteranceId)
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
-              if (!intentionallyClosed && webSocket != null) startCapture()
+              drainQueuedTts()
+              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null) startCapture()
               return@post
+            }
+            if (utteranceId == activeTtsUtteranceId) {
+              activeTtsUtteranceId = null
+              drainQueuedTts()
             }
             resumeWhenTtsFinished()
           }
@@ -419,7 +456,13 @@ private class XiaozhiAudioSession(
             if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_PLAYBACK_FAILED", "text" to "Không thể phát giọng nói tiếng Việt."))
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
+              drainQueuedTts()
+              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null) startCapture()
               return@post
+            }
+            if (utteranceId == activeTtsUtteranceId) {
+              activeTtsUtteranceId = null
+              drainQueuedTts()
             }
             resumeWhenTtsFinished()
           }
@@ -439,12 +482,31 @@ private class XiaozhiAudioSession(
         prepareNativeTts()
         return@post
       }
-      speakNativeTts(text)
+      queuedTtsText.addLast(text)
+      drainQueuedTts()
     }
   }
 
   private fun drainQueuedTts() {
-    while (queuedTtsText.isNotEmpty()) speakNativeTts(queuedTtsText.removeFirst())
+    if (activeTtsUtteranceId != null || greetingUtteranceId != null) return
+    val text = queuedTtsText.removeFirstOrNull() ?: return
+    val engine = textToSpeech
+    if (engine == null || !textToSpeechReady) {
+      queuedTtsText.addFirst(text)
+      return
+    }
+    // Server TTS arrives sentence by sentence. Feed the engine only one
+    // sentence at a time so long replies cannot overrun or corrupt its queue.
+    stopCapture()
+    val utteranceId = "libot-${++utteranceSequence}"
+    activeTtsUtteranceId = utteranceId
+    activeUtterances.add(utteranceId)
+    if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
+      activeUtterances.remove(utteranceId)
+      activeTtsUtteranceId = null
+      if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_QUEUE_FAILED", "text" to "Không thể phát câu trả lời tiếng Việt."))
+      drainQueuedTts()
+    }
   }
 
   private fun drainPendingTts() {
@@ -473,17 +535,6 @@ private class XiaozhiAudioSession(
     }
   }
 
-  private fun speakNativeTts(text: String) {
-    val engine = textToSpeech ?: return
-    val utteranceId = "libot-${++utteranceSequence}"
-    activeUtterances.add(utteranceId)
-    if (engine.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId) == TextToSpeech.ERROR) {
-      activeUtterances.remove(utteranceId)
-      if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_QUEUE_FAILED", "text" to "Không thể xếp hàng phát câu trả lời."))
-      resumeWhenTtsFinished()
-    }
-  }
-
   private fun finishTtsPlayback() {
     mainHandler.post {
       serverTtsStopped = true
@@ -492,14 +543,14 @@ private class XiaozhiAudioSession(
   }
 
   private fun resumeWhenTtsFinished() {
-    if (!serverTtsStopped || activeUtterances.isNotEmpty() || queuedTtsText.isNotEmpty()) return
+    if (!serverTtsStopped || activeUtterances.isNotEmpty() || queuedTtsText.isNotEmpty() || activeTtsUtteranceId != null) return
     if (!intentionallyClosed && webSocket != null) {
       startCapture()
       emit(mapOf("type" to "listening"))
     }
   }
 
-  private fun releaseAudio() {
+  private fun releaseAudio(onReleased: (() -> Unit)? = null) {
     stopCapture()
     mainHandler.post {
       textToSpeech?.stop()
@@ -508,9 +559,11 @@ private class XiaozhiAudioSession(
       textToSpeechReady = false
       queuedTtsText.clear()
       activeUtterances.clear()
+      activeTtsUtteranceId = null
       serverTtsStopped = false
       pendingGreetingText = null
       greetingUtteranceId = null
+      onReleased?.invoke()
     }
   }
 }

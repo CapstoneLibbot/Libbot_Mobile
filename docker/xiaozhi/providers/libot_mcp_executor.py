@@ -1,9 +1,8 @@
 """LiBot's constrained MCP executor.
 
-The two read-only library tools already return presentation-safe structured data.
-Speak that data directly instead of routing it through a second LLM completion.
-This avoids a Qwen tool-call/reasoning streaming edge case that can finish with an
-empty audio response.
+The library tools return presentation-safe structured data. Search results are
+sent back to the LLM so it can select the next allowed tool; terminal guidance
+results are spoken directly to avoid an unnecessary second completion.
 """
 
 from __future__ import annotations
@@ -45,6 +44,19 @@ class ServerMCPExecutor(ToolExecutor):
             logger.bind(tag=TAG).info(f"LiBot tool started: {actual_name}")
             result = await self.mcp_manager.execute_tool(actual_name, arguments)
             await self._emit_tool_result(actual_name, arguments, result)
+            payload = self._payload(result)
+            # A successful search must return to the LLM so it can decide the
+            # next tool from the reader's full request (for example, search
+            # then guide immediately when the reader already asked to go there).
+            if actual_name == "search_books" and payload and not payload.get("errorCode"):
+                logger.bind(tag=TAG).info(f"LiBot tool completed: {actual_name}; continue_with_llm=true")
+                return ActionResponse(
+                    action=Action.REQLLM,
+                    result=json.dumps(
+                        {"tool": actual_name, "result": payload},
+                        ensure_ascii=False,
+                    ),
+                )
             response = self._format_libot_result(actual_name, result)
             if response is not None:
                 logger.bind(tag=TAG).info(f"LiBot tool completed: {actual_name}; direct_tts=true")
@@ -93,35 +105,21 @@ class ServerMCPExecutor(ToolExecutor):
         return {}
 
     def _format_libot_result(self, name: str, result: Any) -> Optional[str]:
-        if name not in {"search_books", "search_areas"}:
+        if name not in {"search_books", "start_book_guidance"}:
             return None
         payload = self._payload(result)
         if payload.get("errorCode"):
+            if name == "start_book_guidance":
+                if payload.get("errorCode") == "BOOK_NOT_AVAILABLE":
+                    return "Có sách này, nhưng hiện chưa thể dẫn đường."
+                if payload.get("errorCode") == "BOOK_NOT_FOUND":
+                    return "Thư viện hiện không có sách phù hợp."
+                return "Robot chưa sẵn sàng để dẫn đường."
             return "LiBot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại."
 
-        if name == "search_books":
-            books = payload.get("books") or []
-            if not books:
-                return "Tôi không tìm thấy sách phù hợp."
-            intro = f"Tôi tìm thấy {payload.get('totalMatches', len(books))} kết quả."
-            items = []
-            for book in books[:3]:
-                title = book.get("title") or "Sách không rõ tên"
-                author = book.get("author") or "không rõ tác giả"
-                copies = book.get("availableCopies", 0)
-                items.append(f"{title}, tác giả {author}, còn {copies} bản.")
-            return " ".join([intro, *items])
-
-        areas = payload.get("areas") or []
-        if not areas:
-            return "Tôi không tìm thấy khu vực phù hợp."
-        intro = f"Tôi tìm thấy {payload.get('totalMatches', len(areas))} kết quả."
-        items = []
-        for area in areas[:3]:
-            name = area.get("name") or "Khu vực không rõ tên"
-            floor_name = area.get("floorName") or f"tầng {area.get('floorNumber', '')}".strip()
-            items.append(f"{name}, {floor_name}.")
-        return " ".join([intro, *items])
+        if name == "start_book_guidance":
+            title = payload.get("title") or "cuốn sách đã chọn"
+            return f"LiBot đang dẫn bạn đến kệ sách {title}."
 
     async def _emit_tool_result(
         self, name: str, arguments: Dict[str, Any], result: Any
@@ -131,7 +129,7 @@ class ServerMCPExecutor(ToolExecutor):
         This is intentionally a separate WebSocket message from TTS: Android can
         render cards immediately while its local Vietnamese TTS reads the answer.
         """
-        if name not in {"search_books", "search_areas"}:
+        if name != "search_books":
             return
         websocket = getattr(self.conn, "websocket", None)
         if websocket is None:
@@ -147,31 +145,18 @@ class ServerMCPExecutor(ToolExecutor):
             "query": str(arguments.get("query") or "").strip(),
             "totalMatches": int(payload.get("totalMatches") or 0),
         }
-        if name == "search_books":
-            message["books"] = [
-                {
-                    "bookId": str(book.get("bookId") or ""),
-                    "title": str(book.get("title") or ""),
-                    "author": str(book.get("author") or ""),
-                    "isbn": str(book.get("isbn") or ""),
-                    "classification": str(book.get("classification") or ""),
-                    "availableCopies": int(book.get("availableCopies") or 0),
-                }
-                for book in (payload.get("books") or [])[:3]
-                if isinstance(book, dict)
-                and book.get("bookId")
-                and book.get("title")
-            ]
-        else:
-            message["areas"] = [
-                {
-                    "name": str(area.get("name") or ""),
-                    "floorName": str(area.get("floorName") or ""),
-                    "floorNumber": int(area.get("floorNumber") or 0),
-                }
-                for area in (payload.get("areas") or [])[:3]
-                if isinstance(area, dict) and area.get("name")
-            ]
+        message["books"] = [
+            {
+                "bookId": str(book.get("bookId") or ""),
+                "title": str(book.get("title") or ""),
+                "author": str(book.get("author") or ""),
+                "canGuide": bool(book.get("canGuide")),
+            }
+            for book in (payload.get("books") or [])[:3]
+            if isinstance(book, dict)
+            and book.get("bookId")
+            and book.get("title")
+        ]
 
         try:
             await websocket.send(json.dumps(message, ensure_ascii=False))

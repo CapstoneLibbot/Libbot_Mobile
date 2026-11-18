@@ -3,14 +3,20 @@ import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 
 export default function FacilityDetailRoute(): React.ReactElement {
-  const { facilityId } = useLocalSearchParams<{
+  const { facilityId, bookTitle, locationLabel } = useLocalSearchParams<{
     facilityId: string;
+    bookTitle?: string;
+    locationLabel?: string;
   }>();
 
   return (
     <FacilityDetailScreen
       facilityId={facilityId ?? ""}
-      onStartGuidance={(id) => router.push(`/(kiosk)/facilities/${encodeURIComponent(id)}/guidance`)}
+      bookTitle={bookTitle}
+      locationLabel={locationLabel}
+      onStartGuidance={(id) =>
+        router.push(`/(kiosk)/facilities/${encodeURIComponent(id)}/guidance`)
+      }
       onBack={() => {
         router.back();
       }}

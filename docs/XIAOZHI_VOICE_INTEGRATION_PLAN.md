@@ -29,30 +29,47 @@ chào, tôi là LiBot. Tôi có thể giúp bạn tìm sách hoặc khu vực tr
 Mic chỉ mở sau khi câu chào hoàn tất. Xiaozhi không tạo greeting riêng; reconnect
 trong cùng modal không đọc lại câu chào.
 
+## Wake word và ranh giới session
+
+Wake word hoạt động hoàn toàn offline on-device bằng thư viện `react-native-vosk`
+kết hợp mô hình âm học tiếng Việt (`vosk-model-small-vn-0.4`).
+- Ở màn hình Idle Attract, Vosk lắng nghe ngầm với grammar giới hạn các từ khóa
+  kích hoạt ("hey li bot", "li bot ơi", "xin chào li bot", "robot", "[unk]").
+  Nhiễu nền và câu nói thông thường rơi vào `[unk]` và bị bỏ qua.
+- Khi nhận diện đúng từ khóa, app mở `VoiceListeningModal` với chế độ `activation="wake"`.
+  Robot chào ngay "Tôi nghe đây" và mở micro tiếp nhận yêu cầu.
+- Khi modal hội thoại mở, Vosk tự động dừng (`stop()`) để giải phóng micro cho
+  phiên hội thoại chính của Xiaozhi.
+
+WebSocket Xiaozhi được pre-warm khi app kiosk mở nhưng chưa mở microphone. Khi
+độc giả đóng modal hoặc im lặng 10 giây, app abort, đóng socket của độc giả đó
+và xóa transcript/card kết quả cục bộ. App sau đó mở một socket warm mới. Vì
+Reader B không dùng socket của Reader A, context theo connection không được
+mang sang phiên tiếp theo.
+
 ## Phạm vi v1
 
-Xiaozhi chỉ được phép gọi hai MCP tool read-only:
+Xiaozhi chỉ được phép gọi các MCP tool sau:
 
 | Tool | Input | Kết quả |
 | --- | --- | --- |
-| `search_books` | `query`, `category?` | Tối đa 3 sách: bookId, title, author, ISBN, classification, availableCopies, totalMatches |
-| `search_areas` | `query` | Tối đa 3 khu vực: name, floorName, floorNumber, totalMatches |
+| `search_books` | `query?`, `category?` | Tối đa 3 sách: bookId, title, author, canGuide, totalMatches |
+| `start_book_guidance` | `bookId`, `query?` | Bắt đầu mission dẫn đường cho sách người dùng đã chọn và xác nhận |
 
-`search_books` dùng `IBookGuidanceService.SearchAsync`. `search_areas` tìm
-không phân biệt hoa thường ở `Area.Name` và `Area.Description`, join `Floor`.
-Để Mobile mở trang chi tiết sau khi người dùng chạm thẻ kết quả, `search_books`
-trả `bookId`. Không trả ảnh, copy data, tọa độ hay chi tiết dẫn đường.
+`search_books` dùng `IBookGuidanceService.SearchAsync`. Để Mobile mở trang chi
+tiết sau khi người dùng chạm thẻ kết quả, tool trả `bookId`. Không trả ảnh,
+copy data, tọa độ hay chi tiết dẫn đường.
 
-Sau mỗi tool call thành công, Xiaozhi gửi thêm một WebSocket message
+Sau mỗi lần gọi `search_books` thành công, Xiaozhi gửi thêm một WebSocket message
 `tool_result` tới kiosk gồm `tool`, `query`, `totalMatches` và tối đa ba bản ghi
 presentation-safe. Message này không chứa secret, tọa độ, robot state hay quyền
 điều khiển robot; Mobile dùng nó để hiển thị thẻ trong nhật ký hội thoại trước
 khi Android TTS đọc phản hồi.
 
-Không có tool robot, mission, navigation, status robot, web search, weather,
-news, music hoặc bất kỳ tool mặc định nào khác. Prompt chỉ được khẳng định dữ
-liệu do tool trả về, đọc tối đa ba kết quả và nói “không tìm thấy” khi không có
-kết quả.
+Ngoài `start_book_guidance` đã được xác nhận, không có tool robot, mission,
+navigation, status robot, web search, weather, news, music hoặc bất kỳ tool mặc
+định nào khác. Prompt chỉ được khẳng định dữ liệu do tool trả về, đọc tối đa ba
+kết quả và nói “không tìm thấy” khi không có kết quả.
 
 ## Cấu hình và bảo mật
 
@@ -62,7 +79,7 @@ kết quả.
   Script `render-config.sh` sinh config local, quyền `0600`.
 - Route backend bắt buộc `Authorization: Bearer <voice-tools-token>` và phải
   so sánh token constant-time. Không log token/header.
-- Không có secret trong APK, repository, `EXPO_PUBLIC_*` hay log mobile.
+- Không có secret backend trong APK, repository, `EXPO_PUBLIC_*` hay log mobile.
 - `LIBBOT_BE_MCP_URL` phải truy cập được **từ container**. Trên Docker Desktop
   for Mac, `host.docker.internal` dùng được khi backend ở máy host.
 

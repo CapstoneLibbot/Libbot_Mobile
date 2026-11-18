@@ -204,7 +204,7 @@ describe("Idle Attract Navigation & Gaze Logic", () => {
       expect(recordInteraction).toHaveBeenCalledTimes(2);
     });
 
-    it("auto-closes voice modal after 10 seconds of inactivity without navigating", () => {
+    it("auto-closes voice modal after one minute of inactivity without navigating", () => {
       vi.useFakeTimers();
 
       const onClose = vi.fn();
@@ -216,11 +216,11 @@ describe("Idle Attract Navigation & Gaze Logic", () => {
 
       expect(onClose).not.toHaveBeenCalled();
 
-      // Advance by 9.9 seconds (should not be closed yet)
-      vi.advanceTimersByTime(9900);
+      // A short pause must never terminate a live follow-up conversation.
+      vi.advanceTimersByTime(59_900);
       expect(onClose).not.toHaveBeenCalled();
 
-      // Advance by remaining 100ms (10 seconds total)
+      // Advance by remaining 100ms (one minute total)
       vi.advanceTimersByTime(100);
       expect(onClose).toHaveBeenCalledTimes(1);
       expect(onNavigate).not.toHaveBeenCalled();

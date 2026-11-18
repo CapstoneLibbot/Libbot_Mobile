@@ -50,6 +50,9 @@ yarn-error.*
 /ios
 /android
 
+# Offline speech models (downloaded via npm run setup:vosk)
+assets/models/
+
 # Build artifacts of the local Xiaozhi Expo module
 /modules/xiaozhi-audio/android/.cxx/
 /modules/xiaozhi-audio/android/.gradle/

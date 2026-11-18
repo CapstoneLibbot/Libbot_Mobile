@@ -143,3 +143,16 @@ npx eas-cli@latest build --platform android --profile preview
 | **Lỗi `ERESOLVE could not resolve` khi chạy `npm ci`** | Xung đột phiên bản peer giữa React 19 và React DOM. | Dự án đã có sẵn file `.npmrc` chứa `legacy-peer-deps=true`. Đảm bảo file `.npmrc` luôn tồn tại trong thư mục gốc. |
 | **Lỗi `ANDROID_HOME not found` hoặc `Java not found`** | Chạy lệnh `eas build` rời rạc ở terminal mới mà chưa nạp đường dẫn SDK. | Dùng lệnh `npm run build:apk:local` (lệnh này đã tự nạp sẵn cả 2 biến môi trường). |
 | **Bản đồ không hiển thị** | Thiếu Google Maps API Key hoặc API Key chưa được kích hoạt Android Maps SDK trên Google Cloud Console. | Cập nhật API Key vào `.env` (`EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`) và `app.config.ts`. |
+
+
+
+adb -s emulator-5554 uninstall com.yourorg.libot
+npm run android
+
+
+xiaozhi 
+
+cd Libbot_Mobile/docker/xiaozhi
+./render-config.sh
+
+docker compose --env-file .env -f docker-compose.yaml up -d --build

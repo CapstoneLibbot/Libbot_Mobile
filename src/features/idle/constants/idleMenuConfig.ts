@@ -3,7 +3,10 @@ export const IDLE_MENU_CONFIG = {
   fabIconSize: 28,
   actionIconSize: 22,
   animationDurationMs: 220,
-  voiceModalAutoCloseMs: 10000,
+  // Voice recognition can take several seconds to produce a final Vietnamese
+  // transcript. Keep the shared-kiosk safeguard, but give a real reader time
+  // to answer a follow-up question without ending their Xiaozhi session.
+  voiceModalAutoCloseMs: 60_000,
   zIndex: {
     backdrop: 90,
     fabMenu: 100,

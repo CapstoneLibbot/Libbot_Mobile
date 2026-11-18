@@ -60,7 +60,7 @@ export function computeKioskVoiceStatusLabel(params: {
     return WAKE_WORD_STATUS_LABEL.paused_for_voice;
   }
   if (!isWakeWordPermitted) {
-    return "Đang chuẩn bị nhận diện Hey LiBot";
+    return WAKE_WORD_STATUS_LABEL.loading_model;
   }
   if (wakeWordPhase === "error" && !isConnected) {
     return "Đang chạy chế độ dữ liệu nội bộ";

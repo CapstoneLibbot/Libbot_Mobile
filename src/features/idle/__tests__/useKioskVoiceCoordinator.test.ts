@@ -73,7 +73,7 @@ describe("Kiosk Voice Coordinator State Transitions & Architecture", () => {
         wakeWordPhase: "idle" as any,
         isConnected: true,
       });
-      expect(label).toBe("Đang chuẩn bị nhận diện Hey LiBot");
+      expect(label).toBe(WAKE_WORD_STATUS_LABEL.loading_model);
     });
 
     it("returns offline notice when Vosk encounters error and network is disconnected", () => {

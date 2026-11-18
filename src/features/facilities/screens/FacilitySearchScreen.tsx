@@ -7,7 +7,6 @@ import {
   AppHeader,
   AppInput,
   AppLoading,
-  AppText,
 } from "@/shared/ui";
 import { useDebounce } from "@/shared/lib";
 import { useResponsiveLayout } from "@/shared/layout";

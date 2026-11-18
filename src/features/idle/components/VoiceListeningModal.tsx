@@ -22,6 +22,7 @@ import { AppButton, AppText } from "@/shared/ui";
 import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 import {
   type VoiceConversationEntry,
+  type VoiceGuidanceStart,
   type VoiceToolResult,
 } from "../hooks/useXiaozhiVoiceSession";
 import { useVoiceSession } from "../hooks/useVoiceSession";
@@ -30,7 +31,6 @@ import {
   DEFAULT_LIBOT_GREETING,
 } from "../utils/voiceModalLayout";
 import { getVoiceSessionCopy } from "../domain/voiceSessionState";
-import type { VoiceGuidanceStart } from "../hooks/useXiaozhiVoiceSession";
 
 export {
   DEFAULT_LIBOT_GREETING,

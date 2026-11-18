@@ -38,10 +38,6 @@ function getErrorMessage(error: unknown): string {
   return "Không thể kết nối với LiBot. Hãy kiểm tra mạng và thử lại.";
 }
 
-function isTerminal(status?: string): boolean {
-  return status === "completed" || status === "failed";
-}
-
 function getWorkflowFailureDetails(execution?: BookGuidanceExecution | null): {
   step?: string;
   code?: string;
@@ -208,7 +204,7 @@ export function GuidanceScreen({
         /* Workflow state remains authoritative in the UI. */
       }
     },
-    [activeSession?.guidanceKind],
+    [activeSession],
   );
 
   useEffect(() => {
@@ -222,7 +218,6 @@ export function GuidanceScreen({
           ? await facilityGuidanceApi.getExecution(activeSession.executionId)
           : await bookGuidanceApi.getExecution(activeSession.executionId);
         if (!mounted) return;
-        const eventType = state.expectedEventType?.toUpperCase();
 
         if (state.status.toLowerCase() === "completed") {
           setSession({ ...activeSession, terminalStatus: "COMPLETED" });

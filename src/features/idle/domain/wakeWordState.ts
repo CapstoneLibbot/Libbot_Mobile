@@ -1,3 +1,5 @@
+import { ACTIVE_WAKE_WORD_KEYWORD } from "../wakeword/constants/wakeWordConfig";
+
 export const WAKE_WORD_PHASES = [
   "loading_model",
   "starting_listener",
@@ -11,11 +13,11 @@ export const WAKE_WORD_PHASES = [
 export type WakeWordPhase = (typeof WAKE_WORD_PHASES)[number];
 
 export const WAKE_WORD_STATUS_LABEL: Record<WakeWordPhase, string> = {
-  loading_model: "Đang chuẩn bị nhận diện Hey LiBot",
-  starting_listener: "Đang bật nhận diện Hey LiBot",
-  listening: "LiBot đang lắng nghe Hey LiBot",
-  retry_wait: "Đang khởi động lại nhận diện Hey LiBot",
+  loading_model: `Đang chuẩn bị nhận diện ${ACTIVE_WAKE_WORD_KEYWORD}`,
+  starting_listener: `Đang bật nhận diện ${ACTIVE_WAKE_WORD_KEYWORD}`,
+  listening: `LiBot đang lắng nghe ${ACTIVE_WAKE_WORD_KEYWORD}`,
+  retry_wait: `Đang khởi động lại nhận diện ${ACTIVE_WAKE_WORD_KEYWORD}`,
   stopping: "Đang chuyển sang trò chuyện với LiBot",
   paused_for_voice: "LiBot đang trò chuyện",
-  error: "Nhận diện Hey LiBot đang gặp lỗi",
+  error: `Nhận diện ${ACTIVE_WAKE_WORD_KEYWORD} đang gặp lỗi`,
 };

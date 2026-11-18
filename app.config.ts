@@ -34,12 +34,6 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-secure-store",
     ["expo-screen-orientation", { initialOrientation: "LANDSCAPE" }],
-    [
-      "react-native-vosk",
-      {
-        models: ["assets/models/model-vn-vn"],
-      },
-    ],
   ],
   ios: {
     bundleIdentifier: "com.yourorg.libot",

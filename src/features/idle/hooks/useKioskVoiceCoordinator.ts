@@ -7,7 +7,7 @@ import {
   kioskVoiceStateTransitions,
   type KioskVoiceCoordinatorState,
 } from "../domain/kioskVoiceCoordinatorState";
-import { useVoskWakeWord } from "./useVoskWakeWord";
+import { useWakeWord } from "../wakeword";
 
 export {
   computeKioskVoiceStatusLabel,
@@ -96,8 +96,8 @@ export function useKioskVoiceCoordinator({
     }, settleDelayMs);
   }, [clearSettleTimer, onRecordInteraction, settleDelayMs]);
 
-  // Vosk chỉ được phép lắng nghe khi isWakeWordPermitted === true
-  const wakeWord = useVoskWakeWord({
+  // Wake Word chỉ được phép lắng nghe khi isWakeWordPermitted === true
+  const wakeWord = useWakeWord({
     enabled: state.isWakeWordPermitted,
     onWakeWord: handleWakeWordDetected,
   });

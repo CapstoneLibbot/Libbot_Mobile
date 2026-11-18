@@ -29,8 +29,8 @@
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "libot-wakeword": "file:./modules/wakeword",
     "react-native-svg": "15.15.4",
-    "react-native-vosk": "^2.2.0",
     "xiaozhi-audio": "file:./modules/xiaozhi-audio",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
@@ -55,7 +55,6 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "setup:vosk": "bash scripts/setup_vosk_model.sh",
     "postinstall": "patch-package",
     "validate": "npm run typecheck && npm run lint && npm test && npx expo install --check && npx expo-doctor",
     "build:apk:local": "set -a && . ./.env && set +a && export NODE_ENV=production && export ANDROID_HOME=$HOME/Library/Android/sdk && export JAVA_HOME=$(/usr/libexec/java_home) && export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator && (cd android && ./gradlew --no-daemon :app:assembleRelease) && cp android/app/build/outputs/apk/release/app-release.apk build-$(date +%s).apk",

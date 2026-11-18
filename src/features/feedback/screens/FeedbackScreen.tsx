@@ -40,7 +40,6 @@ export function FeedbackScreen({
 }: FeedbackScreenProps): React.ReactElement {
   const { isCompact, isNarrowHeight, insets } = useResponsiveLayout();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
-  const kioskSessionId = useKioskStore((state) => state.kioskSessionId);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
 
   const [selectedRating, setSelectedRating] = useState<number>(5);

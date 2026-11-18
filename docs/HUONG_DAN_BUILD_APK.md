@@ -156,3 +156,8 @@ cd Libbot_Mobile/docker/xiaozhi
 ./render-config.sh
 
 docker compose --env-file .env -f docker-compose.yaml up -d --build
+
+
+
+
+killall node 2>/dev/null || true

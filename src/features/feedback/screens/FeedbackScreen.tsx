@@ -11,6 +11,7 @@ import {
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, spacing } from "@/shared/theme";
 import { useSubmitFeedback } from "../hooks/useSubmitFeedback";
+import type { GuidanceKind, GuidanceTerminalStatus } from "@/features/guidance/types/guidance.types";
 
 const RATING_LEVELS = [
   { rating: 1, emoji: "😞", label: "Rất tệ" },
@@ -21,13 +22,19 @@ const RATING_LEVELS = [
 ];
 
 export interface FeedbackScreenProps {
-  missionId: string;
+  jobId: string;
+  guidanceKind: GuidanceKind;
+  terminalStatus: GuidanceTerminalStatus;
+  destinationName: string;
   onComplete: () => void;
   onSkip: () => void;
 }
 
 export function FeedbackScreen({
-  missionId,
+  jobId,
+  guidanceKind,
+  terminalStatus,
+  destinationName,
   onComplete,
   onSkip,
 }: FeedbackScreenProps): React.ReactElement {
@@ -53,10 +60,11 @@ export function FeedbackScreen({
 
     try {
       await submitFeedbackMutation.mutateAsync({
-        missionId: missionId ?? "unknown-mission",
+        jobId: jobId ?? "unknown-job",
+        guidanceKind,
+        terminalStatus,
         rating: selectedRating,
         comment: comment.trim() || undefined,
-        kioskSessionId,
       });
 
       // reset session & redirect to attract screen
@@ -98,7 +106,9 @@ export function FeedbackScreen({
       >
         <AppCard style={[styles.card, isCompact && styles.cardCompact]}>
           <AppText variant="heading" style={styles.centeredTitle}>
-            Bạn cảm thấy chuyến dẫn đường thế nào?
+            {terminalStatus === "COMPLETED"
+              ? `LiBot đã đến ${destinationName}. Bạn thấy chuyến đi thế nào?`
+              : `Chuyến dẫn đường đến ${destinationName} chưa hoàn thành. Bạn đánh giá thế nào?`}
           </AppText>
 
           {/* Rating Emoji Buttons */}

@@ -9,6 +9,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useKioskStore } from "@/core/state";
+import type { VoiceGuidanceStart } from "../hooks/useXiaozhiVoiceSession";
 import { useNetworkStatus } from "@/platform/network";
 import { AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
@@ -24,6 +25,7 @@ export interface IdleAttractScreenProps {
   onNavigateToFacilities: () => void;
   onNavigateToBook: (bookId: string) => void;
   onNavigateToLocation: (endpointId: string) => void;
+  onGuidanceStarted: (guidance: VoiceGuidanceStart) => void;
 }
 
 export function IdleAttractScreen({
@@ -31,6 +33,7 @@ export function IdleAttractScreen({
   onNavigateToFacilities,
   onNavigateToBook,
   onNavigateToLocation,
+  onGuidanceStarted,
 }: IdleAttractScreenProps): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -132,6 +135,7 @@ export function IdleAttractScreen({
         onClose={voice.closeVoice}
         onSelectBook={onNavigateToBook}
         onSelectLocation={onNavigateToLocation}
+        onGuidanceStarted={onGuidanceStarted}
       />
 
       <View

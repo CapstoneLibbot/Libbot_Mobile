@@ -323,6 +323,29 @@ private class XiaozhiAudioSession(
           }
           emit(event)
         }
+        "guidance_started" -> {
+          val jobId = message.optString("jobId")
+          val executionId = message.optString("executionId")
+          val guidanceKind = message.optString("guidanceKind")
+          val destinationId = message.optString("destinationId")
+          val destinationName = message.optString("destinationName")
+          val runtimeId = message.optString("runtimeId")
+          val startStatus = message.optString("startStatus")
+          if (jobId.isBlank() || executionId.isBlank() || destinationId.isBlank() ||
+            destinationName.isBlank() || runtimeId.isBlank() ||
+            (guidanceKind != "BOOK_GUIDANCE" && guidanceKind != "LOCATION_GUIDANCE") ||
+            (startStatus != "ACCEPTED" && startStatus != "FAILED")) return
+          emit(mapOf(
+            "type" to "guidance_started",
+            "jobId" to jobId,
+            "executionId" to executionId,
+            "guidanceKind" to guidanceKind,
+            "startStatus" to startStatus,
+            "destinationId" to destinationId,
+            "destinationName" to destinationName,
+            "runtimeId" to runtimeId,
+          ))
+        }
         // The server can report a listening state during the handshake. The
         // kiosk is not actually ready until Android capture has started.
         "listen" -> if (captureRunning) emit(mapOf("type" to "listening", "state" to message.optString("state")))

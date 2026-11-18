@@ -218,8 +218,21 @@ export function useVoskWakeWord({
       });
     };
 
-    const handleResult = (text: string) => {
+    const handleResult = (text: string, isFinal: boolean) => {
       if (!active || !isListeningRef.current) return;
+
+      // Trong môi trường Kiosk / phòng ồn:
+      // Tuyệt đối không kích hoạt từ partial intermediate hypotheses!
+      // Vì khi người khác đang nói một câu dài trong phòng, partial có thể tạm thời
+      // sinh ra các từ ngẫu nhiên trước khi câu nói kết thúc.
+      // Chỉ kích hoạt khi câu nói kết thúc (onResult / onFinalResult) để đánh giá toàn diện cả câu.
+      if (!isFinal) {
+        if (__DEV__ && text.trim()) {
+          console.debug(`[VoskWake] partial ignored text=${text}`);
+        }
+        return;
+      }
+
       if (wakeWordDetectorRef.current.consume(text)) {
         active = false;
         clearTimers();
@@ -236,9 +249,9 @@ export function useVoskWakeWord({
       }
     };
 
-    const subResult = Vosk.onResult(handleResult);
-    const subPartial = Vosk.onPartialResult(handleResult);
-    const subFinal = Vosk.onFinalResult(handleResult);
+    const subResult = Vosk.onResult((text) => handleResult(text, true));
+    const subPartial = Vosk.onPartialResult((text) => handleResult(text, false));
+    const subFinal = Vosk.onFinalResult((text) => handleResult(text, true));
     const subError = Vosk.onError((err) => {
       if (!active || !enabledRef.current || !isListeningRef.current) return;
       isListeningRef.current = false;

@@ -30,6 +30,7 @@ import {
   DEFAULT_LIBOT_GREETING,
 } from "../utils/voiceModalLayout";
 import { getVoiceSessionCopy } from "../domain/voiceSessionState";
+import type { VoiceGuidanceStart } from "../hooks/useXiaozhiVoiceSession";
 
 export {
   DEFAULT_LIBOT_GREETING,
@@ -44,6 +45,7 @@ export interface VoiceListeningModalProps {
   onClose: () => void;
   onSelectBook: (bookId: string) => void;
   onSelectLocation: (endpointId: string) => void;
+  onGuidanceStarted: (guidance: VoiceGuidanceStart) => void;
 }
 
 function ToolResultCards({
@@ -200,6 +202,7 @@ function VoiceListeningModalInner({
   onClose,
   onSelectBook,
   onSelectLocation,
+  onGuidanceStarted,
   activation = "manual",
 }: Omit<VoiceListeningModalProps, "visible">): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
@@ -213,6 +216,7 @@ function VoiceListeningModalInner({
     start,
     stop,
     voiceActivitySequence,
+    guidanceStart,
   } =
     useVoiceSession();
   const conversationRef = useRef<ScrollView>(null);
@@ -262,6 +266,11 @@ function VoiceListeningModalInner({
     },
     [handleClose, onSelectLocation],
   );
+
+  useEffect(() => {
+    if (!guidanceStart) return;
+    void stop().finally(() => onGuidanceStarted(guidanceStart));
+  }, [guidanceStart, onGuidanceStarted, stop]);
 
   const handleExpand = useCallback(() => {
     recordInteraction();
@@ -913,6 +922,7 @@ export function VoiceListeningModal({
   onClose,
   onSelectBook,
   onSelectLocation,
+  onGuidanceStarted,
 }: VoiceListeningModalProps): React.ReactElement | null {
   if (!visible) return null;
   return (
@@ -922,6 +932,7 @@ export function VoiceListeningModal({
       onClose={onClose}
       onSelectBook={onSelectBook}
       onSelectLocation={onSelectLocation}
+      onGuidanceStarted={onGuidanceStarted}
     />
   );
 }

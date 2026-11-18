@@ -85,33 +85,29 @@ function normalizeTranscript(text: string | null | undefined): string {
 }
 
 /**
- * Chấp nhận transcript của "Hey LiBot" (chỉ nhận khi có đầy đủ 3 âm tiết
- * hoặc khi chuỗi tích lũy trước đó kết thúc bằng câu 3 âm tiết đầy đủ).
- * Không nhận các từ đơn lẻ hoặc cụm 2 từ (như "libot", "robot ơi", "hey bốt", "li bot").
+ * Chấp nhận transcript của "Hey LiBot" (chỉ nhận khi có chính xác 3 âm tiết hợp lệ).
+ * Triệt tiêu hoàn toàn kích hoạt nhầm khi có hội thoại phòng bằng cách:
+ * - Bắt buộc đúng 3 từ (loại bỏ câu dài từ hội thoại như "hây hê li bốt", "tôi gọi hey li bot nhé").
+ * - Không cho phép đuôi câu (loại bỏ hoàn toàn endsWith).
+ * - Không nhận các từ đơn lẻ hoặc cụm 2 từ (như "libot", "robot ơi", "hey bốt", "li bot").
  */
 export function isWakeWordMatch(text: string | null | undefined): boolean {
   const normalized = normalizeTranscript(text);
   if (!normalized || normalized === "[unk]") return false;
 
-  if (WAKE_WORD_TRANSCRIPTS.has(normalized)) return true;
+  // Bắt buộc phải là câu có chính xác 3 từ
+  const words = normalized.split(/\s+/);
+  if (words.length !== 3) return false;
 
-  // Hỗ trợ trường hợp Vosk tích lũy chuỗi âm liên tục trước đó:
-  // Ví dụ: "... hey li bot" hoặc "... hê li bốt"
-  for (const trigger of WAKE_WORD_TRANSCRIPTS) {
-    if (normalized.endsWith(` ${trigger}`)) {
-      return true;
-    }
-  }
-
-  return false;
+  return WAKE_WORD_TRANSCRIPTS.has(normalized);
 }
 
 /**
  * Detector quản lý trạng thái ghép âm cho luồng ASR trực tiếp:
- * - Khớp ngay khi nhận diện được câu đầy đủ 3 từ ("Hey LiBot").
- * - Hoặc ghép chuỗi: Phải bắt đầu bằng tiền tố 2 âm tiết ("Hey Li") và theo sau là hậu tố ("Bot")
- *   trong vòng 900ms.
- * - Tuyệt đối không nhận tiền tố 1 âm tiết đơn lẻ ("hê", "ê") để tránh kích hoạt từ hội thoại phòng.
+ * - Khớp ngay khi nhận diện được câu hoàn chỉnh đúng 3 từ ("Hey LiBot").
+ * - Hoặc ghép chuỗi nghiêm ngặt: Tiền tố chính xác 2 âm tiết ("Hey Li") và theo sau là
+ *   hậu tố chính xác 1 âm tiết ("Bot") trong vòng 900ms.
+ * - Loại bỏ hoàn toàn mọi so khớp đuôi câu (endsWith) để ngăn tiếng trò chuyện phòng kích hoạt nhầm.
  */
 export function createWakeWordDetector(now: () => number = Date.now) {
   let hasTwoSyllablePrefix = false;
@@ -128,7 +124,7 @@ export function createWakeWordDetector(now: () => number = Date.now) {
       const normalized = normalizeTranscript(text);
       if (!normalized || normalized === "[unk]") return false;
 
-      // 1. Khớp trực tiếp đầy đủ 3 từ
+      // 1. Khớp trực tiếp đầy đủ chính xác 3 từ
       if (isWakeWordMatch(normalized)) {
         reset();
         return true;
@@ -136,12 +132,8 @@ export function createWakeWordDetector(now: () => number = Date.now) {
 
       const timestamp = now();
 
-      // 2. Kiểm tra nếu là tiền tố 2 âm tiết ("hey li", "hê li", "hây li")
-      const isTwoSyllablePrefix =
-        TWO_SYLLABLE_PREFIXES.has(normalized) ||
-        Array.from(TWO_SYLLABLE_PREFIXES).some((p) =>
-          normalized.endsWith(` ${p}`),
-        );
+      // 2. Kiểm tra nếu là tiền tố 2 âm tiết chính xác ("hey li", "hê li", "hây li")
+      const isTwoSyllablePrefix = TWO_SYLLABLE_PREFIXES.has(normalized);
 
       if (isTwoSyllablePrefix) {
         hasTwoSyllablePrefix = true;
@@ -162,14 +154,7 @@ export function createWakeWordDetector(now: () => number = Date.now) {
         }
 
         const isEnding =
-          ONE_SYLLABLE_ENDS.has(normalized) ||
-          TWO_SYLLABLE_ENDS.has(normalized) ||
-          Array.from(ONE_SYLLABLE_ENDS).some((e) =>
-            normalized.endsWith(` ${e}`),
-          ) ||
-          Array.from(TWO_SYLLABLE_ENDS).some((e) =>
-            normalized.endsWith(` ${e}`),
-          );
+          ONE_SYLLABLE_ENDS.has(normalized) || TWO_SYLLABLE_ENDS.has(normalized);
 
         if (isEnding) {
           reset();
@@ -177,9 +162,7 @@ export function createWakeWordDetector(now: () => number = Date.now) {
         }
       }
 
-      if (!hasRecentPrefix) {
-        reset();
-      }
+      reset();
       return false;
     },
   };

@@ -3,7 +3,7 @@ import { runtimeConfig } from "../config/runtimeConfig";
 import { useKioskStore } from "../state/kioskStore";
 
 export function shouldResetOnIdle(
-  activeMissionId: string | null,
+  activeJobId: string | null,
   elapsedMs: number,
   timeoutMs: number,
   isVoiceActive: boolean = false,
@@ -11,7 +11,7 @@ export function shouldResetOnIdle(
   if (isVoiceActive) {
     return false;
   }
-  if (activeMissionId !== null && activeMissionId !== "") {
+  if (activeJobId !== null && activeJobId !== "") {
     return false;
   }
   return elapsedMs >= timeoutMs;
@@ -31,7 +31,7 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
   } = options;
 
   const timeoutMs = timeoutSeconds * 1000;
-  const activeMissionId = useKioskStore((state) => state.activeMissionId);
+  const activeJobId = useKioskStore((state) => state.activeJobId);
   const isVoiceActive = useKioskStore((state) => state.isVoiceActive);
   const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -42,7 +42,7 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastInteractionAt;
       if (
-        shouldResetOnIdle(activeMissionId, elapsed, timeoutMs, isVoiceActive)
+        shouldResetOnIdle(activeJobId, elapsed, timeoutMs, isVoiceActive)
       ) {
         resetKioskSession();
         onTimeout?.();
@@ -52,7 +52,7 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
     return () => clearInterval(interval);
   }, [
     enabled,
-    activeMissionId,
+    activeJobId,
     isVoiceActive,
     lastInteractionAt,
     timeoutMs,

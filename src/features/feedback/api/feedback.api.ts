@@ -3,8 +3,11 @@ import type { FeedbackRepository, FeedbackSubmissionResult, SubmitFeedbackReques
 
 export class HttpFeedbackRepository implements FeedbackRepository {
   async submitFeedback(req: SubmitFeedbackRequest): Promise<FeedbackSubmissionResult> {
-    const response = await apiClient.post<{ feedbackId: string }>("/book-guidance/feedback", {
-      taskId: req.missionId,
+    const path = req.guidanceKind === "BOOK_GUIDANCE"
+      ? "/book-guidance/feedback"
+      : "/facility-guidance/feedback";
+    const response = await apiClient.post<{ feedbackId: string }>(path, {
+      jobId: req.jobId,
       rating: req.rating,
       comment: req.comment,
     });

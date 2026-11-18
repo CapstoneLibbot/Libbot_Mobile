@@ -44,6 +44,7 @@ class ServerMCPExecutor(ToolExecutor):
             logger.bind(tag=TAG).info(f"LiBot tool started: {actual_name}")
             result = await self.mcp_manager.execute_tool(actual_name, arguments)
             await self._emit_tool_result(actual_name, arguments, result)
+            await self._emit_guidance_started(actual_name, arguments, result)
             payload = self._payload(result)
             # A successful search must return to the LLM so it can decide the
             # next tool from the reader's full request (for example, search
@@ -189,3 +190,33 @@ class ServerMCPExecutor(ToolExecutor):
             logger.bind(tag=TAG).warning(
                 f"LiBot tool result delivery failed: {type(error).__name__}"
             )
+
+    async def _emit_guidance_started(
+        self, name: str, arguments: Dict[str, Any], result: Any
+    ) -> None:
+        if name not in {"start_book_guidance", "start_location_guidance"}:
+            return
+        websocket = getattr(self.conn, "websocket", None)
+        if websocket is None:
+            return
+        payload = self._payload(result)
+        job_id = str(payload.get("jobId") or "").strip()
+        execution_id = str(payload.get("executionId") or "").strip()
+        runtime_id = str(payload.get("runtimeId") or "").strip()
+        if not job_id or not execution_id or not runtime_id:
+            return
+        is_book = name == "start_book_guidance"
+        destination_id = str(arguments.get("bookId" if is_book else "endpointId") or "").strip()
+        destination_name = str(payload.get("title" if is_book else "name") or "").strip()
+        if not destination_id or not destination_name:
+            return
+        await self._send_tool_result(websocket, {
+            "type": "guidance_started",
+            "jobId": job_id,
+            "executionId": execution_id,
+            "guidanceKind": "BOOK_GUIDANCE" if is_book else "LOCATION_GUIDANCE",
+            "startStatus": "ACCEPTED" if not payload.get("errorCode") else "FAILED",
+            "destinationId": destination_id,
+            "destinationName": destination_name,
+            "runtimeId": runtime_id,
+        })

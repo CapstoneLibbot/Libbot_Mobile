@@ -53,7 +53,7 @@ export interface BookGuidanceStartRequest {
 }
 
 export interface BookGuidanceStartResponse {
-  missionId: string;
+  jobId: string;
   executionId: string;
   runtimeId: string;
   workflowId: string;
@@ -226,8 +226,8 @@ export const bookGuidanceApi = {
     await apiClient.post("/book-guidance/events", { executionId, eventType, data });
   },
 
-  async complete(missionId: string, succeeded: boolean, message?: string): Promise<void> {
-    await apiClient.post(`/book-guidance/tasks/${encodeURIComponent(missionId)}/complete`, {
+  async complete(jobId: string, succeeded: boolean, message?: string): Promise<void> {
+    await apiClient.post(`/book-guidance/jobs/${encodeURIComponent(jobId)}/complete`, {
       status: succeeded ? "SUCCEEDED" : "FAILED",
       message,
     });

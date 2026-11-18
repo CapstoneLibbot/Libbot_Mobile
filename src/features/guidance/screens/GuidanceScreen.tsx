@@ -22,13 +22,14 @@ import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { GazeboMap2D } from "../components/GazeboMap2D";
 import { bookGuidanceApi, type BookGuidanceExecution, type NavigationEndpoint } from "../api/bookGuidance.api";
+import { facilityGuidanceApi } from "@/features/facilities/api/facilityGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
 import { useRobotMapOverlays } from "../hooks/useRobotMapOverlays";
 import type { GuidanceSession, RobotPose } from "../types/guidance.types";
 
 export interface GuidanceScreenProps {
   endpointId: string;
-  onGoToFeedback: (missionId: string) => void;
+  onGoToFeedback: (jobId: string) => void;
   onBackToSearch: () => void;
 }
 
@@ -94,12 +95,12 @@ export function GuidanceScreen({
   const [loadedEndpointId, setLoadedEndpointId] = useState<string | null>(null);
   const endpointLoaded = loadedEndpointId === endpointId;
   const [runtimeId, setRuntimeId] = useState(
-    session?.endpointId === endpointId
+    session?.destinationId === endpointId
       ? session.runtimeId
       : "real",
   );
   const [armLeaseId, setArmLeaseId] = useState<string | null>(
-    session?.armLeaseId ?? null,
+    null,
   );
   const mapRotationDeg = 0;
   const [busy, setBusy] = useState(false);
@@ -110,7 +111,7 @@ export function GuidanceScreen({
 
   const { runtime, refreshRuntime } = useRobotRuntimeTelemetry(runtimeId);
 
-  const activeSession = session?.endpointId === endpointId ? session : null;
+  const activeSession = session?.destinationId === endpointId ? session : null;
   const {
     mapMetadata: savedRobotMap,
     mapEndpoints,
@@ -194,59 +195,54 @@ export function GuidanceScreen({
   }, [runtimeId]);
 
   const postCompletion = useCallback(
-    async (missionId: string, succeeded: boolean, message?: string) => {
+    async (jobId: string, succeeded: boolean, message?: string) => {
       if (completionPosted.current) return;
       completionPosted.current = true;
       try {
-        await bookGuidanceApi.complete(missionId, succeeded, message);
+        if (activeSession?.guidanceKind === "LOCATION_GUIDANCE") {
+          await facilityGuidanceApi.complete(jobId, succeeded, message);
+        } else {
+          await bookGuidanceApi.complete(jobId, succeeded, message);
+        }
       } catch {
         /* Workflow state remains authoritative in the UI. */
       }
     },
-    [],
+    [activeSession?.guidanceKind],
   );
 
   useEffect(() => {
-    if (!activeSession || isTerminal(activeSession.status)) return;
+    if (!activeSession || activeSession.terminalStatus) return;
     let mounted = true;
     const tick = async () => {
       if (!mounted || pollInFlight.current) return;
       pollInFlight.current = true;
       try {
-        const state = await bookGuidanceApi.getExecution(
-          activeSession.executionId,
-        );
+        const state = activeSession.guidanceKind === "LOCATION_GUIDANCE"
+          ? await facilityGuidanceApi.getExecution(activeSession.executionId)
+          : await bookGuidanceApi.getExecution(activeSession.executionId);
         if (!mounted) return;
         const eventType = state.expectedEventType?.toUpperCase();
 
         if (state.status.toLowerCase() === "completed") {
-          if (activeSession.status !== "completed")
-            setSession({ ...activeSession, status: "completed" });
-          await postCompletion(activeSession.missionId, true);
+          setSession({ ...activeSession, terminalStatus: "COMPLETED" });
+          await postCompletion(activeSession.jobId, true);
           if (mounted && !feedbackNavigated.current) {
             feedbackNavigated.current = true;
-            onGoToFeedback(activeSession.missionId);
+            onGoToFeedback(activeSession.jobId);
           }
-        } else if (state.status.toLowerCase() === "failed") {
+        } else if (["failed", "cancelled"].includes(state.status.toLowerCase())) {
           const failureMessage = formatWorkflowFailure(state);
-          if (activeSession.status !== "failed")
-            setSession({ ...activeSession, status: "failed" });
+          setSession({ ...activeSession, terminalStatus: state.status.toLowerCase() === "cancelled" ? "CANCELLED" : "FAILED" });
           await postCompletion(
-            activeSession.missionId,
+            activeSession.jobId,
             false,
             failureMessage,
           );
-          if (mounted) setErrorMessage(failureMessage);
-        } else {
-          const status =
-            state.currentStep === "S120" ||
-              runtime?.telemetry?.navigationState?.toUpperCase() === "NAVIGATING"
-              ? "navigating"
-              : eventType
-                ? "waiting"
-                : "starting";
-          if (activeSession.status !== status)
-            setSession({ ...activeSession, status });
+          if (mounted && !feedbackNavigated.current) {
+            feedbackNavigated.current = true;
+            onGoToFeedback(activeSession.jobId);
+          }
         }
       } catch (error: unknown) {
         if (mounted) setErrorMessage(getErrorMessage(error));
@@ -317,12 +313,13 @@ export function GuidanceScreen({
         armLeaseId,
       });
       const next: GuidanceSession = {
-        missionId: started.missionId,
+        jobId: started.jobId,
         executionId: started.executionId,
         runtimeId: started.runtimeId || runtimeId,
-        endpointId: endpoint.id,
-        armLeaseId: armLeaseId ?? undefined,
-        status: "starting",
+        destinationId: endpoint.id,
+        destinationName: endpoint.name,
+        guidanceKind: "BOOK_GUIDANCE",
+        startStatus: "ACCEPTED",
       };
       completionPosted.current = false;
       feedbackNavigated.current = false;

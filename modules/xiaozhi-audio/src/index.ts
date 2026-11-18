@@ -12,6 +12,7 @@ export type XiaozhiNativeEvent = {
     | "tts"
     | "listening"
     | "tool_result"
+    | "guidance_started"
     | "session_ended";
   text?: string;
   state?: string;
@@ -21,7 +22,16 @@ export type XiaozhiNativeEvent = {
   totalMatches?: number;
   books?: XiaozhiVoiceBook[];
   locations?: XiaozhiVoiceLocation[];
+  jobId?: string;
+  executionId?: string;
+  guidanceKind?: GuidanceKind;
+  startStatus?: "ACCEPTED" | "FAILED";
+  destinationId?: string;
+  destinationName?: string;
+  runtimeId?: string;
 };
+
+export type GuidanceKind = "BOOK_GUIDANCE" | "LOCATION_GUIDANCE";
 
 /** Presentation-safe records sent by the LiBot Xiaozhi server after an MCP tool call. */
 export interface XiaozhiVoiceBook {

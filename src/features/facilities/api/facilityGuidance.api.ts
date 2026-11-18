@@ -40,7 +40,7 @@ interface FacilitySearchResponseDto {
 }
 
 export interface FacilityGuidanceStartResponse {
-  missionId: string;
+  jobId: string;
   executionId: string;
   runtimeId: string;
   workflowId: string;
@@ -111,8 +111,8 @@ export const facilityGuidanceApi = {
     await apiClient.post("/facility-guidance/events", { executionId, eventType, data });
   },
 
-  async complete(missionId: string, succeeded: boolean, message?: string): Promise<void> {
-    await apiClient.post(`/facility-guidance/tasks/${encodeURIComponent(missionId)}/complete`, { status: succeeded ? "SUCCEEDED" : "FAILED", message });
+  async complete(jobId: string, succeeded: boolean, message?: string): Promise<void> {
+    await apiClient.post(`/facility-guidance/jobs/${encodeURIComponent(jobId)}/complete`, { status: succeeded ? "SUCCEEDED" : "FAILED", message });
   },
 };
 

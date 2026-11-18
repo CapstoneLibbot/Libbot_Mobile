@@ -48,10 +48,10 @@ describe("Guidance Mission Creation and Management", () => {
     expect(mission1.id).not.toBe(mission2.id);
   });
 
-  it("creates mission and successfully updates activeMissionId in kiosk store", async () => {
+  it("creates mission and successfully updates activeJobId in kiosk store", async () => {
     const store = useKioskStore.getState();
     store.resetKioskSession();
-    expect(useKioskStore.getState().activeMissionId).toBeNull();
+    expect(useKioskStore.getState().activeJobId).toBeNull();
 
     const mission = await repository.createMission({
       bookId: "bk-1003", // Database Systems Concepts, available: true
@@ -59,9 +59,9 @@ describe("Guidance Mission Creation and Management", () => {
     });
 
     // Simulate store update (as done by useCreateGuidanceMission)
-    useKioskStore.getState().setActiveMissionId(mission.id);
+    useKioskStore.getState().setActiveJobId(mission.id);
 
-    expect(useKioskStore.getState().activeMissionId).toBe(mission.id);
+    expect(useKioskStore.getState().activeJobId).toBe(mission.id);
   });
 
   it("allows completing and cancelling active missions", async () => {

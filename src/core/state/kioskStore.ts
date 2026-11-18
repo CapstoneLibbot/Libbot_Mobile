@@ -3,12 +3,12 @@ import type { GuidanceSession } from "@/features/guidance/types/guidance.types";
 
 export interface KioskState {
   kioskSessionId: string;
-  activeMissionId: string | null;
+  activeJobId: string | null;
   activeGuidanceSession: GuidanceSession | null;
   lastInteractionAt: number;
   selectedFacilityId: string | null;
   isVoiceActive: boolean;
-  setActiveMissionId: (missionId: string | null) => void;
+  setActiveJobId: (jobId: string | null) => void;
   setActiveGuidanceSession: (session: GuidanceSession | null) => void;
   setSelectedFacilityId: (facilityId: string | null) => void;
   setVoiceActive: (active: boolean) => void;
@@ -21,15 +21,15 @@ export const generateSessionId = (): string =>
 
 export const useKioskStore = create<KioskState>((set) => ({
   kioskSessionId: generateSessionId(),
-  activeMissionId: null,
+  activeJobId: null,
   activeGuidanceSession: null,
   lastInteractionAt: Date.now(),
   selectedFacilityId: null,
   isVoiceActive: false,
-  setActiveMissionId: (missionId: string | null) =>
-    set({ activeMissionId: missionId, lastInteractionAt: Date.now() }),
+  setActiveJobId: (jobId: string | null) =>
+    set({ activeJobId: jobId, lastInteractionAt: Date.now() }),
   setActiveGuidanceSession: (session: GuidanceSession | null) =>
-    set({ activeGuidanceSession: session, activeMissionId: session?.missionId ?? null, lastInteractionAt: Date.now() }),
+    set({ activeGuidanceSession: session, activeJobId: session?.jobId ?? null, lastInteractionAt: Date.now() }),
   setSelectedFacilityId: (facilityId: string | null) =>
     set({ selectedFacilityId: facilityId, lastInteractionAt: Date.now() }),
   setVoiceActive: (active: boolean) =>
@@ -38,7 +38,7 @@ export const useKioskStore = create<KioskState>((set) => ({
   resetKioskSession: () =>
     set({
       kioskSessionId: generateSessionId(),
-      activeMissionId: null,
+      activeJobId: null,
       activeGuidanceSession: null,
       selectedFacilityId: null,
       isVoiceActive: false,

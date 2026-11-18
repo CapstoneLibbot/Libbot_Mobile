@@ -53,13 +53,19 @@ export interface GuidanceMission {
 }
 
 export interface GuidanceSession {
-  missionId: string;
+  jobId: string;
   executionId: string;
   runtimeId: string;
-  endpointId: string;
-  armLeaseId?: string;
-  status: "starting" | "waiting" | "navigating" | "completed" | "failed";
+  destinationId: string;
+  destinationName: string;
+  guidanceKind: GuidanceKind;
+  startStatus: GuidanceStartStatus;
+  terminalStatus?: GuidanceTerminalStatus;
 }
+
+export type GuidanceKind = "BOOK_GUIDANCE" | "LOCATION_GUIDANCE";
+export type GuidanceStartStatus = "ACCEPTED" | "FAILED";
+export type GuidanceTerminalStatus = "COMPLETED" | "FAILED" | "CANCELLED";
 
 export type GuidanceDemoState =
   "navigating" | "replanning" | "arrived" | "cancelled";

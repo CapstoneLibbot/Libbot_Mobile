@@ -44,12 +44,9 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(isWakeWordMatch("hê li bót")).toBe(true);
     expect(isWakeWordMatch("hây li bốt")).toBe(true);
     expect(isWakeWordMatch("   Hê Li Bốt   ")).toBe(true);
-    expect(
-      isWakeWordMatch("li bót li bốt bốt li hey li bot"),
-    ).toBe(true);
   });
 
-  it("rejects 2-syllable phrases, 1-syllable noises, ê-variants, and ambient chatter", () => {
+  it("rejects 2-syllable phrases, 1-syllable noises, ê-variants, multi-word chatter, and ambient speech", () => {
     expect(isWakeWordMatch("[unk]")).toBe(false);
     expect(isWakeWordMatch("")).toBe(false);
     expect(isWakeWordMatch(null)).toBe(false);
@@ -71,6 +68,10 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(isWakeWordMatch("libot")).toBe(false);
     expect(isWakeWordMatch("li bot ơi")).toBe(false);
     expect(isWakeWordMatch("tôi gọi hey li bot nhé")).toBe(false);
+    // Chuỗi dài từ hội thoại phòng chứa các mảnh âm thanh tuyệt đối không được kích hoạt:
+    expect(isWakeWordMatch("hây hê li bốt")).toBe(false);
+    expect(isWakeWordMatch("li bót li bốt bốt li hey li bot")).toBe(false);
+    expect(isWakeWordMatch("thế rồi hây hê li bốt")).toBe(false);
   });
 
   it("accepts two-part sequence of 2-syllable prefix followed by 1-syllable end (Hey Li + Bot)", () => {
@@ -82,7 +83,7 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(detector.consume("bốt")).toBe(true);
   });
 
-  it("handles fluctuating ASR partials where 2-syllable prefix is followed by a 1-syllable jitter before ending (e.g. 'hây li' -> 'hây' -> 'hây bốt')", () => {
+  it("handles fluctuating ASR partials where 2-syllable prefix is followed by a 1-syllable jitter before ending (e.g. 'hây li' -> 'hây' -> 'bốt')", () => {
     let timestamp = 1_000;
     const detector = createWakeWordDetector(() => timestamp);
 
@@ -90,7 +91,7 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     timestamp += 196;
     expect(detector.consume("hây")).toBe(false);
     timestamp += 242;
-    expect(detector.consume("hây bốt")).toBe(true);
+    expect(detector.consume("bốt")).toBe(true);
   });
 
   it("rejects 1-syllable prefix alone to prevent room chatter false triggers", () => {

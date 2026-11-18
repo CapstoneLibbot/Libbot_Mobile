@@ -1,10 +1,13 @@
+import type { GuidanceKind, GuidanceTerminalStatus } from "@/features/guidance/types/guidance.types";
+
 export interface SubmitFeedbackRequest {
-  missionId: string;
+  jobId: string;
+  guidanceKind: GuidanceKind;
+  terminalStatus: GuidanceTerminalStatus;
   rating: number; // 1 - 5
   /** Legacy mock/test compatibility; tags are intentionally not sent to the backend. */
   tags?: string[];
   comment?: string;
-  kioskSessionId: string;
 }
 
 export interface FeedbackSubmissionResult {

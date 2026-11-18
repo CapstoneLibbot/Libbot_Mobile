@@ -10,6 +10,7 @@ import {
   type VoiceToolResult,
 } from "../utils/voiceToolResult";
 import { type VoiceSessionPhase } from "../domain/voiceSessionState";
+import type { GuidanceKind, GuidanceStartStatus } from "@/features/guidance/types/guidance.types";
 
 export { type VoiceToolResult } from "../utils/voiceToolResult";
 
@@ -21,6 +22,16 @@ export interface VoiceConversationEntry {
   text: string;
   isPending?: boolean;
   toolResult?: VoiceToolResult;
+}
+
+export interface VoiceGuidanceStart {
+  jobId: string;
+  executionId: string;
+  guidanceKind: GuidanceKind;
+  startStatus: GuidanceStartStatus;
+  destinationId: string;
+  destinationName: string;
+  runtimeId: string;
 }
 
 const MAX_RECONNECT_ATTEMPTS = 3;
@@ -56,6 +67,7 @@ export function useXiaozhiVoiceSession() {
   const [conversation, setConversation] = useState<VoiceConversationEntry[]>(
     [],
   );
+  const [guidanceStart, setGuidanceStart] = useState<VoiceGuidanceStart | null>(null);
   const wantsSessionRef = useRef(false);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -250,6 +262,15 @@ export function useXiaozhiVoiceSession() {
           }
           return;
         }
+        case "guidance_started": {
+          const { jobId, executionId, guidanceKind, startStatus, destinationId, destinationName, runtimeId } = event;
+          if (!jobId || !executionId || !destinationId || !destinationName || !runtimeId ||
+            (guidanceKind !== "BOOK_GUIDANCE" && guidanceKind !== "LOCATION_GUIDANCE") ||
+            (startStatus !== "ACCEPTED" && startStatus !== "FAILED")) return;
+          clearResponseTimer();
+          setGuidanceStart({ jobId, executionId, guidanceKind, startStatus, destinationId, destinationName, runtimeId });
+          return;
+        }
         case "disconnected":
           if (wantsSessionRef.current) {
             setStatus("disconnected");
@@ -280,6 +301,7 @@ export function useXiaozhiVoiceSession() {
     setAssistantText(null);
     setVoiceActivitySequence(0);
     setConversation([]);
+    setGuidanceStart(null);
   }, [clearReconnectTimer, clearResponseTimer]);
 
   const stop = useCallback(async (): Promise<void> => {
@@ -336,6 +358,7 @@ export function useXiaozhiVoiceSession() {
     assistantText,
     voiceActivitySequence,
     conversation,
+    guidanceStart,
     start,
     stop,
   };

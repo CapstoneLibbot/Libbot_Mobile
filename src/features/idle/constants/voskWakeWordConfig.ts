@@ -19,9 +19,6 @@ export const DEFAULT_VOSK_WAKE_GRAMMAR: readonly string[] = [
   "hây li bot",
   "hây li bốt",
   "hây li bót",
-  "ê li bot",
-  "ê li bốt",
-  "ê li bót",
   "hey ly bot",
   "hey ly bốt",
   "hey ly bót",
@@ -41,9 +38,6 @@ const WAKE_WORD_TRANSCRIPTS = new Set([
   "hây li bot",
   "hây li bốt",
   "hây li bót",
-  "ê li bot",
-  "ê li bốt",
-  "ê li bót",
   "hey ly bot",
   "hey ly bốt",
   "hey ly bót",
@@ -52,24 +46,15 @@ const WAKE_WORD_TRANSCRIPTS = new Set([
   "hê ly bót",
 ]);
 
-// Tiền tố 2 âm tiết: "hey li", "hê li", v.v.
+// Tiền tố bắt buộc phải có tối thiểu 2 âm tiết rõ ràng: "hey li", "hê li", v.v.
+// Tuyệt đối không chấp nhận âm đơn lẻ "ê" hoặc "hê" để ngăn chặn hội thoại phòng kích hoạt nhầm.
 const TWO_SYLLABLE_PREFIXES = new Set([
   "hey li",
   "hê li",
   "hây li",
-  "ê li",
   "hey ly",
   "hê ly",
   "hây ly",
-  "ê ly",
-]);
-
-// Tiền tố 1 âm tiết: "hey", "hê"
-const ONE_SYLLABLE_PREFIXES = new Set([
-  "hey",
-  "hê",
-  "hây",
-  "ê",
 ]);
 
 // Hậu tố 1 âm tiết: chỉ hợp lệ khi ĐÃ CÓ tiền tố 2 âm tiết ("hey li" + "bốt" => 3 âm)
@@ -79,7 +64,7 @@ const ONE_SYLLABLE_ENDS = new Set([
   "bót",
 ]);
 
-// Hậu tố 2 âm tiết: hợp lệ khi có tiền tố 1 âm tiết ("hey" + "li bốt" => 3 âm) hoặc 2 âm tiết
+// Hậu tố 2 âm tiết: "li bot", "li bốt", v.v.
 const TWO_SYLLABLE_ENDS = new Set([
   "li bot",
   "li bốt",
@@ -89,7 +74,11 @@ const TWO_SYLLABLE_ENDS = new Set([
   "ly bót",
 ]);
 
-const PARTIAL_SEQUENCE_WINDOW_MS = 2_000;
+// Cửa sổ ghép âm: 900ms.
+// Người nói "Hey LiBot" bình thường phát âm trong khoảng 600 - 800ms.
+// Cửa sổ 900ms đảm bảo người gọi robot được nhận diện mượt mà, đồng thời ngăn chặn
+// hai câu nói ngẫu nhiên của hai người khác nhau trong phòng bị ghép vào nhau.
+const PARTIAL_SEQUENCE_WINDOW_MS = 900;
 
 function normalizeTranscript(text: string | null | undefined): string {
   return text?.toLowerCase().trim().replace(/\s+/g, " ") ?? "";
@@ -119,19 +108,17 @@ export function isWakeWordMatch(text: string | null | undefined): boolean {
 
 /**
  * Detector quản lý trạng thái ghép âm cho luồng ASR trực tiếp:
- * - Khớp ngay khi nhận diện được câu đầy đủ 3 từ.
- * - Hoặc ghép chuỗi 2 phần nếu người dùng nói ngắt quãng:
- *   + "Hey Li" (2 âm) + "Bot/Bốt" (1 âm) => kích hoạt.
- *   + "Hey" (1 âm) + "LiBot/Li Bốt" (2 âm) => kích hoạt.
- * - Mọi trường hợp thiếu âm (chỉ nói "Hey Li" rồi dừng, chỉ nói "Bốt", chỉ nói "Hey Bốt")
- *   đều bị từ chối để chống false positive tuyệt đối trong môi trường kiosk.
+ * - Khớp ngay khi nhận diện được câu đầy đủ 3 từ ("Hey LiBot").
+ * - Hoặc ghép chuỗi: Phải bắt đầu bằng tiền tố 2 âm tiết ("Hey Li") và theo sau là hậu tố ("Bot")
+ *   trong vòng 900ms.
+ * - Tuyệt đối không nhận tiền tố 1 âm tiết đơn lẻ ("hê", "ê") để tránh kích hoạt từ hội thoại phòng.
  */
 export function createWakeWordDetector(now: () => number = Date.now) {
-  let prefixType: "one_syllable" | "two_syllable" | null = null;
+  let hasTwoSyllablePrefix = false;
   let prefixDetectedAt: number | null = null;
 
   const reset = () => {
-    prefixType = null;
+    hasTwoSyllablePrefix = false;
     prefixDetectedAt = null;
   };
 
@@ -157,54 +144,34 @@ export function createWakeWordDetector(now: () => number = Date.now) {
         );
 
       if (isTwoSyllablePrefix) {
-        prefixType = "two_syllable";
+        hasTwoSyllablePrefix = true;
         prefixDetectedAt = timestamp;
         return false;
       }
 
       const hasRecentPrefix =
+        hasTwoSyllablePrefix &&
         prefixDetectedAt !== null &&
         timestamp - prefixDetectedAt <= PARTIAL_SEQUENCE_WINDOW_MS;
 
-      // 3. Kiểm tra nếu là tiền tố 1 âm tiết ("hey", "hê", "hây")
-      const isOneSyllablePrefix =
-        ONE_SYLLABLE_PREFIXES.has(normalized) ||
-        Array.from(ONE_SYLLABLE_PREFIXES).some((p) =>
-          normalized.endsWith(` ${p}`),
-        );
-
-      if (isOneSyllablePrefix) {
-        // Chỉ lưu 1 âm tiết nếu trước đó chưa có tiền tố 2 âm tiết đang hoạt động
-        // (Tránh trường hợp ASR partial dao động rút gọn tạm thời làm mất tiền tố 2 âm đã nhận)
-        if (!hasRecentPrefix || prefixType !== "two_syllable") {
-          prefixType = "one_syllable";
-          prefixDetectedAt = timestamp;
-        }
-        return false;
-      }
-
+      // Nếu đang có tiền tố 2 âm tiết trong cửa sổ 900ms:
       if (hasRecentPrefix) {
-        const isOneSyllableEnd =
+        // Cho phép partial jitter rút gọn tạm thời ("hây li" -> "hây") mà không làm mất tiền tố
+        if (normalized === "hey" || normalized === "hê" || normalized === "hây") {
+          return false;
+        }
+
+        const isEnding =
           ONE_SYLLABLE_ENDS.has(normalized) ||
+          TWO_SYLLABLE_ENDS.has(normalized) ||
           Array.from(ONE_SYLLABLE_ENDS).some((e) =>
             normalized.endsWith(` ${e}`),
-          );
-
-        const isTwoSyllableEnd =
-          TWO_SYLLABLE_ENDS.has(normalized) ||
+          ) ||
           Array.from(TWO_SYLLABLE_ENDS).some((e) =>
             normalized.endsWith(` ${e}`),
           );
 
-        // Quy tắc: Luôn phải đủ tổng cộng 3 âm tiết!
-        // - "hey li" (2 âm) + "bốt" (1 âm) => ĐỦ 3 âm tiết
-        // - "hey" (1 âm) + "li bốt" (2 âm) => ĐỦ 3 âm tiết
-        // - "hey li" (2 âm) + "li bốt" (2 âm) => ĐỦ 3+ âm tiết
-        const isCompletedSequence =
-          (prefixType === "two_syllable" && (isOneSyllableEnd || isTwoSyllableEnd)) ||
-          (prefixType === "one_syllable" && isTwoSyllableEnd);
-
-        if (isCompletedSequence) {
+        if (isEnding) {
           reset();
           return true;
         }

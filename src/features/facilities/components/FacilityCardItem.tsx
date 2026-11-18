@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { BookOpen, ChevronRight, Compass, MapPin } from "lucide-react-native";
+import { ChevronRight, Compass, MapPin } from "lucide-react-native";
 import { AppText } from "@/shared/ui";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import type { FacilitySearchItem } from "../types/facility.types";
@@ -14,8 +14,7 @@ export interface FacilityCardItemProps {
 }
 
 const FACILITY_ICONS = {
-  reading_room: BookOpen,
-  area: Compass,
+  endpoint: Compass,
   default: MapPin,
 };
 
@@ -31,7 +30,7 @@ export function FacilityCardItem({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Xem khu vực ${item.name}`}
+      accessibilityLabel={`Xem địa điểm ${item.name}`}
       accessibilityHint="Chạm để xem thông tin vị trí và để LiBot dẫn đường"
       onPress={() => onPress(item.id)}
       style={({ pressed }) => [

@@ -10,6 +10,9 @@ export default function IdleRoute(): React.ReactElement {
       onNavigateToBook={(bookId) => {
         router.push(`/(kiosk)/catalog/${bookId}`);
       }}
+      onNavigateToLocation={(endpointId) => {
+        router.push(`/(kiosk)/facilities/${endpointId}`);
+      }}
     />
   );
 }

@@ -3,6 +3,7 @@ FROM ghcr.nju.edu.cn/xinnan-tech/xiaozhi-esp32-server:server_latest
 COPY providers/mobile_text_only_asr.py /opt/xiaozhi-esp32-server/core/providers/asr/mobile_text_only.py
 COPY providers/mobile_text_only_tts.py /opt/xiaozhi-esp32-server/core/providers/tts/mobile_text_only.py
 COPY providers/libot_mcp_executor.py /opt/xiaozhi-esp32-server/core/providers/tools/server_mcp/mcp_executor.py
+COPY providers/vietnamese_tts_guard.py /opt/xiaozhi-esp32-server/core/providers/tts/vietnamese_tts_guard.py
 
 # Older Xiaozhi releases read Tool.inputSchema while MCP Python SDK 2.x exposes
 # input_schema. Newer releases use a different MCP-client implementation, where
@@ -13,3 +14,7 @@ RUN python -c "from pathlib import Path; p=Path('/opt/xiaozhi-esp32-server/core/
 # exit/lunar plugins even when Intent.functions is empty, so remove that
 # implicit allow-list rather than offering unrelated weather/news/music tools.
 RUN python -c "from pathlib import Path; import re; p=Path('/opt/xiaozhi-esp32-server/core/providers/tools/server_plugins/plugin_executor.py'); s=p.read_text(); s, count=re.subn(r'necessary_functions\\s*=\\s*\\[[^]]*\\]', 'necessary_functions = []', s, count=1); assert count == 1, 'expected default plugin allow-list not found'; p.write_text(s)"
+
+# The LLM can ignore its Vietnamese-only prompt. Sanitize text before upstream
+# TTS creates audio; Android applies the same defense before local playback.
+RUN python -c "from pathlib import Path; p=Path('/opt/xiaozhi-esp32-server/core/providers/tts/base.py'); s=p.read_text(); old='from core.utils import p3'; new='from core.providers.tts.vietnamese_tts_guard import sanitize_tts_text\\n' + old; assert old in s, 'expected TTS import not found'; s=s.replace(old, new, 1); old='original_text = text\\n        text = MarkdownCleaner.clean_markdown(text)'; new='text = sanitize_tts_text(text)\\n        original_text = text\\n        text = MarkdownCleaner.clean_markdown(text)'; assert old in s, 'expected TTS text pipeline not found'; p.write_text(s.replace(old, new, 1))"

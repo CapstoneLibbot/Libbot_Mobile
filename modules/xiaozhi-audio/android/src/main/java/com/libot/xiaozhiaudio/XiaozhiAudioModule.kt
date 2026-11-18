@@ -32,6 +32,10 @@ import java.util.Locale
 private const val UPLINK_ADVERTISED_RATE = 16_000
 private const val LOG_TAG = "XiaozhiAudio"
 private const val GOOGLE_TTS_ENGINE = "com.google.android.tts"
+private val INTERNAL_TOOL_TEXT = Regex(
+  "^\\s*[%/\\s]*(search_books|search_locations|start_book_guidance|start_location_guidance)\\b.*$",
+  RegexOption.IGNORE_CASE,
+)
 /**
  * Owns Android-native recognition and local TTS. No microphone audio or secret
  * crosses the React Native bridge.
@@ -269,34 +273,54 @@ private class XiaozhiAudioSession(
         }
         "tts" -> {
           val state = message.optString("state")
-          emit(mapOf("type" to "tts", "state" to state, "text" to message.optString("text")))
-          if (state == "start" || state == "sentence_start") startNativeTts(message.optString("text"))
+          val spokenText = sanitizeAssistantText(message.optString("text"))
+          if (spokenText != null) {
+            emit(mapOf("type" to "tts", "state" to state, "text" to spokenText))
+            if (state == "start" || state == "sentence_start") startNativeTts(spokenText)
+          }
           if (state == "stop") finishTtsPlayback()
         }
         "tool_result" -> {
           val tool = message.optString("tool")
-          if (tool != "search_books") return
+          if (tool != "search_books" && tool != "search_locations") return
           val event = mutableMapOf<String, Any?>(
             "type" to "tool_result",
             "tool" to tool,
             "query" to message.optString("query"),
             "totalMatches" to message.optInt("totalMatches", 0),
           )
-          val books = mutableListOf<Map<String, Any?>>()
-          val source = message.optJSONArray("books")
-          for (index in 0 until (source?.length() ?: 0)) {
-            val book = source?.optJSONObject(index) ?: continue
-            val bookId = book.optString("bookId")
-            val title = book.optString("title")
-            if (bookId.isBlank() || title.isBlank()) continue
-            books.add(mapOf(
-              "bookId" to bookId,
-              "title" to title,
-              "author" to book.optString("author"),
-              "canGuide" to book.optBoolean("canGuide", false),
-            ))
+          if (tool == "search_books") {
+            val books = mutableListOf<Map<String, Any?>>()
+            val source = message.optJSONArray("books")
+            for (index in 0 until (source?.length() ?: 0)) {
+              val book = source?.optJSONObject(index) ?: continue
+              val bookId = book.optString("bookId")
+              val title = book.optString("title")
+              if (bookId.isBlank() || title.isBlank()) continue
+              books.add(mapOf(
+                "bookId" to bookId,
+                "title" to title,
+                "author" to book.optString("author"),
+                "canGuide" to book.optBoolean("canGuide", false),
+              ))
+            }
+            event["books"] = books
+          } else {
+            val locations = mutableListOf<Map<String, Any?>>()
+            val source = message.optJSONArray("locations")
+            for (index in 0 until (source?.length() ?: 0)) {
+              val location = source?.optJSONObject(index) ?: continue
+              val endpointId = location.optString("endpointId")
+              val name = location.optString("name")
+              if (endpointId.isBlank() || name.isBlank()) continue
+              locations.add(mapOf(
+                "endpointId" to endpointId,
+                "name" to name,
+                "canGuide" to location.optBoolean("canGuide", false),
+              ))
+            }
+            event["locations"] = locations
           }
-          event["books"] = books
           emit(event)
         }
         // The server can report a listening state during the handshake. The
@@ -383,11 +407,30 @@ private class XiaozhiAudioSession(
   private fun submitSpeechTurn(rawText: String) {
     val text = rawText.trim()
     if (text.isBlank() || submittedSpeechTurn || !captureRunning) return
+    if (INTERNAL_TOOL_TEXT.matches(text)) {
+      Log.w(LOG_TAG, "ignored_internal_tool_transcript")
+      stopCapture()
+      startCapture()
+      return
+    }
     submittedSpeechTurn = true
     stopCapture()
     Log.i(LOG_TAG, "speech_recognizer_final chars=${text.length}")
     emit(mapOf("type" to "stt", "text" to text))
     webSocket?.send(JSONObject().put("type", "listen").put("state", "detect").put("text", text).toString())
+  }
+
+  private fun sanitizeAssistantText(rawText: String): String? {
+    val text = rawText.trim()
+    if (text.isBlank() || INTERNAL_TOOL_TEXT.matches(text)) {
+      Log.w(LOG_TAG, "ignored_internal_tool_tts")
+      return null
+    }
+    if (text.any { char -> char.code in 0x3400..0x9FFF || char.code in 0xF900..0xFAFF }) {
+      Log.w(LOG_TAG, "blocked_non_vietnamese_tts")
+      return "LiBot chưa thể trả lời bằng tiếng Việt. Bạn vui lòng nói lại."
+    }
+    return text
   }
 
   private fun stopCapture() {

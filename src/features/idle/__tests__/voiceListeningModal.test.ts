@@ -187,7 +187,7 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
     });
   });
 
-  describe("Tool Result Book Card & Area Card Contract", () => {
+  describe("Tool Result Book and Location Card Contract", () => {
     it("verifies book card data shape: title, author, guidance state, and triggers onSelectBook", () => {
       const onSelectBook = vi.fn();
       const handleClose = vi.fn();
@@ -222,18 +222,15 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
       expect(onSelectBook).toHaveBeenCalledWith("b-clean-code-01");
     });
 
-    it("falls back gracefully when author information is missing", () => {
-      const bookWithoutAuthor = {
+    it("shows when a book cannot be guided", () => {
+      const unavailableBook = {
         bookId: "b-99",
         title: "Sách Cổ Không Rõ Tác Giả",
-        author: "",
+        author: "Không rõ",
         canGuide: false,
       };
 
-      const displayAuthor =
-        bookWithoutAuthor.author || "Chưa có thông tin tác giả";
-      expect(displayAuthor).toBe("Chưa có thông tin tác giả");
-      expect(bookWithoutAuthor.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường").toBe("Chưa thể dẫn đường");
+      expect(unavailableBook.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường").toBe("Chưa thể dẫn đường");
     });
 
   });

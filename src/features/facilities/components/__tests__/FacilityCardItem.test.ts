@@ -3,20 +3,10 @@ import { facilitiesFixture } from "@/testing/fixtures/facilities.fixture";
 import { getFacilityMeta } from "../../utils/facilityMeta";
 
 describe("FacilityCardItem and FacilityMeta Contract", () => {
-  it("resolves READING_ROOM facility meta with appropriate label and primary styling", () => {
-    const meta = getFacilityMeta("READING_ROOM");
-    expect(meta.label).toBe("Phòng đọc");
-    expect(meta.iconType).toBe("reading_room");
-    expect(meta.iconColor).toBeDefined();
-    expect(meta.iconBg).toBeDefined();
-    expect(meta.badgeBg).toBeDefined();
-    expect(meta.dotColor).toBeDefined();
-  });
-
-  it("resolves AREA facility meta with appropriate label and teal/emerald styling", () => {
-    const meta = getFacilityMeta("AREA");
-    expect(meta.label).toBe("Khu vực");
-    expect(meta.iconType).toBe("area");
+  it("resolves Endpoint meta", () => {
+    const meta = getFacilityMeta("ENDPOINT");
+    expect(meta.label).toBe("Địa điểm");
+    expect(meta.iconType).toBe("endpoint");
     expect(meta.iconColor).toBeDefined();
     expect(meta.iconBg).toBeDefined();
     expect(meta.badgeBg).toBeDefined();
@@ -30,19 +20,11 @@ describe("FacilityCardItem and FacilityMeta Contract", () => {
     expect(meta.iconType).toBe("default");
   });
 
-  it("handles READING_ROOM facility fixtures correctly", () => {
-    const readingRoom = facilitiesFixture.find((f) => f.type === "READING_ROOM");
-    expect(readingRoom).toBeDefined();
-    expect(readingRoom?.name).toContain("Đọc Sách");
-    expect(readingRoom?.type).toBe("READING_ROOM");
-    expect(readingRoom?.mapName).toBeDefined();
-  });
-
-  it("handles AREA facility fixtures correctly", () => {
-    const area = facilitiesFixture.find((f) => f.type === "AREA");
-    expect(area).toBeDefined();
-    expect(area?.type).toBe("AREA");
-    expect(area?.mapName).toBeDefined();
+  it("handles Endpoint fixtures correctly", () => {
+    const endpoint = facilitiesFixture[0];
+    expect(endpoint).toBeDefined();
+    expect(endpoint?.type).toBe("ENDPOINT");
+    expect(endpoint?.mapName).toBeDefined();
   });
 
   it("satisfies touch target requirements (minHeight >= 44dp)", () => {

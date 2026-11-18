@@ -33,6 +33,21 @@ describe("toVoiceToolResult", () => {
     });
   });
 
+  it("maps presentation-safe Endpoint results", () => {
+    expect(toVoiceToolResult({
+      type: "tool_result",
+      tool: "search_locations",
+      query: "Bàn thủ thư",
+      totalMatches: 1,
+      locations: [{ endpointId: "endpoint-1", name: "Bàn thủ thư", canGuide: true }],
+    })).toEqual({
+      kind: "locations",
+      query: "Bàn thủ thư",
+      totalMatches: 1,
+      locations: [{ endpointId: "endpoint-1", name: "Bàn thủ thư", canGuide: true }],
+    });
+  });
+
   it("keeps an empty valid result and filters malformed card records", () => {
     expect(
       toVoiceToolResult({

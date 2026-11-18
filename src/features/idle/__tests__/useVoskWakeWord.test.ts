@@ -43,18 +43,19 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(isWakeWordMatch("hê li bot")).toBe(true);
     expect(isWakeWordMatch("hê li bót")).toBe(true);
     expect(isWakeWordMatch("hây li bốt")).toBe(true);
-    expect(isWakeWordMatch("ê li bốt")).toBe(true);
     expect(isWakeWordMatch("   Hê Li Bốt   ")).toBe(true);
     expect(
       isWakeWordMatch("li bót li bốt bốt li hey li bot"),
     ).toBe(true);
   });
 
-  it("rejects 2-syllable phrases, 1-syllable noises, and ambient chatter", () => {
+  it("rejects 2-syllable phrases, 1-syllable noises, ê-variants, and ambient chatter", () => {
     expect(isWakeWordMatch("[unk]")).toBe(false);
     expect(isWakeWordMatch("")).toBe(false);
     expect(isWakeWordMatch(null)).toBe(false);
     expect(isWakeWordMatch(undefined)).toBe(false);
+    expect(isWakeWordMatch("ê li bốt")).toBe(false);
+    expect(isWakeWordMatch("ê li bot")).toBe(false);
     expect(isWakeWordMatch("hey bốt")).toBe(false);
     expect(isWakeWordMatch("hê bốt")).toBe(false);
     expect(isWakeWordMatch("hây bốt")).toBe(false);
@@ -92,13 +93,13 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(detector.consume("hây bốt")).toBe(true);
   });
 
-  it("accepts two-part sequence of 1-syllable prefix followed by 2-syllable end (Hey + LiBot)", () => {
+  it("rejects 1-syllable prefix alone to prevent room chatter false triggers", () => {
     let timestamp = 1_000;
     const detector = createWakeWordDetector(() => timestamp);
 
     expect(detector.consume("hey")).toBe(false);
     timestamp += 400;
-    expect(detector.consume("li bốt")).toBe(true);
+    expect(detector.consume("bốt")).toBe(false);
   });
 
   it("rejects two-part sequence that lacks Li (Hey + Bot = only 2 syllables)", () => {
@@ -121,12 +122,12 @@ describe("voskWakeWordConfig - grammar and matching logic", () => {
     expect(detector.consume("hey li")).toBe(false);
   });
 
-  it("expires prefix after 2,000ms window", () => {
+  it("expires prefix after 900ms window", () => {
     let timestamp = 1_000;
     const detector = createWakeWordDetector(() => timestamp);
 
     expect(detector.consume("hey li")).toBe(false);
-    timestamp += 2_001;
+    timestamp += 901;
     expect(detector.consume("bốt")).toBe(false);
   });
 

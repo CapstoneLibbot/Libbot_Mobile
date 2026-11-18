@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
 import {
   AppEmptyState,
@@ -14,13 +14,7 @@ import { useResponsiveLayout } from "@/shared/layout";
 import { colors, spacing } from "@/shared/theme";
 import { useFacilities } from "../hooks/useFacilities";
 import { FacilityCardItem } from "../components/FacilityCardItem";
-import type { FacilitySearchItem, FacilityType } from "../types/facility.types";
-
-const TYPES: { label: string; type?: FacilityType }[] = [
-  { label: "Tất cả" },
-  { label: "Khu vực", type: "AREA" },
-  { label: "Phòng đọc", type: "READING_ROOM" },
-];
+import type { FacilitySearchItem } from "../types/facility.types";
 
 export interface FacilitySearchScreenProps {
   onSelectFacility: (facilityId: string) => void;
@@ -35,7 +29,6 @@ export function FacilitySearchScreen({
     useResponsiveLayout();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const [searchInput, setSearchInput] = useState("");
-  const [selectedType, setSelectedType] = useState<FacilityType | undefined>();
   const query = useDebounce(searchInput, 300);
   const {
     data: facilities = [],
@@ -43,7 +36,7 @@ export function FacilitySearchScreen({
     isError,
     error,
     refetch,
-  } = useFacilities({ query, type: selectedType });
+  } = useFacilities({ query });
 
   const renderFacility = ({ item }: { item: FacilitySearchItem }) => (
     <FacilityCardItem
@@ -60,8 +53,8 @@ export function FacilitySearchScreen({
   return (
     <View style={styles.container}>
       <AppHeader
-        title="Tìm khu vực"
-        subtitle="Tìm khu vực và để LiBot dẫn đường"
+        title="Tìm địa điểm"
+        subtitle="Tìm địa điểm và để LiBot dẫn đường"
         onBack={onBackToIdle}
         backLabel="Màn hình chờ"
       />
@@ -81,38 +74,9 @@ export function FacilitySearchScreen({
             recordInteraction();
             setSearchInput(value);
           }}
-          placeholder="Nhập tên khu vực..."
+          placeholder="Nhập tên địa điểm..."
           onClear={() => setSearchInput("")}
         />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          {TYPES.map(({ label, type }) => {
-            const selected = selectedType === type;
-            return (
-              <Pressable
-                key={label}
-                onPress={() => {
-                  recordInteraction();
-                  setSelectedType(type);
-                }}
-                style={[styles.chip, selected && styles.chipSelected]}
-                accessibilityRole="button"
-                accessibilityLabel={`Lọc theo ${label}`}
-              >
-                <AppText
-                  variant="caption"
-                  color={selected ? colors.surface : colors.text}
-                  style={selected ? styles.chipTextSelected : styles.chipText}
-                >
-                  {label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
       </View>
 
       <View
@@ -125,21 +89,20 @@ export function FacilitySearchScreen({
         ]}
       >
         {isLoading ? (
-          <AppLoading message="Đang tìm khu vực..." />
+          <AppLoading message="Đang tìm địa điểm..." />
         ) : isError ? (
           <AppErrorState
-            title="Không thể tải khu vực"
-            message={error?.message ?? "Đã xảy ra lỗi khi tìm khu vực."}
+            title="Không thể tải địa điểm"
+            message={error?.message ?? "Đã xảy ra lỗi khi tìm địa điểm."}
             onRetry={refetch}
           />
         ) : facilities.length === 0 ? (
           <AppEmptyState
-            title="Không tìm thấy khu vực"
+            title="Không tìm thấy địa điểm"
             message="Vui lòng thử từ khóa khác."
             actionTitle="Xóa tìm kiếm"
             onAction={() => {
               setSearchInput("");
-              setSelectedType(undefined);
             }}
           />
         ) : (

@@ -48,7 +48,7 @@ class ServerMCPExecutor(ToolExecutor):
             # A successful search must return to the LLM so it can decide the
             # next tool from the reader's full request (for example, search
             # then guide immediately when the reader already asked to go there).
-            if actual_name == "search_books" and payload and not payload.get("errorCode"):
+            if actual_name in {"search_books", "search_locations"} and payload and not payload.get("errorCode"):
                 logger.bind(tag=TAG).info(f"LiBot tool completed: {actual_name}; continue_with_llm=true")
                 return ActionResponse(
                     action=Action.REQLLM,
@@ -105,7 +105,7 @@ class ServerMCPExecutor(ToolExecutor):
         return {}
 
     def _format_libot_result(self, name: str, result: Any) -> Optional[str]:
-        if name not in {"search_books", "start_book_guidance"}:
+        if name not in {"search_books", "start_book_guidance", "start_location_guidance"}:
             return None
         payload = self._payload(result)
         if payload.get("errorCode"):
@@ -115,11 +115,18 @@ class ServerMCPExecutor(ToolExecutor):
                 if payload.get("errorCode") == "BOOK_NOT_FOUND":
                     return "Thư viện hiện không có sách phù hợp."
                 return "Robot chưa sẵn sàng để dẫn đường."
+            if name == "start_location_guidance":
+                if payload.get("errorCode") == "LOCATION_NOT_FOUND":
+                    return "Thư viện hiện không có địa điểm phù hợp."
+                return "Robot chưa sẵn sàng để dẫn đường."
             return "LiBot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại."
 
         if name == "start_book_guidance":
             title = payload.get("title") or "cuốn sách đã chọn"
             return f"LiBot đang dẫn bạn đến kệ sách {title}."
+        if name == "start_location_guidance":
+            location = payload.get("name") or "địa điểm đã chọn"
+            return f"LiBot đang dẫn bạn đến {location}."
 
     async def _emit_tool_result(
         self, name: str, arguments: Dict[str, Any], result: Any
@@ -129,7 +136,7 @@ class ServerMCPExecutor(ToolExecutor):
         This is intentionally a separate WebSocket message from TTS: Android can
         render cards immediately while its local Vietnamese TTS reads the answer.
         """
-        if name != "search_books":
+        if name not in {"search_books", "search_locations"}:
             return
         websocket = getattr(self.conn, "websocket", None)
         if websocket is None:
@@ -145,6 +152,20 @@ class ServerMCPExecutor(ToolExecutor):
             "query": str(arguments.get("query") or "").strip(),
             "totalMatches": int(payload.get("totalMatches") or 0),
         }
+        if name == "search_locations":
+            message["locations"] = [
+                {
+                    "endpointId": str(location.get("endpointId") or ""),
+                    "name": str(location.get("name") or ""),
+                    "canGuide": bool(location.get("canGuide")),
+                }
+                for location in (payload.get("locations") or [])[:3]
+                if isinstance(location, dict)
+                and location.get("endpointId")
+                and location.get("name")
+            ]
+            return await self._send_tool_result(websocket, message)
+
         message["books"] = [
             {
                 "bookId": str(book.get("bookId") or ""),
@@ -158,6 +179,9 @@ class ServerMCPExecutor(ToolExecutor):
             and book.get("title")
         ]
 
+        return await self._send_tool_result(websocket, message)
+
+    async def _send_tool_result(self, websocket: Any, message: Dict[str, Any]) -> None:
         try:
             await websocket.send(json.dumps(message, ensure_ascii=False))
         except Exception as error:

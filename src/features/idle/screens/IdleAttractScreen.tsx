@@ -23,12 +23,14 @@ export interface IdleAttractScreenProps {
   onNavigateToSearch: () => void;
   onNavigateToFacilities: () => void;
   onNavigateToBook: (bookId: string) => void;
+  onNavigateToLocation: (endpointId: string) => void;
 }
 
 export function IdleAttractScreen({
   onNavigateToSearch,
   onNavigateToFacilities,
   onNavigateToBook,
+  onNavigateToLocation,
 }: IdleAttractScreenProps): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -129,6 +131,7 @@ export function IdleAttractScreen({
         activation={voice.voiceActivation}
         onClose={voice.closeVoice}
         onSelectBook={onNavigateToBook}
+        onSelectLocation={onNavigateToLocation}
       />
 
       <View

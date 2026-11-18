@@ -53,20 +53,22 @@ Xiaozhi chỉ được phép gọi các MCP tool sau:
 
 | Tool | Input | Kết quả |
 | --- | --- | --- |
-| `search_books` | `query?`, `category?` | Tối đa 3 sách: bookId, title, author, canGuide, totalMatches |
+| `search_books` | `query` | Tối đa 3 sách: bookId, title, author, canGuide, totalMatches |
 | `start_book_guidance` | `bookId`, `query?` | Bắt đầu mission dẫn đường cho sách người dùng đã chọn và xác nhận |
+| `search_locations` | `query` | Tối đa 3 Endpoint: endpointId, name, canGuide, totalMatches |
+| `start_location_guidance` | `endpointId`, `query?` | Bắt đầu mission dẫn đường tới Endpoint người dùng đã chọn và xác nhận |
 
-`search_books` dùng `IBookGuidanceService.SearchAsync`. Để Mobile mở trang chi
+`search_books` dùng `IBookGuidanceService.SearchTitlesAsync`, chỉ tìm theo tên sách. Để Mobile mở trang chi
 tiết sau khi người dùng chạm thẻ kết quả, tool trả `bookId`. Không trả ảnh,
 copy data, tọa độ hay chi tiết dẫn đường.
 
-Sau mỗi lần gọi `search_books` thành công, Xiaozhi gửi thêm một WebSocket message
+Sau mỗi lần gọi `search_books` hoặc `search_locations` thành công, Xiaozhi gửi thêm một WebSocket message
 `tool_result` tới kiosk gồm `tool`, `query`, `totalMatches` và tối đa ba bản ghi
 presentation-safe. Message này không chứa secret, tọa độ, robot state hay quyền
 điều khiển robot; Mobile dùng nó để hiển thị thẻ trong nhật ký hội thoại trước
 khi Android TTS đọc phản hồi.
 
-Ngoài `start_book_guidance` đã được xác nhận, không có tool robot, mission,
+Ngoài `start_book_guidance` và `start_location_guidance` đã được xác nhận, không có tool robot, mission,
 navigation, status robot, web search, weather, news, music hoặc bất kỳ tool mặc
 định nào khác. Prompt chỉ được khẳng định dữ liệu do tool trả về, đọc tối đa ba
 kết quả và nói “không tìm thấy” khi không có kết quả.

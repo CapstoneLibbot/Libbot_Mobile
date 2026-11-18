@@ -16,10 +16,11 @@ export type XiaozhiNativeEvent = {
   text?: string;
   state?: string;
   code?: string;
-  tool?: "search_books";
+  tool?: "search_books" | "search_locations";
   query?: string;
   totalMatches?: number;
   books?: XiaozhiVoiceBook[];
+  locations?: XiaozhiVoiceLocation[];
 };
 
 /** Presentation-safe records sent by the LiBot Xiaozhi server after an MCP tool call. */
@@ -27,6 +28,12 @@ export interface XiaozhiVoiceBook {
   bookId: string;
   title: string;
   author: string;
+  canGuide: boolean;
+}
+
+export interface XiaozhiVoiceLocation {
+  endpointId: string;
+  name: string;
   canGuide: boolean;
 }
 

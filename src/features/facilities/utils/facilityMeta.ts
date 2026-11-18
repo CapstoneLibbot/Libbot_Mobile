@@ -1,7 +1,7 @@
 import { colors } from "@/shared/theme";
 import type { FacilityType } from "../types/facility.types";
 
-export type FacilityIconType = "reading_room" | "area" | "default";
+export type FacilityIconType = "endpoint" | "default";
 
 export interface FacilityMeta {
   label: string;
@@ -17,10 +17,10 @@ export interface FacilityMeta {
 
 export function getFacilityMeta(type: FacilityType): FacilityMeta {
   switch (type) {
-    case "READING_ROOM":
+    case "ENDPOINT":
       return {
-        label: "Phòng đọc",
-        iconType: "reading_room",
+        label: "Địa điểm",
+        iconType: "endpoint",
         iconColor: colors.primary,
         iconBg: colors.primarySoft,
         iconBorder: "#BFDBFE",
@@ -28,18 +28,6 @@ export function getFacilityMeta(type: FacilityType): FacilityMeta {
         badgeText: colors.primaryDark,
         badgeBorder: "#BFDBFE",
         dotColor: colors.primary,
-      };
-    case "AREA":
-      return {
-        label: "Khu vực",
-        iconType: "area",
-        iconColor: "#0D9488",
-        iconBg: "#E6F7F5",
-        iconBorder: "#A7F3D0",
-        badgeBg: "#ECFDF5",
-        badgeText: "#065F46",
-        badgeBorder: "#A7F3D0",
-        dotColor: "#10B981",
       };
     default:
       return {

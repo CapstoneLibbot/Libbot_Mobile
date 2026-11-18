@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageCircle,
+  MapPin,
   X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -42,14 +43,17 @@ export interface VoiceListeningModalProps {
   activation?: "manual" | "wake";
   onClose: () => void;
   onSelectBook: (bookId: string) => void;
+  onSelectLocation: (endpointId: string) => void;
 }
 
 function ToolResultCards({
   result,
   onSelectBook,
+  onSelectLocation,
 }: {
   result: VoiceToolResult;
   onSelectBook: (bookId: string) => void;
+  onSelectLocation: (endpointId: string) => void;
 }): React.ReactElement | null {
   if (result.kind === "books") {
     if (result.books.length === 0) return null;
@@ -80,12 +84,8 @@ function ToolResultCards({
                 >
                   {book.title}
                 </AppText>
-                <AppText
-                  variant="caption"
-                  color={colors.textSecondary}
-                  numberOfLines={1}
-                >
-                  {book.author || "Chưa có thông tin tác giả"}
+                <AppText variant="caption" color={colors.textSecondary} numberOfLines={1}>
+                  {book.author || "Không rõ tác giả"}
                 </AppText>
                 <AppText
                   variant="caption"
@@ -108,15 +108,51 @@ function ToolResultCards({
     );
   }
 
+  if (result.kind === "locations") {
+    if (result.locations.length === 0) return null;
+    return (
+      <View style={styles.resultList}>
+        <AppText variant="caption" color={colors.subtext}>
+          {result.totalMatches} địa điểm phù hợp
+        </AppText>
+        {result.locations.map((location) => (
+          <View key={location.endpointId} style={styles.resultCard}>
+            <Pressable
+              onPress={() => onSelectLocation(location.endpointId)}
+              style={({ pressed }) => [styles.resultCardMain, pressed && styles.resultCardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`Mở địa điểm ${location.name}`}
+            >
+              <View style={styles.resultIcon}>
+                <MapPin color={colors.primary} size={20} />
+              </View>
+              <View style={styles.resultCopy}>
+                <AppText variant="body" style={styles.resultTitle} numberOfLines={2}>
+                  {location.name}
+                </AppText>
+                <AppText variant="caption" color={colors.primary} numberOfLines={1}>
+                  {location.canGuide ? "Có thể dẫn đường" : "Chưa thể dẫn đường"}
+                </AppText>
+              </View>
+            </Pressable>
+            <AppButton title="Chi tiết" size="md" onPress={() => onSelectLocation(location.endpointId)} style={styles.detailButton} />
+          </View>
+        ))}
+      </View>
+    );
+  }
+
   return null;
 }
 
 function ConversationMessageEntry({
   entry,
   onSelectBook,
+  onSelectLocation,
 }: {
   entry: VoiceConversationEntry;
   onSelectBook: (bookId: string) => void;
+  onSelectLocation: (endpointId: string) => void;
 }): React.ReactElement {
   const isUser = entry.speaker === "user";
   return (
@@ -152,6 +188,7 @@ function ConversationMessageEntry({
           <ToolResultCards
             result={entry.toolResult}
             onSelectBook={onSelectBook}
+            onSelectLocation={onSelectLocation}
           />
         ) : null}
       </View>
@@ -162,6 +199,7 @@ function ConversationMessageEntry({
 function VoiceListeningModalInner({
   onClose,
   onSelectBook,
+  onSelectLocation,
   activation = "manual",
 }: Omit<VoiceListeningModalProps, "visible">): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
@@ -216,6 +254,13 @@ function VoiceListeningModalInner({
       onSelectBook(bookId);
     },
     [handleClose, onSelectBook],
+  );
+  const handleSelectLocation = useCallback(
+    async (endpointId: string) => {
+      await handleClose();
+      onSelectLocation(endpointId);
+    },
+    [handleClose, onSelectLocation],
   );
 
   const handleExpand = useCallback(() => {
@@ -559,6 +604,7 @@ function VoiceListeningModalInner({
                     key={entry.id}
                     entry={entry}
                     onSelectBook={handleSelectBook}
+                    onSelectLocation={handleSelectLocation}
                   />
                 ))}
               </ScrollView>
@@ -851,6 +897,7 @@ function VoiceListeningModalInner({
                 key={entry.id}
                 entry={entry}
                 onSelectBook={handleSelectBook}
+                onSelectLocation={handleSelectLocation}
               />
             ))}
           </ScrollView>
@@ -865,6 +912,7 @@ export function VoiceListeningModal({
   activation,
   onClose,
   onSelectBook,
+  onSelectLocation,
 }: VoiceListeningModalProps): React.ReactElement | null {
   if (!visible) return null;
   return (
@@ -873,6 +921,7 @@ export function VoiceListeningModal({
       activation={activation}
       onClose={onClose}
       onSelectBook={onSelectBook}
+      onSelectLocation={onSelectLocation}
     />
   );
 }

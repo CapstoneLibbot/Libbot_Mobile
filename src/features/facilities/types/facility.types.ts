@@ -1,4 +1,4 @@
-export type FacilityType = "AREA" | "READING_ROOM";
+export type FacilityType = "ENDPOINT";
 
 export interface FacilitySearchItem {
   id: string;

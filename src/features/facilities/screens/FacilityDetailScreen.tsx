@@ -80,7 +80,7 @@ export function FacilityDetailScreen({
         ) : (
           <AppEmptyState
             title="Không tìm thấy khu vực"
-            message="Khu vực hoặc kệ sách không còn tồn tại trên hệ thống."
+            message="Địa điểm không còn tồn tại trên hệ thống."
             actionTitle="Quay lại"
             onAction={onBack}
           />
@@ -167,9 +167,7 @@ export function FacilityDetailScreen({
             <View style={styles.cardHeaderRow}>
               <StatusBadge
                 label={
-                  facility.type === "READING_ROOM"
-                    ? "Phòng đọc"
-                    : "Khu vực kệ sách"
+                  "Địa điểm"
                 }
                 tone="info"
               />

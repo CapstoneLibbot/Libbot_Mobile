@@ -1,8 +1,8 @@
 # Xiaozhi server cho LiBot
 
 Đây là cấu hình duy nhất cho LiBot voice v1. Nó chạy Xiaozhi trong LAN, dùng
-DeepSeek để điều phối `search_books` và, sau xác nhận của người dùng,
-`start_book_guidance` của `Libbot_BE`.
+DeepSeek để điều phối tìm sách theo tên và tìm địa điểm theo tên Endpoint,
+sau đó chỉ dẫn đường khi người dùng xác nhận.
 
 Android tự nhận giọng nói bằng `SpeechRecognizer vi-VN` và tự đọc câu trả lời
 bằng Android Text-to-Speech `vi-VN`. Vì vậy container không cần model ASR hay
@@ -45,8 +45,8 @@ Ghi chính URL đó vào `EXPO_PUBLIC_XIAOZHI_WS_URL` của mobile. Không dùng
 
 ## Kiểm tra tối thiểu
 
-1. Chạy `Libbot_BE` và xác nhận MCP `tools/list` có `search_books` và
-   `start_book_guidance`.
+1. Chạy `Libbot_BE` và xác nhận MCP `tools/list` có `search_books`,
+   `start_book_guidance`, `search_locations` và `start_location_guidance`.
 2. `docker compose ... ps` phải cho thấy `xiaozhi-server` đang chạy.
 3. Mở app Android, nói một câu tìm sách. Log server phải thể hiện lượt text,
    tool LiBot và câu trả lời; audio được Android phát cục bộ.

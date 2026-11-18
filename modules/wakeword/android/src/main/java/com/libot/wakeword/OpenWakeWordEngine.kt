@@ -5,6 +5,7 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.util.Log
+import java.io.File
 import java.nio.FloatBuffer
 import java.util.ArrayDeque
 
@@ -29,6 +30,18 @@ class OpenWakeWordEngine(private val context: Context) {
   var isLoaded = false
     private set
 
+  private fun loadBytes(pathOrAsset: String): ByteArray {
+    val directFile = File(pathOrAsset)
+    if (directFile.exists() && directFile.isFile) {
+      return directFile.readBytes()
+    }
+    val internalFile = File(context.filesDir, pathOrAsset)
+    if (internalFile.exists() && internalFile.isFile) {
+      return internalFile.readBytes()
+    }
+    return context.assets.open(pathOrAsset).readBytes()
+  }
+
   fun load(
     melspecAsset: String = "wakeword/melspectrogram.onnx",
     embeddingAsset: String = "wakeword/embedding_model.onnx",
@@ -40,17 +53,17 @@ class OpenWakeWordEngine(private val context: Context) {
         setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
       }
 
-      val melspecBytes = context.assets.open(melspecAsset).readBytes()
+      val melspecBytes = loadBytes(melspecAsset)
       melspecSession = env.createSession(melspecBytes, sessionOptions)
 
-      val embeddingBytes = context.assets.open(embeddingAsset).readBytes()
+      val embeddingBytes = loadBytes(embeddingAsset)
       embeddingSession = env.createSession(embeddingBytes, sessionOptions)
 
-      val classifierBytes = context.assets.open(classifierAsset).readBytes()
+      val classifierBytes = loadBytes(classifierAsset)
       classifierSession = env.createSession(classifierBytes, sessionOptions)
 
       isLoaded = true
-      Log.i(TAG, "Successfully loaded openWakeWord ONNX models from assets")
+      Log.i(TAG, "Successfully loaded openWakeWord ONNX models from assets/storage")
     } catch (e: Exception) {
       Log.e(TAG, "Failed to load openWakeWord models: ${e.message}", e)
       isLoaded = false

@@ -269,8 +269,11 @@ function VoiceListeningModalInner({
 
   useEffect(() => {
     if (!guidanceStart) return;
-    void stop().finally(() => onGuidanceStarted(guidanceStart));
-  }, [guidanceStart, onGuidanceStarted, stop]);
+    const sessionToStart = guidanceStart;
+    setVoiceActive(false);
+    onClose();
+    void stop().finally(() => onGuidanceStarted(sessionToStart));
+  }, [guidanceStart, onClose, onGuidanceStarted, setVoiceActive, stop]);
 
   const handleExpand = useCallback(() => {
     recordInteraction();

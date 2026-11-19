@@ -47,9 +47,9 @@
     "vitest": "^3.2.7"
   },
   "scripts": {
-    "dev": "expo start --dev-client",
+    "dev": "adb reverse tcp:8081 tcp:8081 2>/dev/null || true; expo start --dev-client",
     "start": "expo start --go",
-    "android": "expo run:android",
+    "android": "adb reverse tcp:8081 tcp:8081 2>/dev/null || true; expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",

@@ -135,7 +135,10 @@ export function IdleAttractScreen({
         onClose={voice.closeVoice}
         onSelectBook={onNavigateToBook}
         onSelectLocation={onNavigateToLocation}
-        onGuidanceStarted={onGuidanceStarted}
+        onGuidanceStarted={(guidance) => {
+          voice.closeVoice();
+          onGuidanceStarted(guidance);
+        }}
       />
 
       <View

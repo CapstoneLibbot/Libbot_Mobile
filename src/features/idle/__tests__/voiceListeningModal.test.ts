@@ -81,22 +81,22 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
 
   describe("Status Titles, Descriptions, and Default Greeting", () => {
     it("maps voice status to clear, localized Vietnamese titles", () => {
-      expect(getVoiceSessionCopy("listening", null).title).toBe("LiBot đang lắng nghe");
-      expect(getVoiceSessionCopy("thinking", null).title).toBe("LiBot đang tìm thông tin");
-      expect(getVoiceSessionCopy("speaking", null).title).toBe("LiBot đang trả lời");
-      expect(getVoiceSessionCopy("connecting", null).title).toBe("LiBot đang kết nối");
-      expect(getVoiceSessionCopy("disconnected", null).title).toBe("LiBot đang kết nối lại");
-      expect(getVoiceSessionCopy("error", null).title).toBe("LiBot cần được thử lại");
+      expect(getVoiceSessionCopy("listening", null).title).toBe("Đang lắng nghe");
+      expect(getVoiceSessionCopy("thinking", null).title).toBe("Đang tìm thông tin");
+      expect(getVoiceSessionCopy("speaking", null).title).toBe("Đang trả lời");
+      expect(getVoiceSessionCopy("connecting", null).title).toBe("Đang kết nối");
+      expect(getVoiceSessionCopy("disconnected", null).title).toBe("Đang kết nối lại");
+      expect(getVoiceSessionCopy("error", null).title).toBe("Cần thử lại");
     });
 
     it("maps voice descriptions accurately and prioritizes explicit error strings", () => {
       expect(getVoiceSessionCopy("listening", null).description).toBe(
-        "Bạn có thể nói tên sách, tác giả hoặc khu vực bạn muốn tìm",
+        "Bạn có thể nói tên sách hoặc khu vực bạn muốn tìm",
       );
       expect(getVoiceSessionCopy("thinking", null).description).toBe(
         "Đang tìm thông tin trong thư viện…",
       );
-      expect(getVoiceSessionCopy("speaking", null).description).toBe("LiBot đang trả lời…");
+      expect(getVoiceSessionCopy("speaking", null).description).toBe("Robot đang trả lời…");
       expect(getVoiceSessionCopy("connecting", null).description).toBe(
         "Đang kết nối trợ lý giọng nói…",
       );

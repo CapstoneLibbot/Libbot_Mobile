@@ -73,13 +73,13 @@ describe("API Error normalization (src/services/api/apiError.ts)", () => {
     );
   });
 
-  it("provides user-friendly Vietnamese fallback for 503 LiBot unavailable", () => {
+  it("provides user-friendly Vietnamese fallback for 503 robot unavailable", () => {
     const axiosLikeError = {
       isAxiosError: true,
       response: {
         status: 503,
         data: {
-          title: "LiBot is unavailable",
+          title: "Robot is unavailable",
           detail: "Cannot connect to robot service.",
         },
       },
@@ -88,10 +88,10 @@ describe("API Error normalization (src/services/api/apiError.ts)", () => {
     const apiError = toApiError(axiosLikeError);
     expect(apiError.status).toBe(503);
     expect(apiError.friendlyMessage).toBe(
-      "Hệ thống LiBot hiện không khả dụng. Vui lòng thử lại sau.",
+      "Hệ thống robot hiện không khả dụng. Vui lòng thử lại sau.",
     );
     expect(getFriendlyErrorMessage(apiError)).toBe(
-      "Hệ thống LiBot hiện không khả dụng. Vui lòng thử lại sau.",
+      "Hệ thống robot hiện không khả dụng. Vui lòng thử lại sau.",
     );
   });
 });

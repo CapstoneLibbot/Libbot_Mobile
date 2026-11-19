@@ -31,7 +31,7 @@ export function FacilityCardItem({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Xem địa điểm ${item.name}`}
-      accessibilityHint="Chạm để xem thông tin vị trí và để LiBot dẫn đường"
+      accessibilityHint="Chạm để xem thông tin vị trí và để robot dẫn đường"
       onPress={() => onPress(item.id)}
       style={({ pressed }) => [
         styles.card,

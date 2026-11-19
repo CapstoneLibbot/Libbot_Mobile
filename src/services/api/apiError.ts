@@ -68,7 +68,7 @@ export function getFriendlyMessageByStatus(status?: number): string {
     case 502:
     case 503:
     case 504:
-      return "Hệ thống LiBot hiện không khả dụng. Vui lòng thử lại sau.";
+      return "Hệ thống robot hiện không khả dụng. Vui lòng thử lại sau.";
     default:
       return "Đã xảy ra lỗi khi kết nối máy chủ. Vui lòng thử lại.";
   }

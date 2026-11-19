@@ -65,5 +65,5 @@ export function computeKioskVoiceStatusLabel(params: {
   if (wakeWordPhase === "error" && !isConnected) {
     return "Đang chạy chế độ dữ liệu nội bộ";
   }
-  return WAKE_WORD_STATUS_LABEL[wakeWordPhase] ?? "LiBot sẵn sàng";
+  return WAKE_WORD_STATUS_LABEL[wakeWordPhase] ?? "Robot sẵn sàng";
 }

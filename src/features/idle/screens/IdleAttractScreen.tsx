@@ -119,7 +119,7 @@ export function IdleAttractScreen({
           },
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Nói với LiBot"
+        accessibilityLabel="Trò chuyện với robot"
       >
         <Mic
           color={colors.surface}
@@ -197,7 +197,7 @@ export function IdleAttractScreen({
               variant={isTablet ? "hero" : "title"}
               style={styles.greetingTitle}
             >
-              Xin chào, tôi là LiBot
+              Xin chào! Tôi là robot thư viện
             </AppText>
             <AppText
               variant={isNarrowHeight ? "body" : "subtitle"}

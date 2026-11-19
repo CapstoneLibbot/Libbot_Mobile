@@ -187,7 +187,7 @@ export function FacilityDetailScreen({
                   color={robotConnected ? colors.success : colors.textSecondary}
                   style={styles.robotText}
                 >
-                  {robotConnected ? "LiBot sẵn sàng" : "Chờ kết nối"}
+                  {robotConnected ? "Robot sẵn sàng" : "Chờ kết nối"}
                 </AppText>
               </View>
             </View>

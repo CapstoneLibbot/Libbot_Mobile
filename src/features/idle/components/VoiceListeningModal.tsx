@@ -182,7 +182,7 @@ function ConversationMessageEntry({
             </AppText>
           ) : entry.isPending ? (
             <AppText variant="body" color={colors.textSecondary}>
-              LiBot đang tìm thông tin…
+              Đang tìm thông tin…
             </AppText>
           ) : null}
         </View>

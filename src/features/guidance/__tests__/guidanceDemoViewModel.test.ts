@@ -43,7 +43,7 @@ describe("Guidance Demo Presentation View Model", () => {
       expect(result.path).toEqual(sampleMissionPrimaryPath);
       expect(result.mapVersion).toBe("library-l1-v1");
 
-      expect(result.instructionTitle).toContain("Vui lòng đi cùng LiBot");
+      expect(result.instructionTitle).toContain("Vui lòng đi cùng robot");
       expect(result.instructionMessage).toContain("Kệ A-12");
       expect(result.instructionMessage).toContain(
         "giữ khoảng cách an toàn 1 mét",

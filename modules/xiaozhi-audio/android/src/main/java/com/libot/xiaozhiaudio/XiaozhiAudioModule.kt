@@ -451,7 +451,7 @@ private class XiaozhiAudioSession(
     }
     if (text.any { char -> char.code in 0x3400..0x9FFF || char.code in 0xF900..0xFAFF }) {
       Log.w(LOG_TAG, "blocked_non_vietnamese_tts")
-      return "LiBot chưa thể trả lời bằng tiếng Việt. Bạn vui lòng nói lại."
+      return "Robot chưa thể trả lời bằng tiếng Việt. Bạn vui lòng nói lại."
     }
     return text
   }

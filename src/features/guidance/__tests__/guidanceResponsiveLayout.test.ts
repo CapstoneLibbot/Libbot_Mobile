@@ -117,7 +117,7 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       expect(state.statusTone).toBe("info");
       expect(state.statusLabel).toBe("Đang dẫn đường đến kệ sách");
       expect(state.progress).toBe(45);
-      expect(state.instructionTitle).toContain("Vui lòng đi cùng LiBot");
+      expect(state.instructionTitle).toContain("Vui lòng đi cùng robot");
       expect(state.instructionMessage).toContain("Kệ A-12");
     });
 

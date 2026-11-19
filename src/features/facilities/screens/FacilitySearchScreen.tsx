@@ -53,7 +53,7 @@ export function FacilitySearchScreen({
     <View style={styles.container}>
       <AppHeader
         title="Tìm địa điểm"
-        subtitle="Tìm địa điểm và để LiBot dẫn đường"
+        subtitle="Tìm địa điểm và để robot dẫn đường"
         onBack={onBackToIdle}
         backLabel="Màn hình chờ"
       />

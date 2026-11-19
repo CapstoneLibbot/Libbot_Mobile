@@ -69,7 +69,7 @@ class ServerMCPExecutor(ToolExecutor):
             return ActionResponse(action=Action.NOTFOUND, response=str(error))
         except Exception as error:
             logger.bind(tag=TAG).error(f"LiBot tool failed: {actual_name}; {type(error).__name__}")
-            return ActionResponse(action=Action.ERROR, response="LiBot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại.")
+            return ActionResponse(action=Action.ERROR, response="Robot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại.")
 
     def get_tools(self):
         if not self._initialized or not self.mcp_manager:
@@ -120,14 +120,14 @@ class ServerMCPExecutor(ToolExecutor):
                 if payload.get("errorCode") == "LOCATION_NOT_FOUND":
                     return "Thư viện hiện không có địa điểm phù hợp."
                 return "Robot chưa sẵn sàng để dẫn đường."
-            return "LiBot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại."
+            return "Robot chưa thể tìm kiếm lúc này. Bạn vui lòng thử lại."
 
         if name == "start_book_guidance":
             title = payload.get("title") or "cuốn sách đã chọn"
-            return f"LiBot đang dẫn bạn đến kệ sách {title}."
+            return f"Robot đang dẫn bạn đến kệ sách {title}."
         if name == "start_location_guidance":
             location = payload.get("name") or "địa điểm đã chọn"
-            return f"LiBot đang dẫn bạn đến {location}."
+            return f"Robot đang dẫn bạn đến {location}."
 
     async def _emit_tool_result(
         self, name: str, arguments: Dict[str, Any], result: Any

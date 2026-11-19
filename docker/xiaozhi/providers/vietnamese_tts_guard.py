@@ -10,7 +10,7 @@ _INTERNAL_TOOL = re.compile(
     r"^\s*[%/\s]*(search_books|start_book_guidance)\b.*$",
     re.IGNORECASE,
 )
-_FALLBACK = "LiBot chưa thể trả lời bằng tiếng Việt. Bạn vui lòng nói lại."
+_FALLBACK = "Robot chưa thể trả lời bằng tiếng Việt. Bạn vui lòng nói lại."
 
 
 def sanitize_tts_text(value: object) -> str:

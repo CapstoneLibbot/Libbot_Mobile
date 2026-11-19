@@ -19,35 +19,35 @@ type VoiceSessionCopy = {
 /** The only presentation mapping for a live Xiaozhi conversation. */
 export const VOICE_SESSION_COPY: Record<VoiceSessionPhase, VoiceSessionCopy> = {
   idle: {
-    title: "LiBot đang chuẩn bị",
+    title: "Đang chuẩn bị",
     description: "Đang khởi tạo cuộc trò chuyện…",
   },
   connecting: {
-    title: "LiBot đang kết nối",
+    title: "Đang kết nối",
     description: "Đang kết nối trợ lý giọng nói…",
   },
   listening: {
-    title: "LiBot đang lắng nghe",
-    description: "Bạn có thể nói tên sách, tác giả hoặc khu vực bạn muốn tìm",
+    title: "Đang lắng nghe",
+    description: "Bạn có thể nói tên sách hoặc khu vực bạn muốn tìm",
   },
   thinking: {
-    title: "LiBot đang tìm thông tin",
+    title: "Đang tìm thông tin",
     description: "Đang tìm thông tin trong thư viện…",
   },
   speaking: {
-    title: "LiBot đang trả lời",
-    description: "LiBot đang trả lời…",
+    title: "Đang trả lời",
+    description: "Robot đang trả lời…",
   },
   disconnected: {
-    title: "LiBot đang kết nối lại",
+    title: "Đang kết nối lại",
     description: "Đang khôi phục cuộc trò chuyện…",
   },
   ending: {
-    title: "LiBot đang kết thúc cuộc trò chuyện",
+    title: "Đang kết thúc cuộc trò chuyện",
     description: "Đang giải phóng microphone…",
   },
   error: {
-    title: "LiBot cần được thử lại",
+    title: "Cần thử lại",
     description: "Vui lòng đóng và thử lại.",
   },
 };

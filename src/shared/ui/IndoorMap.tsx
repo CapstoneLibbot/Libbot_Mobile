@@ -878,7 +878,7 @@ export function IndoorMap({
                 fontWeight="bold"
                 textAnchor="middle"
               >
-                LiBot
+                Robot
               </SvgText>
             </G>
           )}
@@ -904,7 +904,7 @@ export function IndoorMap({
               <View
                 style={[styles.legendDot, { backgroundColor: colors.robot }]}
               />
-              <Text style={styles.legendText}>LiBot</Text>
+              <Text style={styles.legendText}>Robot</Text>
             </View>
 
             {/* Destination Legend */}

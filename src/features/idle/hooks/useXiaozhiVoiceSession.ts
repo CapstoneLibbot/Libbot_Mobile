@@ -37,7 +37,7 @@ export interface VoiceGuidanceStart {
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RESPONSE_TIMEOUT_MS = 30_000;
 const OPENING_GREETING =
-  "Xin chào, tôi là LiBot. Tôi có thể giúp bạn tìm sách hoặc khu vực trong thư viện.";
+  "Xin chào! Tôi là robot thư viện. Tôi có thể giúp bạn tìm sách hoặc khu vực trong thư viện.";
 let conversationSequence = 0;
 
 function createConversationId(): string {
@@ -53,7 +53,7 @@ async function requestMicrophonePermission(): Promise<void> {
     PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
   );
   if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
-    throw new Error("Bạn cần cấp quyền microphone để nói chuyện với LiBot.");
+    throw new Error("Bạn cần cấp quyền microphone để nói chuyện với robot.");
   }
 }
 
@@ -97,7 +97,7 @@ export function useXiaozhiVoiceSession() {
     clearResponseTimer();
     responseTimerRef.current = setTimeout(() => {
       if (!wantsSessionRef.current) return;
-      setError("LiBot chưa phản hồi. Bạn có thể nói lại câu hỏi.");
+      setError("Robot chưa phản hồi. Bạn có thể nói lại câu hỏi.");
       setStatus("listening");
       void XiaozhiAudio?.resumeCapture();
     }, RESPONSE_TIMEOUT_MS);

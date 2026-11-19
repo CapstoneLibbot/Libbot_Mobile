@@ -35,7 +35,7 @@ export interface GuidanceScreenProps {
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
-  return "Không thể kết nối với LiBot. Hãy kiểm tra mạng và thử lại.";
+  return "Không thể kết nối với robot. Hãy kiểm tra mạng và thử lại.";
 }
 
 function getWorkflowFailureDetails(execution?: BookGuidanceExecution | null): {

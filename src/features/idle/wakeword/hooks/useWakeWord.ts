@@ -25,9 +25,9 @@ async function ensureMicrophonePermission(): Promise<boolean> {
     const result = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       {
-        title: "Quyền Microphone cho LiBot",
+        title: "Quyền Microphone",
         message:
-          "LiBot cần quyền micro để nhận diện giọng nói khi bạn gọi 'Hey Siri'.",
+          "Robot cần quyền micro để nhận diện giọng nói khi bạn gọi 'Hey Siri'.",
         buttonPositive: "Cho phép",
       },
     );

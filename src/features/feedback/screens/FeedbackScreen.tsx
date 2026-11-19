@@ -85,7 +85,7 @@ export function FeedbackScreen({
   return (
     <View style={styles.container}>
       <AppHeader
-        title="Đánh giá chuyến đi cùng LiBot"
+        title="Đánh giá chuyến đi cùng robot"
         subtitle="Ý kiến của bạn giúp chúng tôi cải thiện dịch vụ robot thư viện"
         rightActionLabel="Bỏ qua"
         onRightAction={handleSkip}
@@ -106,7 +106,7 @@ export function FeedbackScreen({
         <AppCard style={[styles.card, isCompact && styles.cardCompact]}>
           <AppText variant="heading" style={styles.centeredTitle}>
             {terminalStatus === "COMPLETED"
-              ? `LiBot đã đến ${destinationName}. Bạn thấy chuyến đi thế nào?`
+              ? `Robot đã đến ${destinationName}. Bạn thấy chuyến đi thế nào?`
               : `Chuyến dẫn đường đến ${destinationName} chưa hoàn thành. Bạn đánh giá thế nào?`}
           </AppText>
 
@@ -153,7 +153,7 @@ export function FeedbackScreen({
           {/* Optional comment */}
           <AppInput
             label="Góp ý thêm (không bắt buộc)"
-            placeholder="Viết nhận xét của bạn về LiBot..."
+            placeholder="Viết nhận xét của bạn về trải nghiệm robot..."
             value={comment}
             onChangeText={(text) => {
               recordInteraction();

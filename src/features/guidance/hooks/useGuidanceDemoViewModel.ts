@@ -122,21 +122,21 @@ export function computeGuidanceDemoPresentation({
   switch (demoState) {
     case "replanning":
       instructionTitle = "Robot đang chọn lối đi an toàn:";
-      instructionMessage = `Robot đang chọn lối đi an toàn (Lộ trình #${routeRevision}). Phát hiện chướng ngại vật, LiBot đang chuyển sang lối đi an toàn thay thế. Xin vui lòng đi chậm theo robot.`;
+      instructionMessage = `Robot đang chọn lối đi an toàn (Lộ trình #${routeRevision}). Phát hiện chướng ngại vật, robot đang chuyển sang lối đi an toàn thay thế. Xin vui lòng đi chậm theo robot.`;
       break;
     case "arrived":
       instructionTitle = "✓ Bạn đã đến kệ sách đích!";
-      instructionMessage = `LiBot đã hoàn thành nhiệm vụ dẫn đường. Vui lòng nhận sách tại ${shelfLabel} và cho biết đánh giá trải nghiệm để giúp LiBot phục vụ tốt hơn.`;
+      instructionMessage = `Robot đã hoàn thành nhiệm vụ dẫn đường. Vui lòng nhận sách tại ${shelfLabel} và cho biết đánh giá trải nghiệm để giúp robot phục vụ tốt hơn.`;
       break;
     case "cancelled":
       instructionTitle = "Hành trình đã kết thúc:";
       instructionMessage =
-        "Phiên dẫn đường đã được hủy. LiBot sẽ dừng và quay lại trạm trung tâm. Bạn có thể quay lại danh sách tra cứu để tìm sách khác.";
+        "Phiên dẫn đường đã được hủy. Robot sẽ dừng và quay lại trạm trung tâm. Bạn có thể quay lại danh sách tra cứu để tìm sách khác.";
       break;
     case "navigating":
     default:
-      instructionTitle = "Vui lòng đi cùng LiBot:";
-      instructionMessage = `LiBot đang dẫn bạn tới ${shelfLabel}. Xin chú ý giữ khoảng cách an toàn 1 mét và chú ý người đi bộ xung quanh.`;
+      instructionTitle = "Vui lòng đi cùng robot:";
+      instructionMessage = `Robot đang dẫn bạn tới ${shelfLabel}. Xin chú ý giữ khoảng cách an toàn 1 mét và chú ý người đi bộ xung quanh.`;
       break;
   }
 

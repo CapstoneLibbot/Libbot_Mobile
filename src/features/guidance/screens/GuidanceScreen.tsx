@@ -25,6 +25,7 @@ import { bookGuidanceApi, type BookGuidanceExecution, type NavigationEndpoint } 
 import { facilityGuidanceApi } from "@/features/facilities/api/facilityGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
 import { useRobotMapOverlays } from "../hooks/useRobotMapOverlays";
+import { useGuidanceAnnouncer } from "../hooks/useGuidanceAnnouncer";
 import type { GuidanceSession, RobotPose } from "../types/guidance.types";
 
 export interface GuidanceScreenProps {
@@ -108,6 +109,9 @@ export function GuidanceScreen({
   const { runtime, refreshRuntime } = useRobotRuntimeTelemetry(runtimeId);
 
   const activeSession = session?.destinationId === endpointId ? session : null;
+  const announcer = useGuidanceAnnouncer({
+    activeJobId: activeSession?.jobId,
+  });
   const {
     mapMetadata: savedRobotMap,
     mapEndpoints,
@@ -224,7 +228,9 @@ export function GuidanceScreen({
           await postCompletion(activeSession.jobId, true);
           if (mounted && !feedbackNavigated.current) {
             feedbackNavigated.current = true;
-            onGoToFeedback(activeSession.jobId);
+            announcer.announceArrival(() => {
+              if (mounted) onGoToFeedback(activeSession.jobId);
+            });
           }
         } else if (["failed", "cancelled"].includes(state.status.toLowerCase())) {
           const failureMessage = formatWorkflowFailure(state);
@@ -236,7 +242,9 @@ export function GuidanceScreen({
           );
           if (mounted && !feedbackNavigated.current) {
             feedbackNavigated.current = true;
-            onGoToFeedback(activeSession.jobId);
+            announcer.announceError(() => {
+              if (mounted) onGoToFeedback(activeSession.jobId);
+            });
           }
         }
       } catch (error: unknown) {
@@ -259,6 +267,7 @@ export function GuidanceScreen({
     setSession,
     postCompletion,
     onGoToFeedback,
+    announcer,
   ]);
 
   const handleArm = async () => {
@@ -328,6 +337,7 @@ export function GuidanceScreen({
 
   const handleStopTracking = () => {
     recordInteraction();
+    announcer.reset();
     setSession(null);
     completionPosted.current = false;
     feedbackNavigated.current = false;
@@ -526,11 +536,15 @@ export function GuidanceScreen({
                 <Zap size={18} color={colors.surface} fill={colors.surface} />
               )}
               <AppText variant="subtitle" color={colors.surface} style={styles.actionButtonText}>
-                {activeSession
-                  ? "Đang dẫn đường…"
-                  : busy
-                    ? "Đang gửi…"
-                    : "Dẫn đường"}
+                {announcer.phase === "ARRIVED"
+                  ? "Đã đến nơi!"
+                  : announcer.phase === "FAILED"
+                    ? "Đã có lỗi xảy ra"
+                    : activeSession
+                      ? "Đang dẫn đường…"
+                      : busy
+                        ? "Đang gửi…"
+                        : "Dẫn đường"}
               </AppText>
             </Pressable>
           </View>

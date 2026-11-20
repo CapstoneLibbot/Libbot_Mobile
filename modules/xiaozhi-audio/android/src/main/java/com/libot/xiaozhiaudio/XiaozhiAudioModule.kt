@@ -82,7 +82,7 @@ class XiaozhiAudioModule : Module() {
       // JS uses this as the ownership hand-off barrier before restarting Vosk.
       session.endSession { promise.resolve(null) }
     }
-    OnDestroy { session.disconnect() }
+    OnDestroy { session.destroy() }
   }
 
   private fun emitEvent(event: Map<String, Any?>) {
@@ -130,6 +130,7 @@ private class XiaozhiAudioSession(
     connectedUrl = url
     connectedDeviceId = deviceId
     prepareNativeTts()
+    warmUpSpeechRecognizer()
     pendingConnect = promise
     val request = Request.Builder()
       .url(url)
@@ -197,9 +198,19 @@ private class XiaozhiAudioSession(
     releaseAudio()
   }
 
+  fun destroy() {
+    disconnect()
+    mainHandler.post {
+      textToSpeech?.stop()
+      textToSpeech?.shutdown()
+      textToSpeech = null
+      textToSpeechReady = false
+    }
+  }
+
   /**
    * Ends a reader's session. `onReleased` runs on the main thread only after
-   * SpeechRecognizer and TextToSpeech have both been stopped and shut down.
+   * SpeechRecognizer and audio capture resources are released.
    */
   fun endSession(onReleased: () -> Unit) {
     abort()
@@ -220,6 +231,7 @@ private class XiaozhiAudioSession(
   }
 
   fun abort() {
+    stopCapture(destroyRecognizer = false)
     webSocket?.send("{\"type\":\"abort\"}")
     mainHandler.post {
       textToSpeech?.stop()
@@ -406,6 +418,65 @@ private class XiaozhiAudioSession(
     }
   }
 
+  private fun getOrCreateSpeechRecognizer(context: Context): SpeechRecognizer {
+    val existing = speechRecognizer
+    if (existing != null) return existing
+    val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    recognizer.setRecognitionListener(object : RecognitionListener {
+      override fun onReadyForSpeech(params: Bundle?) {
+        if (captureRunning) emit(mapOf("type" to "listening"))
+      }
+      override fun onBeginningOfSpeech() {
+        // A reader has started a turn even before Google can provide a
+        // partial transcript. Let React Native reset its idle timer now;
+        // otherwise a slow recognizer can close the modal mid-sentence.
+        emit(mapOf("type" to "speech_started"))
+      }
+      override fun onRmsChanged(rmsdB: Float) = Unit
+      override fun onBufferReceived(buffer: ByteArray?) = Unit
+      override fun onEndOfSpeech() {
+        if (captureRunning) emit(mapOf("type" to "thinking"))
+      }
+      override fun onPartialResults(results: Bundle?) {
+        val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
+        if (!text.isNullOrBlank() && captureRunning && !submittedSpeechTurn) {
+          emit(mapOf("type" to "stt_partial", "text" to text))
+        }
+      }
+      override fun onResults(results: Bundle?) {
+        val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+        submitSpeechTurn(text.orEmpty())
+      }
+      override fun onError(error: Int) {
+        if (submittedSpeechTurn || intentionallyClosed) return
+        Log.w(LOG_TAG, "speech_recognizer_error code=$error")
+        if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+          stopCapture(destroyRecognizer = false)
+          startCapture()
+        } else {
+          stopCapture(destroyRecognizer = true)
+          emit(mapOf("type" to "error", "code" to "SPEECH_RECOGNITION_$error", "text" to "Không thể nhận diện giọng nói. Vui lòng kiểm tra mạng và Speech Services by Google."))
+        }
+      }
+      override fun onEvent(eventType: Int, params: Bundle?) = Unit
+    })
+    speechRecognizer = recognizer
+    return recognizer
+  }
+
+  private fun warmUpSpeechRecognizer() {
+    mainHandler.post {
+      if (intentionallyClosed || webSocket == null) return@post
+      val context = contextProvider() ?: return@post
+      if (!SpeechRecognizer.isRecognitionAvailable(context)) return@post
+      try {
+        getOrCreateSpeechRecognizer(context)
+      } catch (error: Exception) {
+        Log.w(LOG_TAG, "warmup_speech_recognizer_failed: ${error.message}")
+      }
+    }
+  }
+
   private fun startCapture() {
     if (captureRunning) return
     mainHandler.post {
@@ -420,46 +491,10 @@ private class XiaozhiAudioSession(
         return@post
       }
       try {
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizer = recognizer
+        val recognizer = getOrCreateSpeechRecognizer(context)
         captureRunning = true
         submittedSpeechTurn = false
         emit(mapOf("type" to "listening"))
-        recognizer.setRecognitionListener(object : RecognitionListener {
-          override fun onReadyForSpeech(params: Bundle?) = Unit
-          override fun onBeginningOfSpeech() {
-            // A reader has started a turn even before Google can provide a
-            // partial transcript. Let React Native reset its idle timer now;
-            // otherwise a slow recognizer can close the modal mid-sentence.
-            emit(mapOf("type" to "speech_started"))
-          }
-          override fun onRmsChanged(rmsdB: Float) = Unit
-          override fun onBufferReceived(buffer: ByteArray?) = Unit
-          override fun onEndOfSpeech() {
-            if (captureRunning) emit(mapOf("type" to "thinking"))
-          }
-          override fun onPartialResults(results: Bundle?) {
-            val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
-            if (!text.isNullOrBlank() && captureRunning && !submittedSpeechTurn) {
-              emit(mapOf("type" to "stt_partial", "text" to text))
-            }
-          }
-          override fun onResults(results: Bundle?) {
-            val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-            submitSpeechTurn(text.orEmpty())
-          }
-          override fun onError(error: Int) {
-            if (submittedSpeechTurn || intentionallyClosed) return
-            Log.w(LOG_TAG, "speech_recognizer_error code=$error")
-            stopCapture()
-            if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-              startCapture()
-            } else {
-              emit(mapOf("type" to "error", "code" to "SPEECH_RECOGNITION_$error", "text" to "Không thể nhận diện giọng nói. Vui lòng kiểm tra mạng và Speech Services by Google."))
-            }
-          }
-          override fun onEvent(eventType: Int, params: Bundle?) = Unit
-        })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
           .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
           .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
@@ -470,8 +505,7 @@ private class XiaozhiAudioSession(
         Log.i(LOG_TAG, "speech_recognizer_listening language=vi-VN")
       } catch (error: Exception) {
         captureRunning = false
-        speechRecognizer?.runCatching { destroy() }
-        speechRecognizer = null
+        stopCapture(destroyRecognizer = true)
         if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "SPEECH_START_FAILED", "text" to (error.message ?: "Không thể khởi tạo nhận diện giọng nói.")))
       }
     }
@@ -482,12 +516,12 @@ private class XiaozhiAudioSession(
     if (text.isBlank() || submittedSpeechTurn || !captureRunning) return
     if (INTERNAL_TOOL_TEXT.matches(text)) {
       Log.w(LOG_TAG, "ignored_internal_tool_transcript")
-      stopCapture()
+      stopCapture(destroyRecognizer = false)
       startCapture()
       return
     }
     submittedSpeechTurn = true
-    stopCapture()
+    stopCapture(destroyRecognizer = false)
     Log.i(LOG_TAG, "speech_recognizer_final chars=${text.length}")
     emit(mapOf("type" to "stt", "text" to text))
     webSocket?.send(JSONObject().put("type", "listen").put("state", "detect").put("text", text).toString())
@@ -506,14 +540,20 @@ private class XiaozhiAudioSession(
     return text
   }
 
-  private fun stopCapture() {
+  private fun stopCapture(destroyRecognizer: Boolean = false) {
     captureRunning = false
     val recognizer = speechRecognizer
-    speechRecognizer = null
+    if (destroyRecognizer) {
+      speechRecognizer = null
+    }
     // SpeechRecognizer must be cancelled and destroyed on Android's main
     // thread. WebSocket close callbacks can arrive on an OkHttp thread.
     mainHandler.post {
-      recognizer?.runCatching { cancel(); destroy() }
+      if (destroyRecognizer) {
+        recognizer?.runCatching { cancel(); destroy() }
+      } else {
+        recognizer?.runCatching { cancel() }
+      }
     }
   }
 
@@ -677,12 +717,9 @@ private class XiaozhiAudioSession(
   }
 
   private fun releaseAudio(onReleased: (() -> Unit)? = null) {
-    stopCapture()
+    stopCapture(destroyRecognizer = true)
     mainHandler.post {
       textToSpeech?.stop()
-      textToSpeech?.shutdown()
-      textToSpeech = null
-      textToSpeechReady = false
       queuedTtsText.clear()
       activeUtterances.clear()
       activeTtsUtteranceId = null

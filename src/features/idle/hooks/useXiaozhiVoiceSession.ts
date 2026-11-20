@@ -36,8 +36,7 @@ export interface VoiceGuidanceStart {
 
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RESPONSE_TIMEOUT_MS = 30_000;
-const OPENING_GREETING =
-  "Xin chào! Tôi là robot thư viện. Tôi có thể giúp bạn tìm sách hoặc khu vực trong thư viện.";
+const OPENING_GREETING = "Xin chào! Tôi có thể giúp gì cho bạn?";
 let conversationSequence = 0;
 
 function createConversationId(): string {
@@ -48,6 +47,12 @@ function createConversationId(): string {
 async function requestMicrophonePermission(): Promise<void> {
   if (Platform.OS !== "android") {
     throw new Error("Xiaozhi voice hiện chỉ hỗ trợ Android kiosk.");
+  }
+  const hasPermission = await PermissionsAndroid.check(
+    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  );
+  if (hasPermission) {
+    return;
   }
   const permission = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,

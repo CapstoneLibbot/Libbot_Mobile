@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
+import { kioskTimeoutConfig } from "@/core/config";
 import {
   AppButton,
   AppCard,
@@ -49,12 +50,17 @@ export function FeedbackScreen({
 
   const submitFeedbackMutation = useSubmitFeedback();
 
-  // Inactivity timeout: If user doesn't touch anything on feedback screen for 45s, auto-return to idle
+  // Inactivity timeout: If user doesn't touch anything on feedback screen, auto-return to idle
   useEffect(() => {
     const timer = setTimeout(() => {
+      if (__DEV__) {
+        console.log(
+          `[FeedbackScreen] Inactivity timeout (${kioskTimeoutConfig.feedbackIdleSeconds}s) reached without feedback interaction. Returning to idle.`,
+        );
+      }
       resetKioskSession();
       onSkip();
-    }, 45000);
+    }, kioskTimeoutConfig.feedbackIdleMs);
     return () => clearTimeout(timer);
   }, [onSkip, resetKioskSession]);
 
@@ -78,9 +84,14 @@ export function FeedbackScreen({
 
       setIsSuccess(true);
       setTimeout(() => {
+        if (__DEV__) {
+          console.log(
+            `[FeedbackScreen] Feedback submitted successfully. Redirecting after ${kioskTimeoutConfig.feedbackSuccessDelayMs}ms delay.`,
+          );
+        }
         resetKioskSession();
         onComplete();
-      }, 1000);
+      }, kioskTimeoutConfig.feedbackSuccessDelayMs);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Không thể gửi phản hồi.";
@@ -99,8 +110,6 @@ export function FeedbackScreen({
       <AppHeader
         title="Đánh giá chuyến đi cùng robot"
         subtitle="Ý kiến của bạn giúp chúng tôi cải thiện dịch vụ robot thư viện"
-        rightActionLabel="Bỏ qua"
-        onRightAction={handleSkip}
       />
 
       <ScrollView
@@ -197,7 +206,7 @@ export function FeedbackScreen({
                   ? "Đang gửi đánh giá..."
                   : isSuccess
                     ? "Đã ghi nhận ✓"
-                    : "Gửi đánh giá & Hoàn tất"
+                    : "Đánh giá"
               }
               variant="primary"
               size="lg"
@@ -206,7 +215,7 @@ export function FeedbackScreen({
               onPress={handleSubmit}
             />
             <AppButton
-              title="Bỏ qua đánh giá và trở về màn hình chính"
+              title="Bỏ qua"
               variant="secondary"
               size="md"
               disabled={isSuccess}

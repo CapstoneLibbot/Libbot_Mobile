@@ -11,6 +11,7 @@ export type XiaozhiNativeEvent = {
     | "thinking"
     | "tts"
     | "listening"
+    | "listening_paused"
     | "tool_result"
     | "guidance_started"
     | "session_ended";
@@ -58,6 +59,7 @@ export interface XiaozhiAudioNativeModule {
   speakAnnouncement(text: string): Promise<void>;
   stopSpeaking(): Promise<void>;
   resumeCapture(): Promise<void>;
+  pauseCapture(): Promise<void>;
   abort(): Promise<void>;
   endSession(): Promise<void>;
 }

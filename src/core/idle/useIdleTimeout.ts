@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { runtimeConfig } from "../config/runtimeConfig";
+import { kioskTimeoutConfig } from "../config/kioskTimeoutConfig";
 import { useKioskStore } from "../state/kioskStore";
 
 export function shouldResetOnIdle(
@@ -25,7 +25,7 @@ export interface UseIdleTimeoutOptions {
 
 export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
   const {
-    timeoutSeconds = runtimeConfig.idleTimeoutSeconds,
+    timeoutSeconds = kioskTimeoutConfig.kioskIdleSeconds,
     onTimeout,
     enabled = true,
   } = options;
@@ -44,6 +44,11 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
       if (
         shouldResetOnIdle(activeJobId, elapsed, timeoutMs, isVoiceActive)
       ) {
+        if (__DEV__) {
+          console.log(
+            `[useIdleTimeout] Inactivity detected: ${Math.round(elapsed / 1000)}s >= ${timeoutSeconds}s (voiceActive=${isVoiceActive}, activeJob=${activeJobId || "none"}). Resetting kiosk session.`,
+          );
+        }
         resetKioskSession();
         onTimeout?.();
       }
@@ -56,7 +61,9 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
     isVoiceActive,
     lastInteractionAt,
     timeoutMs,
+    timeoutSeconds,
     resetKioskSession,
     onTimeout,
   ]);
 }
+

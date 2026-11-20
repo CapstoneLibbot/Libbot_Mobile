@@ -1,4 +1,4 @@
-import { useIdleTimeout, useKioskOrientation } from "@/core";
+import { kioskTimeoutConfig, useIdleTimeout, useKioskOrientation } from "@/core";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, Stack, usePathname } from "expo-router";
 import React from "react";
@@ -16,6 +16,11 @@ export default function KioskLayout(): React.ReactElement {
   useIdleTimeout({
     onTimeout: () => {
       if (pathname && !pathname.endsWith("/idle") && pathname !== "/") {
+        if (__DEV__) {
+          console.log(
+            `[KioskLayout] Inactivity timeout (${kioskTimeoutConfig.kioskIdleSeconds}s) triggered. Navigating from "${pathname}" to "/(kiosk)/idle".`,
+          );
+        }
         router.replace("/(kiosk)/idle");
       }
     },

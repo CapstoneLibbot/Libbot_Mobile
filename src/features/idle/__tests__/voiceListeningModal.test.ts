@@ -185,6 +185,51 @@ describe("VoiceListeningModal UI/UX Specifications Contract", () => {
       expect(recordInteraction).toHaveBeenCalledTimes(1);
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it("microphone mute toggle pauses capture and updates UI copy without terminating the session", () => {
+      let isMuted = false;
+      const pauseCapture = vi.fn();
+      const resumeCapture = vi.fn();
+      const recordInteraction = vi.fn();
+      const stop = vi.fn();
+
+      const toggleMute = () => {
+        recordInteraction();
+        if (isMuted) {
+          isMuted = false;
+          resumeCapture();
+        } else {
+          isMuted = true;
+          pauseCapture();
+        }
+      };
+
+      // User mutes microphone (e.g. ambient noise or talking to someone else)
+      toggleMute();
+      expect(isMuted).toBe(true);
+      expect(pauseCapture).toHaveBeenCalledTimes(1);
+      expect(resumeCapture).not.toHaveBeenCalled();
+      expect(stop).not.toHaveBeenCalled();
+      expect(recordInteraction).toHaveBeenCalledTimes(1);
+
+      // Verify muted presentation copy
+      const mutedCopy = isMuted
+        ? {
+            title: "Đã tạm dừng nghe",
+            description: "Bấm nút để tiếp tục nói.",
+          }
+        : getVoiceSessionCopy("listening", null);
+
+      expect(mutedCopy.title).toBe("Đã tạm dừng nghe");
+      expect(mutedCopy.description).toBe("Bấm nút để tiếp tục nói.");
+
+      // User un-mutes microphone to speak again
+      toggleMute();
+      expect(isMuted).toBe(false);
+      expect(resumeCapture).toHaveBeenCalledTimes(1);
+      expect(stop).not.toHaveBeenCalled();
+      expect(recordInteraction).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("Tool Result Book and Location Card Contract", () => {

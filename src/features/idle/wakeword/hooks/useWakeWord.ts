@@ -27,7 +27,7 @@ async function ensureMicrophonePermission(): Promise<boolean> {
       {
         title: "Quyền Microphone",
         message:
-          "Robot cần quyền micro để nhận diện giọng nói khi bạn gọi 'Hey Siri'.",
+          "Robot cần quyền micro để nhận diện giọng nói khi bạn gọi 'Hey Bot'.",
         buttonPositive: "Cho phép",
       },
     );
@@ -43,7 +43,7 @@ async function ensureMicrophonePermission(): Promise<boolean> {
  * Tính năng chính:
  * 1. Thu âm 16kHz trực tiếp từ mic phần cứng qua module Native `libot-wakeword`.
  * 2. Tự động kiểm tra và yêu cầu quyền RECORD_AUDIO trên Android.
- * 3. Chạy suy luận ONNX thời gian thực (melspectrogram -> embedding -> hey_siri).
+ * 3. Chạy suy luận ONNX thời gian thực (melspectrogram -> embedding -> hey_bot).
  * 4. Tương thích tuyệt đối với hàng đợi Promise queue (enqueueTransition) chống race-condition nhả/chiếm mic.
  * 5. Tự động fallback an toàn trong môi trường Web / Unit test.
  */
@@ -107,7 +107,7 @@ export function useWakeWord({
     void (async () => {
       try {
         setPhase("loading_model");
-        const loaded = await NativeWakeWord.initModels("wakeword/hey_siri.onnx");
+        const loaded = await NativeWakeWord.initModels("wakeword/hey_bot.onnx");
         if (!disposed && loaded) {
           setIsLoaded(true);
           setError(null);
@@ -182,7 +182,7 @@ export function useWakeWord({
           await NativeWakeWord.startListening({
             keyword: WAKE_WORD_CONFIG.keyword,
             threshold,
-            classifierAsset: "wakeword/hey_siri.onnx",
+            classifierAsset: "wakeword/hey_bot.onnx",
           });
         }
         isListeningRef.current = true;

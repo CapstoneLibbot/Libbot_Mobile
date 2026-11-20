@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
 import {
@@ -45,8 +45,18 @@ export function FeedbackScreen({
   const [selectedRating, setSelectedRating] = useState<number>(5);
   const [comment, setComment] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const submitFeedbackMutation = useSubmitFeedback();
+
+  // Inactivity timeout: If user doesn't touch anything on feedback screen for 45s, auto-return to idle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      resetKioskSession();
+      onSkip();
+    }, 45000);
+    return () => clearTimeout(timer);
+  }, [onSkip, resetKioskSession]);
 
   const handleSelectRating = (rating: number) => {
     recordInteraction();
@@ -59,16 +69,18 @@ export function FeedbackScreen({
 
     try {
       await submitFeedbackMutation.mutateAsync({
-        jobId: jobId ?? "unknown-job",
+        jobId: jobId || "mock-guidance-job",
         guidanceKind,
         terminalStatus,
         rating: selectedRating,
         comment: comment.trim() || undefined,
       });
 
-      // reset session & redirect to attract screen
-      resetKioskSession();
-      onComplete();
+      setIsSuccess(true);
+      setTimeout(() => {
+        resetKioskSession();
+        onComplete();
+      }, 1000);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Không thể gửi phản hồi.";
@@ -169,24 +181,35 @@ export function FeedbackScreen({
             </View>
           ) : null}
 
+          {isSuccess ? (
+            <View style={styles.successBox}>
+              <AppText variant="subtitle" color={colors.success} style={styles.successText}>
+                ✓ Cảm ơn bạn đã gửi đánh giá! Đang trở về màn hình chính…
+              </AppText>
+            </View>
+          ) : null}
+
           {/* Action buttons */}
           <View style={styles.actions}>
             <AppButton
               title={
                 submitFeedbackMutation.isPending
                   ? "Đang gửi đánh giá..."
-                  : "Gửi đánh giá & Hoàn tất"
+                  : isSuccess
+                    ? "Đã ghi nhận ✓"
+                    : "Gửi đánh giá & Hoàn tất"
               }
               variant="primary"
               size="lg"
               loading={submitFeedbackMutation.isPending}
-              disabled={submitFeedbackMutation.isPending}
+              disabled={submitFeedbackMutation.isPending || isSuccess}
               onPress={handleSubmit}
             />
             <AppButton
               title="Bỏ qua đánh giá và trở về màn hình chính"
               variant="secondary"
               size="md"
+              disabled={isSuccess}
               onPress={handleSkip}
             />
           </View>
@@ -298,6 +321,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
     padding: spacing.md,
     borderRadius: 10,
+  },
+  successBox: {
+    backgroundColor: colors.successSoft,
+    padding: spacing.md,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  successText: {
+    textAlign: "center",
+    fontWeight: "700",
   },
   actions: {
     gap: spacing.md,

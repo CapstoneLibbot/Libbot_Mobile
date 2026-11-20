@@ -61,6 +61,14 @@ class XiaozhiAudioModule : Module() {
       session.speakGreeting(text)
       promise.resolve(null)
     }
+    AsyncFunction("speakAnnouncement") { text: String, promise: Promise ->
+      session.speakAnnouncement(text)
+      promise.resolve(null)
+    }
+    AsyncFunction("stopSpeaking") { promise: Promise ->
+      session.stopSpeaking()
+      promise.resolve(null)
+    }
     AsyncFunction("resumeCapture") { promise: Promise ->
       session.resumeCapture()
       promise.resolve(null)
@@ -105,6 +113,7 @@ private class XiaozhiAudioSession(
   private var serverTtsStopped = false
   private var pendingGreetingText: String? = null
   private var greetingUtteranceId: String? = null
+  private var pendingAnnouncementText: String? = null
   private var pendingConnect: Promise? = null
   private var connectedUrl: String? = null
   private var connectedDeviceId: String? = null
@@ -219,6 +228,47 @@ private class XiaozhiAudioSession(
       serverTtsStopped = false
       pendingGreetingText = null
       greetingUtteranceId = null
+      pendingAnnouncementText = null
+    }
+  }
+
+  fun stopSpeaking() {
+    mainHandler.post {
+      textToSpeech?.stop()
+      queuedTtsText.clear()
+      activeUtterances.clear()
+      activeTtsUtteranceId = null
+      pendingAnnouncementText = null
+    }
+  }
+
+  fun speakAnnouncement(rawText: String) {
+    val text = rawText.trim()
+    if (text.isBlank()) return
+    mainHandler.post {
+      stopCapture()
+      if (!textToSpeechReady) {
+        pendingAnnouncementText = text
+        prepareNativeTts()
+        return@post
+      }
+      speakAnnouncementText(text)
+    }
+  }
+
+  private fun speakAnnouncementText(text: String) {
+    val engine = textToSpeech
+    if (engine == null || !textToSpeechReady) {
+      pendingAnnouncementText = text
+      prepareNativeTts()
+      return
+    }
+    stopCapture()
+    val utteranceId = "libot-announcement-${++utteranceSequence}"
+    activeUtterances.add(utteranceId)
+    if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
+      activeUtterances.remove(utteranceId)
+      if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_QUEUE_FAILED", "text" to "Không thể phát thông báo tiếng Việt."))
     }
   }
 
@@ -502,6 +552,9 @@ private class XiaozhiAudioSession(
         override fun onDone(utteranceId: String) {
           mainHandler.post {
             activeUtterances.remove(utteranceId)
+            if (utteranceId.startsWith("libot-announcement-")) {
+              return@post
+            }
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
               drainQueuedTts()
@@ -519,6 +572,9 @@ private class XiaozhiAudioSession(
         override fun onError(utteranceId: String) {
           mainHandler.post {
             activeUtterances.remove(utteranceId)
+            if (utteranceId.startsWith("libot-announcement-")) {
+              return@post
+            }
             if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_PLAYBACK_FAILED", "text" to "Không thể phát giọng nói tiếng Việt."))
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
@@ -580,6 +636,10 @@ private class XiaozhiAudioSession(
       pendingGreetingText = null
       speakGreetingText(text)
     }
+    pendingAnnouncementText?.let { text ->
+      pendingAnnouncementText = null
+      speakAnnouncementText(text)
+    }
     drainQueuedTts()
   }
 
@@ -629,6 +689,7 @@ private class XiaozhiAudioSession(
       serverTtsStopped = false
       pendingGreetingText = null
       greetingUtteranceId = null
+      pendingAnnouncementText = null
       onReleased?.invoke()
     }
   }

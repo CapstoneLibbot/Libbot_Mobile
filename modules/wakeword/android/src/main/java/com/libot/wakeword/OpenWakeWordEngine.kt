@@ -45,7 +45,7 @@ class OpenWakeWordEngine(private val context: Context) {
   fun load(
     melspecAsset: String = "wakeword/melspectrogram.onnx",
     embeddingAsset: String = "wakeword/embedding_model.onnx",
-    classifierAsset: String = "wakeword/hey_siri.onnx"
+    classifierAsset: String = "wakeword/hey_bot.onnx"
   ) {
     try {
       val sessionOptions = OrtSession.SessionOptions().apply {

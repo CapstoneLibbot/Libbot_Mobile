@@ -35,6 +35,10 @@ describe("useSettingsStore", () => {
       signalRUrl: "http://10.0.0.99:5205/robotHub",
       xiaozhiWsUrl: "ws://10.0.0.99:8000/xiaozhi/v1",
       voiceKioskId: "kiosk-custom-99",
+      kioskIdleSeconds: 90,
+      voiceModalInactivitySeconds: 45,
+      voiceResponseTimeoutSeconds: 20,
+      feedbackIdleSeconds: 30,
     };
 
     vi.mocked(secureStorage.get).mockResolvedValueOnce(customSettings);
@@ -42,8 +46,27 @@ describe("useSettingsStore", () => {
     await useSettingsStore.getState().init();
 
     expect(useSettingsStore.getState().settings.apiBaseUrl).toBe("http://10.0.0.99:5205/api");
+    expect(useSettingsStore.getState().settings.kioskIdleSeconds).toBe(90);
     expect(useSettingsStore.getState().isInitialized).toBe(true);
     expect(settingsSyncService.applySettingsToRuntime).toHaveBeenCalledWith(customSettings);
+  });
+
+  it("populates default timeouts when loading legacy stored settings without timeout fields", async () => {
+    const legacySettings = {
+      apiBaseUrl: "http://10.0.0.99:5205/api",
+      signalRUrl: "http://10.0.0.99:5205/robotHub",
+      xiaozhiWsUrl: "ws://10.0.0.99:8000/xiaozhi/v1",
+      voiceKioskId: "kiosk-custom-99",
+    };
+
+    vi.mocked(secureStorage.get).mockResolvedValueOnce(legacySettings);
+
+    await useSettingsStore.getState().init();
+
+    expect(useSettingsStore.getState().settings.kioskIdleSeconds).toBe(60);
+    expect(useSettingsStore.getState().settings.voiceModalInactivitySeconds).toBe(60);
+    expect(useSettingsStore.getState().settings.voiceResponseTimeoutSeconds).toBe(30);
+    expect(useSettingsStore.getState().settings.feedbackIdleSeconds).toBe(45);
   });
 
   it("falls back to default settings when secureStorage has no saved settings", async () => {
@@ -61,6 +84,10 @@ describe("useSettingsStore", () => {
       signalRUrl: "http://192.168.1.200:5205/robotHub",
       xiaozhiWsUrl: "ws://192.168.1.200:8000/xiaozhi/v1",
       voiceKioskId: "libot-updated",
+      kioskIdleSeconds: 120,
+      voiceModalInactivitySeconds: 50,
+      voiceResponseTimeoutSeconds: 25,
+      feedbackIdleSeconds: 40,
     };
 
     const success = await useSettingsStore.getState().updateSettings(updatedSettings);

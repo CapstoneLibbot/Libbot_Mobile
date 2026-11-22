@@ -1,17 +1,32 @@
 import React from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { Bot, Cpu, Globe, Radio } from "lucide-react-native";
+import {
+  Bot,
+  Clock,
+  Cpu,
+  Globe,
+  Mic,
+  Radio,
+  RotateCcw,
+  Save,
+  Server,
+  Sparkles,
+  Star,
+} from "lucide-react-native";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, spacing } from "@/shared/theme";
-import { AppBackButton, AppButton, AppCard, AppText } from "@/shared/ui";
+import { AppBackButton, AppCard, AppText } from "@/shared/ui";
 import { SettingFieldCard } from "../components/SettingFieldCard";
+import { SettingSectionHeader } from "../components/SettingSectionHeader";
 import { useSettingsViewModel } from "../hooks/useSettingsViewModel";
 
 export interface SettingsScreenProps {
@@ -34,12 +49,12 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
 
   const onConfirmReset = () => {
     Alert.alert(
-      "Khôi phục mặc định",
-      "Bạn có chắc muốn khôi phục toàn bộ cài đặt về cấu hình ban đầu (.env)?",
+      "Đặt lại cài đặt",
+      "Bạn có chắc muốn đặt lại toàn bộ cài đặt về cấu hình ban đầu (.env)?",
       [
         { text: "Hủy", style: "cancel" },
         {
-          text: "Khôi phục",
+          text: "Đặt lại",
           style: "destructive",
           onPress: () => void handleReset(),
         },
@@ -71,14 +86,70 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
     >
       {/* Top Header */}
       <View style={styles.header}>
-        <AppBackButton onPress={onBack} accessibilityLabel="Quay lại" />
-        <View style={styles.headerTitleWrap}>
-          <AppText variant="title" color={colors.text}>
+        {/* Left: Nút Quay lại */}
+        <View style={[styles.headerSide, styles.headerLeft]}>
+          <AppBackButton onPress={onBack} accessibilityLabel="Quay lại" />
+        </View>
+
+        {/* Center: Title & Description nằm chính giữa */}
+        <View style={styles.headerCenter}>
+          <AppText
+            variant="title"
+            color={colors.text}
+            style={styles.headerTitle}
+            numberOfLines={1}
+          >
             Cài đặt hệ thống
           </AppText>
-          <AppText variant="caption" color={colors.textSecondary}>
-            Tùy chỉnh máy chủ mạng và định danh robot
+          <AppText
+            variant="caption"
+            color={colors.textSecondary}
+            style={styles.headerDescription}
+            numberOfLines={1}
+          >
+            Tùy chỉnh thông số vận hành và kết nối Kiosk
           </AppText>
+        </View>
+
+        {/* Right: 2 nút Đặt lại và Lưu nhỏ gọn */}
+        <View style={[styles.headerSide, styles.headerRight]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đặt lại cấu hình mặc định"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={onConfirmReset}
+            style={({ pressed }) => [
+              styles.headerResetBtn,
+              pressed && styles.headerBtnPressed,
+            ]}
+          >
+            <RotateCcw size={14} color={colors.textSecondary} strokeWidth={2.2} />
+            <AppText variant="caption" style={styles.headerResetText}>
+              Đặt lại
+            </AppText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Lưu cấu hình"
+            disabled={isLoading}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => void onSavePress()}
+            style={({ pressed }) => [
+              styles.headerSaveBtn,
+              pressed && styles.headerBtnPressed,
+              isLoading && styles.headerBtnDisabled,
+            ]}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" style={styles.headerBtnSpinner} />
+            ) : (
+              <Save size={14} color="#FFFFFF" strokeWidth={2.2} />
+            )}
+            <AppText variant="caption" style={styles.headerSaveText}>
+              Lưu
+            </AppText>
+          </Pressable>
         </View>
       </View>
 
@@ -98,6 +169,15 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
             </AppText>
           </AppCard>
         ) : null}
+
+        {/* ========================================================================= */}
+        {/* SECTION 1: MÁY CHỦ & KẾT NỐI MẠNG */}
+        {/* ========================================================================= */}
+        <SettingSectionHeader
+          title="Máy chủ & Kết nối mạng"
+          description="Quản lý địa chỉ API, kết nối thời gian thực và trợ lý giọng nói."
+          icon={<Server size={20} color={colors.primary} />}
+        />
 
         {/* Card 1: API Base URL */}
         <SettingFieldCard
@@ -156,24 +236,70 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
           onClear={() => handleChange("voiceKioskId", "")}
         />
 
-        {/* Action Buttons */}
-        <View style={styles.actionRow}>
-          <AppButton
-            title="Khôi phục mặc định"
-            variant="outline"
-            size="md"
-            onPress={onConfirmReset}
-            style={styles.actionBtn}
-          />
-          <AppButton
-            title="Lưu cấu hình"
-            variant="primary"
-            size="md"
-            loading={isLoading}
-            onPress={() => void onSavePress()}
-            style={styles.actionBtn}
-          />
-        </View>
+        {/* ========================================================================= */}
+        {/* SECTION 2: THỜI GIAN CHỜ & TƯƠNG TÁC KIOSK */}
+        {/* ========================================================================= */}
+        <SettingSectionHeader
+          title="Thời gian chờ & Tương tác Kiosk"
+          description="Thiết lập thời gian tự động quay về màn hình chờ, đóng hội thoại và thời gian phản hồi AI."
+          icon={<Clock size={20} color={colors.primary} />}
+        />
+
+        {/* Card 5: Kiosk Idle Timeout */}
+        <SettingFieldCard
+          label="Thời gian chờ Kiosk (Inactivity)"
+          description="Tự động quay về màn hình chào khi không có tương tác người dùng."
+          placeholder="60"
+          value={formValues.kioskIdleSeconds}
+          error={errors.kioskIdleSeconds}
+          keyboardType="numeric"
+          unitText="giây"
+          icon={<Clock size={20} color={colors.primary} />}
+          onChangeText={(text) => handleChange("kioskIdleSeconds", text)}
+          onClear={() => handleChange("kioskIdleSeconds", "")}
+        />
+
+        {/* Card 6: Voice Modal Inactivity Timeout */}
+        <SettingFieldCard
+          label="Thời gian chờ hội thoại im lặng"
+          description="Tự động đóng cửa sổ giọng nói khi không phát hiện âm thanh người dùng."
+          placeholder="60"
+          value={formValues.voiceModalInactivitySeconds}
+          error={errors.voiceModalInactivitySeconds}
+          keyboardType="numeric"
+          unitText="giây"
+          icon={<Mic size={20} color={colors.primary} />}
+          onChangeText={(text) => handleChange("voiceModalInactivitySeconds", text)}
+          onClear={() => handleChange("voiceModalInactivitySeconds", "")}
+        />
+
+        {/* Card 7: Voice Response Timeout */}
+        <SettingFieldCard
+          label="Thời gian chờ phản hồi AI"
+          description="Thời gian tối đa chờ câu trả lời từ máy chủ AI trước khi báo lỗi."
+          placeholder="30"
+          value={formValues.voiceResponseTimeoutSeconds}
+          error={errors.voiceResponseTimeoutSeconds}
+          keyboardType="numeric"
+          unitText="giây"
+          icon={<Sparkles size={20} color={colors.primary} />}
+          onChangeText={(text) => handleChange("voiceResponseTimeoutSeconds", text)}
+          onClear={() => handleChange("voiceResponseTimeoutSeconds", "")}
+        />
+
+        {/* Card 8: Feedback Idle Timeout */}
+        <SettingFieldCard
+          label="Thời gian chờ màn hình đánh giá"
+          description="Tự động quay về màn hình chờ nếu người dùng bỏ quên màn hình đánh giá."
+          placeholder="45"
+          value={formValues.feedbackIdleSeconds}
+          error={errors.feedbackIdleSeconds}
+          keyboardType="numeric"
+          unitText="giây"
+          icon={<Star size={20} color={colors.primary} />}
+          onChangeText={(text) => handleChange("feedbackIdleSeconds", text)}
+          onClear={() => handleChange("feedbackIdleSeconds", "")}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -187,14 +313,89 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  headerTitleWrap: {
-    marginLeft: spacing.md,
+  headerSide: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerLeft: {
+    justifyContent: "flex-start",
+  },
+  headerCenter: {
+    flex: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  headerRight: {
+    justifyContent: "flex-end",
+    gap: spacing.xs + 2,
+  },
+  headerTitle: {
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  headerDescription: {
+    marginTop: 2,
+    textAlign: "center",
+  },
+  headerResetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    minHeight: 38,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  headerResetText: {
+    fontWeight: "600",
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  headerSaveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 15,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    minHeight: 38,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  headerSaveText: {
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 13,
+  },
+  headerBtnPressed: {
+    opacity: 0.75,
+  },
+  headerBtnDisabled: {
+    opacity: 0.6,
+  },
+  headerBtnSpinner: {
+    marginRight: 2,
   },
   scrollContent: {
     padding: spacing.lg,
@@ -213,12 +414,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.md,
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
-  },
 });
+

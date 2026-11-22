@@ -66,3 +66,56 @@ export function parseKioskTimeoutConfig(
 export const kioskTimeoutConfig: KioskTimeoutConfig = parseKioskTimeoutConfig(
   process.env,
 );
+
+/**
+ * Cập nhật cấu hình timeout in-memory ngay lập tức trong runtime khi người dùng thay đổi Settings.
+ */
+export function updateKioskTimeoutConfig(
+  updates: Partial<RawKioskTimeoutConfig>,
+): KioskTimeoutConfig {
+  const merged = {
+    kioskIdleSeconds:
+      updates.kioskIdleSeconds ?? kioskTimeoutConfig.kioskIdleSeconds,
+    voiceModalInactivitySeconds:
+      updates.voiceModalInactivitySeconds ??
+      kioskTimeoutConfig.voiceModalInactivitySeconds,
+    voiceResponseTimeoutSeconds:
+      updates.voiceResponseTimeoutSeconds ??
+      kioskTimeoutConfig.voiceResponseTimeoutSeconds,
+    feedbackIdleSeconds:
+      updates.feedbackIdleSeconds ?? kioskTimeoutConfig.feedbackIdleSeconds,
+    feedbackSuccessDelaySeconds:
+      updates.feedbackSuccessDelaySeconds ??
+      kioskTimeoutConfig.feedbackSuccessDelaySeconds,
+  };
+
+  const parsed = kioskTimeoutConfigSchema.safeParse(merged);
+  const data = parsed.success
+    ? parsed.data
+    : kioskTimeoutConfigSchema.parse({});
+
+  kioskTimeoutConfig.kioskIdleSeconds = data.kioskIdleSeconds;
+  kioskTimeoutConfig.voiceModalInactivitySeconds =
+    data.voiceModalInactivitySeconds;
+  kioskTimeoutConfig.voiceResponseTimeoutSeconds =
+    data.voiceResponseTimeoutSeconds;
+  kioskTimeoutConfig.feedbackIdleSeconds = data.feedbackIdleSeconds;
+  kioskTimeoutConfig.feedbackSuccessDelaySeconds =
+    data.feedbackSuccessDelaySeconds;
+
+  kioskTimeoutConfig.kioskIdleMs = Math.round(data.kioskIdleSeconds * 1000);
+  kioskTimeoutConfig.voiceModalInactivityMs = Math.round(
+    data.voiceModalInactivitySeconds * 1000,
+  );
+  kioskTimeoutConfig.voiceResponseMs = Math.round(
+    data.voiceResponseTimeoutSeconds * 1000,
+  );
+  kioskTimeoutConfig.feedbackIdleMs = Math.round(
+    data.feedbackIdleSeconds * 1000,
+  );
+  kioskTimeoutConfig.feedbackSuccessDelayMs = Math.round(
+    data.feedbackSuccessDelaySeconds * 1000,
+  );
+
+  return kioskTimeoutConfig;
+}

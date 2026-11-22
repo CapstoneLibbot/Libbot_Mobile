@@ -10,11 +10,39 @@ import {
 
 export type TestableField = "apiBaseUrl" | "signalRUrl" | "xiaozhiWsUrl";
 
+export interface SettingsFormValues {
+  apiBaseUrl: string;
+  signalRUrl: string;
+  xiaozhiWsUrl: string;
+  voiceKioskId: string;
+  kioskIdleSeconds: string;
+  voiceModalInactivitySeconds: string;
+  voiceResponseTimeoutSeconds: string;
+  feedbackIdleSeconds: string;
+}
+
 export interface SettingsFormErrors {
   apiBaseUrl?: string;
   signalRUrl?: string;
   xiaozhiWsUrl?: string;
   voiceKioskId?: string;
+  kioskIdleSeconds?: string;
+  voiceModalInactivitySeconds?: string;
+  voiceResponseTimeoutSeconds?: string;
+  feedbackIdleSeconds?: string;
+}
+
+function toFormValues(settings: AppSettings): SettingsFormValues {
+  return {
+    apiBaseUrl: settings.apiBaseUrl,
+    signalRUrl: settings.signalRUrl,
+    xiaozhiWsUrl: settings.xiaozhiWsUrl,
+    voiceKioskId: settings.voiceKioskId,
+    kioskIdleSeconds: String(settings.kioskIdleSeconds ?? 60),
+    voiceModalInactivitySeconds: String(settings.voiceModalInactivitySeconds ?? 60),
+    voiceResponseTimeoutSeconds: String(settings.voiceResponseTimeoutSeconds ?? 30),
+    feedbackIdleSeconds: String(settings.feedbackIdleSeconds ?? 45),
+  };
 }
 
 const initialFieldTestStates: Record<TestableField, FieldTestState> = {
@@ -29,7 +57,9 @@ export function useSettingsViewModel() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const resetToDefaults = useSettingsStore((s) => s.resetToDefaults);
 
-  const [formValues, setFormValues] = useState<AppSettings>(storeSettings);
+  const [formValues, setFormValues] = useState<SettingsFormValues>(() =>
+    toFormValues(storeSettings),
+  );
   const [errors, setErrors] = useState<SettingsFormErrors>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
@@ -39,12 +69,12 @@ export function useSettingsViewModel() {
   // Lắng nghe thay đổi từ external Zustand store khi load hoặc reset
   useEffect(() => {
     const unsub = useSettingsStore.subscribe((state) => {
-      setFormValues(state.settings);
+      setFormValues(toFormValues(state.settings));
     });
     return unsub;
   }, []);
 
-  const handleChange = useCallback((field: keyof AppSettings, value: string) => {
+  const handleChange = useCallback((field: keyof SettingsFormValues, value: string) => {
     setSaveSuccess(false);
     setFormValues((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));

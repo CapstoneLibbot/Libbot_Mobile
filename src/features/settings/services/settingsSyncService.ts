@@ -1,3 +1,4 @@
+import { updateKioskTimeoutConfig } from "@/core/config/kioskTimeoutConfig";
 import { appQueryClient } from "@/core/providers/QueryProvider";
 import { setPlatformApiBaseUrl } from "@/platform/http/axiosClient";
 import { signalRClient } from "@/platform/realtime/signalRClient";
@@ -6,16 +7,31 @@ import { AppSettings } from "../types/settings.types";
 
 export const settingsSyncService = {
   /**
-   * Đồng bộ ngay lập tức các client (Axios, SignalR, QueryClient) với cấu hình mới
+   * Đồng bộ ngay lập tức các client (Axios, SignalR, QueryClient, Timeouts) với cấu hình mới
    */
   async applySettingsToRuntime(settings: AppSettings): Promise<void> {
-    const { apiBaseUrl, signalRUrl } = settings;
+    const {
+      apiBaseUrl,
+      signalRUrl,
+      kioskIdleSeconds,
+      voiceModalInactivitySeconds,
+      voiceResponseTimeoutSeconds,
+      feedbackIdleSeconds,
+    } = settings;
 
     // 1. Cập nhật Axios clients
     setApiBaseUrl(apiBaseUrl);
     setPlatformApiBaseUrl(apiBaseUrl);
 
-    // 2. Tái kết nối SignalR với URL Hub mới
+    // 2. Cập nhật Timeouts cho toàn bộ hệ thống Kiosk in-memory
+    updateKioskTimeoutConfig({
+      kioskIdleSeconds,
+      voiceModalInactivitySeconds,
+      voiceResponseTimeoutSeconds,
+      feedbackIdleSeconds,
+    });
+
+    // 3. Tái kết nối SignalR với URL Hub mới
     try {
       await signalRClient.reconnectWithUrl(signalRUrl);
     } catch (error) {
@@ -24,7 +40,7 @@ export const settingsSyncService = {
       }
     }
 
-    // 3. Xóa cache React Query để tránh xung đột dữ liệu từ server cũ
+    // 4. Xóa cache React Query để tránh xung đột dữ liệu từ server cũ
     try {
       appQueryClient.clear();
     } catch (error) {

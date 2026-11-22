@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/config/env";
+import { kioskTimeoutConfig } from "@/core/config/kioskTimeoutConfig";
 
 export const appSettingsSchema = z.object({
   apiBaseUrl: z
@@ -33,6 +34,32 @@ export const appSettingsSchema = z.object({
     .string()
     .trim()
     .min(1, "Vui lòng nhập Voice Kiosk ID"),
+
+  // Cấu hình thời gian chờ & tương tác (giây)
+  kioskIdleSeconds: z.coerce
+    .number()
+    .positive("Thời gian chờ phải lớn hơn 0")
+    .min(5, "Tối thiểu 5 giây")
+    .max(3600, "Tối đa 3600 giây (1 giờ)")
+    .default(60),
+  voiceModalInactivitySeconds: z.coerce
+    .number()
+    .positive("Thời gian chờ phải lớn hơn 0")
+    .min(5, "Tối thiểu 5 giây")
+    .max(600, "Tối đa 600 giây (10 phút)")
+    .default(60),
+  voiceResponseTimeoutSeconds: z.coerce
+    .number()
+    .positive("Thời gian chờ phải lớn hơn 0")
+    .min(5, "Tối thiểu 5 giây")
+    .max(180, "Tối đa 180 giây (3 phút)")
+    .default(30),
+  feedbackIdleSeconds: z.coerce
+    .number()
+    .positive("Thời gian chờ phải lớn hơn 0")
+    .min(5, "Tối thiểu 5 giây")
+    .max(300, "Tối đa 300 giây (5 phút)")
+    .default(45),
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -60,5 +87,9 @@ export function getDefaultSettings(): AppSettings {
     signalRUrl: (env.signalRUrl || "http://192.168.100.43:5205/robotHub").replace(/\/+$/, ""),
     xiaozhiWsUrl: (env.xiaozhiWsUrl || "ws://192.168.100.43:8000/xiaozhi/v1/").replace(/\/+$/, ""),
     voiceKioskId: env.voiceKioskId || "libot-kiosk-01",
+    kioskIdleSeconds: kioskTimeoutConfig.kioskIdleSeconds ?? 60,
+    voiceModalInactivitySeconds: kioskTimeoutConfig.voiceModalInactivitySeconds ?? 60,
+    voiceResponseTimeoutSeconds: kioskTimeoutConfig.voiceResponseTimeoutSeconds ?? 30,
+    feedbackIdleSeconds: kioskTimeoutConfig.feedbackIdleSeconds ?? 45,
   };
 }

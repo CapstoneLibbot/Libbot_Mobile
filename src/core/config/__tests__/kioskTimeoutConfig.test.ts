@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseKioskTimeoutConfig } from "../kioskTimeoutConfig";
+import { parseKioskTimeoutConfig, updateKioskTimeoutConfig } from "../kioskTimeoutConfig";
 
 describe("Kiosk Timeout Configuration (src/core/config/kioskTimeoutConfig)", () => {
   it("loads valid default configuration when environment is empty", () => {
@@ -58,5 +58,17 @@ describe("Kiosk Timeout Configuration (src/core/config/kioskTimeoutConfig)", () 
     expect(config.voiceModalInactivitySeconds).toBe(60);
     expect(config.voiceResponseTimeoutSeconds).toBe(30);
     expect(config.feedbackIdleSeconds).toBe(45);
+  });
+
+  it("dynamically updates in-memory kioskTimeoutConfig with updateKioskTimeoutConfig", () => {
+    const updated = updateKioskTimeoutConfig({
+      kioskIdleSeconds: 120,
+      voiceModalInactivitySeconds: 45,
+    });
+
+    expect(updated.kioskIdleSeconds).toBe(120);
+    expect(updated.kioskIdleMs).toBe(120000);
+    expect(updated.voiceModalInactivitySeconds).toBe(45);
+    expect(updated.voiceModalInactivityMs).toBe(45000);
   });
 });

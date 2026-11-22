@@ -21,6 +21,7 @@ export interface SettingFieldCardProps {
   icon?: React.ReactNode;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   keyboardType?: "default" | "url" | "email-address" | "numeric";
+  unitText?: string;
   onChangeText: (text: string) => void;
   onClear: () => void;
   onTest?: () => void;
@@ -36,6 +37,7 @@ export function SettingFieldCard({
   icon,
   autoCapitalize = "none",
   keyboardType = "default",
+  unitText,
   onChangeText,
   onClear,
   onTest,
@@ -90,6 +92,22 @@ export function SettingFieldCard({
           >
             <X size={18} color={colors.textSecondary} />
           </Pressable>
+        ) : null}
+
+        {/* Đơn vị đo lường (ví dụ: giây) nếu có */}
+        {unitText ? (
+          <>
+            <View style={styles.inlineDivider} />
+            <View style={styles.unitBadge}>
+              <AppText
+                variant="caption"
+                color={colors.textSecondary}
+                style={styles.unitText}
+              >
+                {unitText}
+              </AppText>
+            </View>
+          </>
         ) : null}
 
         {/* Nút Test kết nối độc lập cho dòng */}
@@ -202,6 +220,15 @@ const styles = StyleSheet.create({
     height: 22,
     backgroundColor: "#E2E8F0",
     marginHorizontal: 8,
+  },
+  unitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  unitText: {
+    fontWeight: "500",
   },
   testBtn: {
     flexDirection: "row",

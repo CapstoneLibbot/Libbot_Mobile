@@ -4,6 +4,7 @@ export * from "./services/settingsSyncService";
 export * from "./services/connectionTestService";
 export * from "./hooks/useSettingsViewModel";
 export * from "./components/SettingFieldCard";
+export * from "./components/SettingSectionHeader";
 export * from "./components/FieldConnectionBadge";
 export * from "./components/PinCodeSlots";
 export * from "./components/VirtualKeypad";

@@ -42,6 +42,7 @@ export function FeedbackScreen({
   const { isCompact, isNarrowHeight, insets } = useResponsiveLayout();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
+  const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
 
   const [selectedRating, setSelectedRating] = useState<number>(5);
   const [comment, setComment] = useState("");
@@ -51,7 +52,10 @@ export function FeedbackScreen({
   const submitFeedbackMutation = useSubmitFeedback();
 
   // Inactivity timeout: If user doesn't touch anything on feedback screen, auto-return to idle
+  // Resets timer whenever user interacts (rates, types, scrolls) and does not fire after submission
   useEffect(() => {
+    if (isSuccess) return;
+
     const timer = setTimeout(() => {
       if (__DEV__) {
         console.log(
@@ -62,7 +66,7 @@ export function FeedbackScreen({
       onSkip();
     }, kioskTimeoutConfig.feedbackIdleMs);
     return () => clearTimeout(timer);
-  }, [onSkip, resetKioskSession]);
+  }, [isSuccess, lastInteractionAt, onSkip, resetKioskSession]);
 
   const handleSelectRating = (rating: number) => {
     recordInteraction();

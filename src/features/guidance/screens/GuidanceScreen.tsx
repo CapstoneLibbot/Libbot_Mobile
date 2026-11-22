@@ -20,11 +20,11 @@ import { AppHeader, AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { GazeboMap2D } from "../components/GazeboMap2D";
-import { bookGuidanceApi, type BookGuidanceExecution, type NavigationEndpoint } from "../api/bookGuidance.api";
-import { facilityGuidanceApi } from "@/features/facilities/api/facilityGuidance.api";
+import { bookGuidanceApi, type NavigationEndpoint } from "../api/bookGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
 import { useRobotMapOverlays } from "../hooks/useRobotMapOverlays";
 import { useGuidanceAnnouncer } from "../hooks/useGuidanceAnnouncer";
+import { useGuidanceExecutionTracking } from "../hooks/useGuidanceExecutionTracking";
 import type { GuidanceSession, RobotPose } from "../types/guidance.types";
 
 export interface GuidanceScreenProps {
@@ -36,45 +36,6 @@ export interface GuidanceScreenProps {
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Không thể kết nối với robot. Hãy kiểm tra mạng và thử lại.";
-}
-
-function getWorkflowFailureDetails(execution?: BookGuidanceExecution | null): {
-  step?: string;
-  code?: string;
-  message?: string;
-} {
-  const results = execution?.result?.results ?? [];
-  const failedStep =
-    execution?.result?.failed_step ?? execution?.currentStep ?? undefined;
-  const failedStepResult =
-    results.find((item) => item.step === failedStep) ??
-    results.find((item) =>
-      ["error", "failed", "timeout"].includes(
-        item.result?.status?.toLowerCase() ?? "",
-      ),
-    );
-  return {
-    step: failedStep ?? undefined,
-    code: failedStepResult?.result?.nav2_result_code ?? undefined,
-    message:
-      failedStepResult?.result?.message ??
-      execution?.error ??
-      execution?.message ??
-      undefined,
-  };
-}
-
-function formatWorkflowFailure(execution: BookGuidanceExecution): string {
-  const details = getWorkflowFailureDetails(execution);
-  return (
-    [
-      details.step ? `Bước ${details.step}` : undefined,
-      details.code,
-      details.message,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "BookGuidance workflow thất bại."
-  );
 }
 
 export function GuidanceScreen({
@@ -101,15 +62,20 @@ export function GuidanceScreen({
   const mapRotationDeg = 0;
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const pollInFlight = useRef(false);
-  const completionPosted = useRef(false);
-  const feedbackNavigated = useRef(false);
 
   const { runtime } = useRobotRuntimeTelemetry(runtimeId);
 
   const activeSession = session?.destinationId === endpointId ? session : null;
   const announcer = useGuidanceAnnouncer({
     activeJobId: activeSession?.jobId,
+  });
+
+  const { resetTracking } = useGuidanceExecutionTracking({
+    activeSession,
+    setSession,
+    announcer,
+    onGoToFeedback,
+    onErrorMessage: setErrorMessage,
   });
   const {
     mapMetadata: savedRobotMap,
@@ -194,80 +160,6 @@ export function GuidanceScreen({
     };
   }, [runtimeId]);
 
-  const postCompletion = useCallback(
-    async (jobId: string, succeeded: boolean, message?: string) => {
-      if (completionPosted.current) return;
-      completionPosted.current = true;
-      try {
-        if (activeSession?.guidanceKind === "LOCATION_GUIDANCE") {
-          await facilityGuidanceApi.complete(jobId, succeeded, message);
-        } else {
-          await bookGuidanceApi.complete(jobId, succeeded, message);
-        }
-      } catch {
-        /* Workflow state remains authoritative in the UI. */
-      }
-    },
-    [activeSession],
-  );
-
-  useEffect(() => {
-    if (!activeSession || activeSession.terminalStatus) return;
-    let mounted = true;
-    const tick = async () => {
-      if (!mounted || pollInFlight.current) return;
-      pollInFlight.current = true;
-      try {
-        const state = activeSession.guidanceKind === "LOCATION_GUIDANCE"
-          ? await facilityGuidanceApi.getExecution(activeSession.executionId)
-          : await bookGuidanceApi.getExecution(activeSession.executionId);
-        if (!mounted) return;
-
-        if (state.status.toLowerCase() === "completed") {
-          if (feedbackNavigated.current) return;
-          feedbackNavigated.current = true;
-          setSession({ ...activeSession, terminalStatus: "COMPLETED" });
-          void postCompletion(activeSession.jobId, true);
-          announcer.announceArrival(() => {
-            onGoToFeedback(activeSession.jobId);
-          });
-        } else if (["failed", "cancelled"].includes(state.status.toLowerCase())) {
-          if (feedbackNavigated.current) return;
-          feedbackNavigated.current = true;
-          const failureMessage = formatWorkflowFailure(state);
-          setSession({ ...activeSession, terminalStatus: state.status.toLowerCase() === "cancelled" ? "CANCELLED" : "FAILED" });
-          void postCompletion(
-            activeSession.jobId,
-            false,
-            failureMessage,
-          );
-          announcer.announceError(() => {
-            onGoToFeedback(activeSession.jobId);
-          });
-        }
-      } catch (error: unknown) {
-        if (mounted) setErrorMessage(getErrorMessage(error));
-      } finally {
-        pollInFlight.current = false;
-      }
-    };
-    void tick();
-    const timer = setInterval(() => {
-      void tick();
-    }, 1200);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, [
-    activeSession,
-    runtime?.telemetry?.navigationState,
-    setSession,
-    postCompletion,
-    onGoToFeedback,
-    announcer,
-  ]);
-
   const autoStartTriggered = useRef(false);
 
   const handleStart = useCallback(async () => {
@@ -318,8 +210,7 @@ export function GuidanceScreen({
         guidanceKind: "BOOK_GUIDANCE",
         startStatus: "ACCEPTED",
       };
-      completionPosted.current = false;
-      feedbackNavigated.current = false;
+      resetTracking();
       setSession(next);
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error));
@@ -331,6 +222,7 @@ export function GuidanceScreen({
     destination,
     endpoint,
     recordInteraction,
+    resetTracking,
     runtimeId,
     runtimeReady,
     setSession,
@@ -366,8 +258,7 @@ export function GuidanceScreen({
     recordInteraction();
     announcer.reset();
     setSession(null);
-    completionPosted.current = false;
-    feedbackNavigated.current = false;
+    resetTracking();
   };
 
   const handleBack = () => {

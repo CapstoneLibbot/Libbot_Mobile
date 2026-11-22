@@ -65,4 +65,18 @@ describe("Kiosk Idle Timeout Policy (src/core/idle)", () => {
     );
     expect(shouldReset).toBe(false);
   });
+
+  it("respects dynamic timeout thresholds updated at runtime", () => {
+    const activeMissionId = null;
+    const elapsedMs = 45 * 1000; // 45s elapsed
+
+    // Default 60s threshold: should not reset yet
+    expect(shouldResetOnIdle(activeMissionId, elapsedMs, 60 * 1000)).toBe(false);
+
+    // If admin reduced threshold to 30s: should reset immediately
+    expect(shouldResetOnIdle(activeMissionId, elapsedMs, 30 * 1000)).toBe(true);
+
+    // If admin increased threshold to 120s: should not reset
+    expect(shouldResetOnIdle(activeMissionId, elapsedMs, 120 * 1000)).toBe(false);
+  });
 });

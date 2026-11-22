@@ -50,7 +50,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
   const onConfirmReset = () => {
     Alert.alert(
       "Đặt lại cài đặt",
-      "Bạn có chắc muốn đặt lại toàn bộ cài đặt về cấu hình ban đầu (.env)?",
+      "Bạn có chắc muốn đặt lại toàn bộ cài đặt về cấu hình ban đầu?",
       [
         { text: "Hủy", style: "cancel" },
         {
@@ -63,11 +63,17 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
   };
 
   const onSavePress = async () => {
-    const success = await handleSave();
-    if (success) {
+    const result = await handleSave();
+    if (result.success) {
       Alert.alert(
         "Thành công",
         "Đã lưu và áp dụng cấu hình mới vào toàn bộ hệ thống!",
+        [{ text: "Đóng", style: "default" }],
+      );
+    } else {
+      Alert.alert(
+        "Không thể lưu cấu hình",
+        result.error || "Vui lòng kiểm tra lại các trường thông tin.",
         [{ text: "Đóng", style: "default" }],
       );
     }
@@ -182,7 +188,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
         {/* Card 1: API Base URL */}
         <SettingFieldCard
           label="API Base URL (REST API)"
-          description="Địa chỉ máy chủ ASP.NET Core cho dữ liệu sách, bản đồ và điều hướng."
+          description="Địa chỉ máy chủ cho dữ liệu sách, bản đồ và điều hướng."
           placeholder="http://192.168.1.100:5205/api"
           value={formValues.apiBaseUrl}
           error={errors.apiBaseUrl}
@@ -212,7 +218,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
         {/* Card 3: Xiaozhi WebSocket URL */}
         <SettingFieldCard
           label="Xiaozhi Audio WebSocket URL"
-          description="Địa chỉ server AI Voice trợ lý ảo Xiaozhi (bắt đầu bằng ws:// hoặc wss://)."
+          description="Địa chỉ server AI Voice trợ lý ảo (bắt đầu bằng ws:// hoặc wss://)."
           placeholder="ws://192.168.1.100:8000/xiaozhi/v1/"
           value={formValues.xiaozhiWsUrl}
           error={errors.xiaozhiWsUrl}
@@ -227,7 +233,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): React.ReactElem
         {/* Card 4: Voice Kiosk ID */}
         <SettingFieldCard
           label="Voice Kiosk ID (Mã định danh Kiosk)"
-          description="Tên hoặc mã định danh của kiosk gửi lên Xiaozhi server để kết nối phiên thoại."
+          description="Mã định danh của kiosk gửi lên Xiaozhi server để kết nối phiên thoại."
           placeholder="libot-kiosk-01"
           value={formValues.voiceKioskId}
           error={errors.voiceKioskId}

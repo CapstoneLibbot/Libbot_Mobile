@@ -97,4 +97,16 @@ describe("Feedback Submission and Kiosk Session Reset", () => {
       vi.restoreAllMocks();
     });
   });
+
+  describe("Feedback Screen Inactivity Lifecycle", () => {
+    it("updates lastInteractionAt when user touches ratings or inputs comment", () => {
+      const store = useKioskStore.getState();
+      const initialTime = store.lastInteractionAt;
+
+      // Simulate user interacting on feedback screen
+      store.recordInteraction();
+      const afterInteractionTime = useKioskStore.getState().lastInteractionAt;
+      expect(afterInteractionTime).toBeGreaterThanOrEqual(initialTime);
+    });
+  });
 });

@@ -66,10 +66,14 @@ export function useSettingsViewModel() {
   const [fieldTestStates, setFieldTestStates] =
     useState<Record<TestableField, FieldTestState>>(initialFieldTestStates);
 
-  // Lắng nghe thay đổi từ external Zustand store khi load hoặc reset
+  // Lắng nghe thay đổi từ external Zustand store CHỈ khi settings thật sự thay đổi (load/reset)
   useEffect(() => {
+    let prevSettings = useSettingsStore.getState().settings;
     const unsub = useSettingsStore.subscribe((state) => {
-      setFormValues(toFormValues(state.settings));
+      if (state.settings !== prevSettings) {
+        prevSettings = state.settings;
+        setFormValues(toFormValues(state.settings));
+      }
     });
     return unsub;
   }, []);
@@ -133,7 +137,7 @@ export function useSettingsViewModel() {
     setTestResult(result);
   }, [formValues.apiBaseUrl]);
 
-  const handleSave = useCallback(async (): Promise<boolean> => {
+  const handleSave = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     setSaveSuccess(false);
     setTestResult(null);
 
@@ -147,15 +151,21 @@ export function useSettingsViewModel() {
         }
       }
       setErrors(fieldErrors);
-      return false;
+      const firstError =
+        parsed.error.issues[0]?.message || "Dữ liệu cấu hình không hợp lệ";
+      return { success: false, error: firstError };
     }
 
     setErrors({});
     const success = await updateSettings(parsed.data);
     if (success) {
       setSaveSuccess(true);
+      return { success: true };
     }
-    return success;
+
+    const storeError =
+      useSettingsStore.getState().error || "Không thể lưu cấu hình vào thiết bị";
+    return { success: false, error: storeError };
   }, [formValues, updateSettings]);
 
   const handleReset = useCallback(async () => {

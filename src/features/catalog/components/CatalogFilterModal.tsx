@@ -1,6 +1,7 @@
 import { Check, RotateCcw, X } from "lucide-react-native";
 import React from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { useKioskStore } from "@/core/state";
 import { AppText } from "@/shared/ui";
 
 export type SortByOption = "default" | "title" | "author";
@@ -30,17 +31,30 @@ export function CatalogFilterModal({
   onReset,
   onClose,
 }: CatalogFilterModalProps): React.ReactElement {
+  const recordInteraction = useKioskStore((state) => state.recordInteraction);
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        recordInteraction();
+        onClose();
+      }}
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={() => {
+          recordInteraction();
+          onClose();
+        }}
+        onTouchStart={recordInteraction}
+      >
         <Pressable
           style={styles.modalContent}
           onPress={(e) => e.stopPropagation()}
+          onTouchStart={recordInteraction}
         >
           {/* Modal Header */}
           <View style={styles.modalHeader}>

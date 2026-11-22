@@ -210,6 +210,7 @@ function VoiceListeningModalInner({
 }: Omit<VoiceListeningModalProps, "visible">): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const setVoiceActive = useKioskStore((state) => state.setVoiceActive);
+  const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
   const { width, height, insets } = useResponsiveLayout();
   const {
     status,
@@ -337,7 +338,7 @@ function VoiceListeningModalInner({
       handleClose();
     }, kioskTimeoutConfig.voiceModalInactivityMs);
     return () => clearTimeout(timer);
-  }, [handleClose, isMuted, status, voiceActivitySequence]);
+  }, [handleClose, isMuted, lastInteractionAt, status, voiceActivitySequence]);
 
   // Session lifecycle
   useEffect(() => {

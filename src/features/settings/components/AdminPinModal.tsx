@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from "react";
-import { Modal, StyleSheet, View } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { Lock } from "lucide-react-native";
 import { env } from "@/config/env";
+import { useKioskStore } from "@/core/state";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { AppText } from "@/shared/ui";
 import { PinCodeSlots } from "./PinCodeSlots";
@@ -20,6 +21,7 @@ export function AdminPinModal({
   onSuccess,
   onClose,
 }: AdminPinModalProps): React.ReactElement {
+  const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -27,11 +29,12 @@ export function AdminPinModal({
   const expectedPin = env.adminPin || "1234";
 
   const handleClose = useCallback(() => {
+    recordInteraction();
     setPin("");
     setError(null);
     setIsVerifying(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, recordInteraction]);
 
   const verifyPin = useCallback(
     (enteredPin: string) => {
@@ -56,6 +59,7 @@ export function AdminPinModal({
 
   const handleDigitPress = useCallback(
     (digit: string) => {
+      recordInteraction();
       if (isVerifying || pin.length >= PIN_LENGTH) return;
 
       const nextPin = pin + digit;
@@ -67,14 +71,15 @@ export function AdminPinModal({
         verifyPin(nextPin);
       }
     },
-    [isVerifying, pin, verifyPin],
+    [isVerifying, pin, recordInteraction, verifyPin],
   );
 
   const handleDeletePress = useCallback(() => {
+    recordInteraction();
     if (isVerifying || pin.length === 0) return;
     setPin((prev) => prev.slice(0, -1));
     setError(null);
-  }, [isVerifying, pin.length]);
+  }, [isVerifying, pin.length, recordInteraction]);
 
   return (
     <Modal
@@ -83,8 +88,16 @@ export function AdminPinModal({
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.modalContent}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={handleClose}
+        accessibilityRole="button"
+        accessibilityLabel="Đóng xác thực quản trị viên"
+      >
+        <Pressable
+          style={styles.modalContent}
+          onPress={(e) => e.stopPropagation()}
+        >
           {/* Header Icon & Title */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
@@ -123,8 +136,8 @@ export function AdminPinModal({
             onCancelPress={handleClose}
             disabled={isVerifying}
           />
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

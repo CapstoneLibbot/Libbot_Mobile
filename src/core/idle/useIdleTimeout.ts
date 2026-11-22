@@ -25,28 +25,34 @@ export interface UseIdleTimeoutOptions {
 
 export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
   const {
-    timeoutSeconds = kioskTimeoutConfig.kioskIdleSeconds,
+    timeoutSeconds,
     onTimeout,
     enabled = true,
   } = options;
 
-  const timeoutMs = timeoutSeconds * 1000;
-  const activeJobId = useKioskStore((state) => state.activeJobId);
-  const isVoiceActive = useKioskStore((state) => state.isVoiceActive);
-  const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
 
   useEffect(() => {
     if (!enabled) return;
 
     const interval = setInterval(() => {
-      const elapsed = Date.now() - lastInteractionAt;
+      const state = useKioskStore.getState();
+      const currentTimeoutSeconds =
+        timeoutSeconds ?? kioskTimeoutConfig.kioskIdleSeconds;
+      const timeoutMs = currentTimeoutSeconds * 1000;
+      const elapsed = Date.now() - state.lastInteractionAt;
+
       if (
-        shouldResetOnIdle(activeJobId, elapsed, timeoutMs, isVoiceActive)
+        shouldResetOnIdle(
+          state.activeJobId,
+          elapsed,
+          timeoutMs,
+          state.isVoiceActive,
+        )
       ) {
         if (__DEV__) {
           console.log(
-            `[useIdleTimeout] Inactivity detected: ${Math.round(elapsed / 1000)}s >= ${timeoutSeconds}s (voiceActive=${isVoiceActive}, activeJob=${activeJobId || "none"}). Resetting kiosk session.`,
+            `[useIdleTimeout] Inactivity detected: ${Math.round(elapsed / 1000)}s >= ${currentTimeoutSeconds}s (voiceActive=${state.isVoiceActive}, activeJob=${state.activeJobId || "none"}). Resetting kiosk session.`,
           );
         }
         resetKioskSession();
@@ -55,15 +61,6 @@ export function useIdleTimeout(options: UseIdleTimeoutOptions = {}): void {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [
-    enabled,
-    activeJobId,
-    isVoiceActive,
-    lastInteractionAt,
-    timeoutMs,
-    timeoutSeconds,
-    resetKioskSession,
-    onTimeout,
-  ]);
+  }, [enabled, timeoutSeconds, resetKioskSession, onTimeout]);
 }
 

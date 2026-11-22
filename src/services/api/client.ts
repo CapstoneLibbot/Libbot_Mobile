@@ -37,4 +37,12 @@ export const api = {
     apiClient.delete<T>(url, config).then((res) => res.data),
 };
 
+export const setApiBaseUrl = (newBaseUrl: string): void => {
+  apiClient.defaults.baseURL = newBaseUrl;
+};
+
+export const getApiBaseUrl = (): string | undefined => {
+  return apiClient.defaults.baseURL;
+};
+
 export default apiClient;

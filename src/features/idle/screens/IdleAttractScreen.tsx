@@ -1,4 +1,5 @@
 import { Mic } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 import React, { useCallback, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Svg, {
@@ -26,6 +27,7 @@ export interface IdleAttractScreenProps {
   onNavigateToBook: (bookId: string) => void;
   onNavigateToLocation: (endpointId: string) => void;
   onGuidanceStarted: (guidance: VoiceGuidanceStart) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export function IdleAttractScreen({
@@ -34,6 +36,7 @@ export function IdleAttractScreen({
   onNavigateToBook,
   onNavigateToLocation,
   onGuidanceStarted,
+  onNavigateToSettings,
 }: IdleAttractScreenProps): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
@@ -43,12 +46,22 @@ export function IdleAttractScreen({
   const robotFaceRef = useRef<RobotFaceRef>(null);
   const isNavigatingRef = useRef(false);
 
+  // Mở khóa chuyển màn hình mỗi khi quay lại màn hình Idle
+  useFocusEffect(
+    useCallback(() => {
+      isNavigatingRef.current = false;
+    }, []),
+  );
+
   // Single-flight navigation handler to search (Tìm sách)
   const handleNavigateToSearch = useCallback(() => {
     if (isNavigatingRef.current) {
       return;
     }
     isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 1000);
 
     resetKioskSession();
     recordInteraction();
@@ -61,11 +74,29 @@ export function IdleAttractScreen({
       return;
     }
     isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 1000);
 
     resetKioskSession();
     recordInteraction();
     onNavigateToFacilities();
   }, [onNavigateToFacilities, recordInteraction, resetKioskSession]);
+
+  // Single-flight navigation handler to settings (Cài đặt)
+  const handleNavigateToSettings = useCallback(() => {
+    if (isNavigatingRef.current) {
+      return;
+    }
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 1000);
+
+    resetKioskSession();
+    recordInteraction();
+    onNavigateToSettings?.();
+  }, [onNavigateToSettings, recordInteraction, resetKioskSession]);
 
   // Voice Coordinator: điều phối nhả/nhận mic giữa Vosk và Xiaozhi có buffer an toàn
   const voice = useKioskVoiceCoordinator({
@@ -105,6 +136,7 @@ export function IdleAttractScreen({
       <LiBotActionMenu
         onSearchSelect={handleNavigateToSearch}
         onFacilitySelect={handleNavigateToFacilities}
+        onSettingsSelect={onNavigateToSettings ? handleNavigateToSettings : undefined}
       />
 
       {/* Independent Voice FAB (Bottom-Right, Safe Area aware) */}

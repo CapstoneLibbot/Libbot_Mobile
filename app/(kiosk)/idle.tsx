@@ -9,6 +9,7 @@ export default function IdleRoute(): React.ReactElement {
     <IdleAttractScreen
       onNavigateToSearch={() => router.push("/(kiosk)/search")}
       onNavigateToFacilities={() => router.push("/(kiosk)/facilities")}
+      onNavigateToSettings={() => router.push("/(kiosk)/settings" as any)}
       onNavigateToBook={(bookId) => {
         router.push(`/(kiosk)/catalog/${bookId}`);
       }}

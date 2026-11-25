@@ -55,4 +55,8 @@ export const api = {
     apiClient.delete<T>(url, config),
 };
 
+export const setPlatformApiBaseUrl = (newBaseUrl: string): void => {
+  apiClient.defaults.baseURL = newBaseUrl;
+};
+
 export default apiClient;

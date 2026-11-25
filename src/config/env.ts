@@ -7,6 +7,7 @@ export interface AppEnv {
   signalRUrl?: string;
   xiaozhiWsUrl?: string;
   voiceKioskId?: string;
+  adminPin: string;
   isMock: boolean;
   isDev: boolean;
   isProduction: boolean;
@@ -72,6 +73,7 @@ export function parseEnv(
   const rawSignalRUrl = rawEnv.EXPO_PUBLIC_SIGNALR_URL;
   const xiaozhiWsUrl = validateWebSocketUrl(rawEnv.EXPO_PUBLIC_XIAOZHI_WS_URL);
   const voiceKioskId = rawEnv.EXPO_PUBLIC_VOICE_KIOSK_ID?.trim() || undefined;
+  const adminPin = rawEnv.EXPO_PUBLIC_ADMIN_PIN?.trim() || "1234";
 
   if (isProduction) {
     if (!rawApiBaseUrl || !rawApiBaseUrl.trim()) {
@@ -89,6 +91,7 @@ export function parseEnv(
       signalRUrl,
       xiaozhiWsUrl,
       voiceKioskId,
+      adminPin,
       isMock: false,
       isDev: false,
       isProduction: true,
@@ -114,6 +117,7 @@ export function parseEnv(
     signalRUrl,
     xiaozhiWsUrl,
     voiceKioskId,
+    adminPin,
     isMock,
     isDev: !isProduction,
     isProduction: false,
@@ -129,4 +133,5 @@ export const env: AppEnv = parseEnv({
   EXPO_PUBLIC_SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL,
   EXPO_PUBLIC_XIAOZHI_WS_URL: process.env.EXPO_PUBLIC_XIAOZHI_WS_URL,
   EXPO_PUBLIC_VOICE_KIOSK_ID: process.env.EXPO_PUBLIC_VOICE_KIOSK_ID,
+  EXPO_PUBLIC_ADMIN_PIN: process.env.EXPO_PUBLIC_ADMIN_PIN,
 });

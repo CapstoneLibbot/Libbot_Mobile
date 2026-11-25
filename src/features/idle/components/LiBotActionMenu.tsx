@@ -1,7 +1,8 @@
-import { MapPin, Menu, Search, X } from "lucide-react-native";
+import { MapPin, Menu, Search, Settings, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
+import { AdminPinModal } from "@/features/settings";
 import { AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
@@ -10,13 +11,16 @@ import { IDLE_MENU_CONFIG } from "../constants/idleMenuConfig";
 export interface LiBotActionMenuProps {
   onSearchSelect: () => void;
   onFacilitySelect: () => void;
+  onSettingsSelect?: () => void;
 }
 
 export function LiBotActionMenu({
   onSearchSelect,
   onFacilitySelect,
+  onSettingsSelect,
 }: LiBotActionMenuProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
+  const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const { insets, isNarrowHeight, width } = useResponsiveLayout();
 
@@ -54,6 +58,19 @@ export function LiBotActionMenu({
     setIsOpen(false);
     onFacilitySelect();
   }, [onFacilitySelect, recordInteraction]);
+
+  const handleSettingsAction = useCallback(() => {
+    recordInteraction();
+    setIsOpen(false);
+    if (onSettingsSelect) {
+      setIsPinModalVisible(true);
+    }
+  }, [onSettingsSelect, recordInteraction]);
+
+  const handlePinSuccess = useCallback(() => {
+    setIsPinModalVisible(false);
+    onSettingsSelect?.();
+  }, [onSettingsSelect]);
 
   // Interpolations for action items container
   const menuOpacity = menuAnim;
@@ -194,8 +211,49 @@ export function LiBotActionMenu({
               Tìm khu vực
             </AppText>
           </Pressable>
+
+          {/* Action 3: Cài đặt hệ thống */}
+          {onSettingsSelect && (
+            <Pressable
+              onPress={handleSettingsAction}
+              style={({ pressed }) => [
+                styles.actionItem,
+                {
+                  maxWidth: actionMaxWidth,
+                  paddingVertical: isNarrowHeight ? spacing.xs + 2 : spacing.sm,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Cài đặt hệ thống"
+            >
+              <View style={styles.actionIconCircle}>
+                <Settings
+                  color={colors.primary}
+                  size={IDLE_MENU_CONFIG.actionIconSize}
+                  strokeWidth={2.2}
+                />
+              </View>
+              <AppText
+                variant="subtitle"
+                numberOfLines={1}
+                style={styles.actionLabel}
+              >
+                Cài đặt
+              </AppText>
+            </Pressable>
+          )}
         </Animated.View>
       </View>
+
+      {/* Admin PIN Verification Modal */}
+      {onSettingsSelect && (
+        <AdminPinModal
+          visible={isPinModalVisible}
+          onSuccess={handlePinSuccess}
+          onClose={() => setIsPinModalVisible(false)}
+        />
+      )}
     </>
   );
 }

@@ -2,8 +2,10 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  MessageCircle,
   MapPin,
+  MessageCircle,
+  Mic,
+  MicOff,
   X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { useKioskStore } from "@/core/state";
+import { kioskTimeoutConfig } from "@/core/config";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { AppButton, AppText } from "@/shared/ui";
@@ -207,6 +210,7 @@ function VoiceListeningModalInner({
 }: Omit<VoiceListeningModalProps, "visible">): React.ReactElement {
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const setVoiceActive = useKioskStore((state) => state.setVoiceActive);
+  const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
   const { width, height, insets } = useResponsiveLayout();
   const {
     status,
@@ -217,10 +221,29 @@ function VoiceListeningModalInner({
     stop,
     voiceActivitySequence,
     guidanceStart,
+    isMuted,
+    toggleMute,
   } =
     useVoiceSession();
   const conversationRef = useRef<ScrollView>(null);
-  const statusCopy = getVoiceSessionCopy(status, error);
+  const statusCopy = isMuted
+    ? {
+      title: "Đã tạm dừng nghe",
+      description: "Bấm nút để tiếp tục nói.",
+    }
+    : getVoiceSessionCopy(status, error);
+
+  const isTogglingMuteRef = useRef(false);
+  const handleToggleMute = useCallback(() => {
+    if (isTogglingMuteRef.current) return;
+    isTogglingMuteRef.current = true;
+    recordInteraction();
+    void toggleMute().finally(() => {
+      setTimeout(() => {
+        isTogglingMuteRef.current = false;
+      }, 350);
+    });
+  }, [recordInteraction, toggleMute]);
 
   // Responsive layout dimensions
   const layout = computeVoiceModalLayout(width, height, insets);
@@ -305,19 +328,42 @@ function VoiceListeningModalInner({
   // Recognizer can publish a transcript, so a reader is never closed out
   // while saying a short answer such as "đồng ý".
   useEffect(() => {
-    if (status !== "listening") return;
-    const timer = setTimeout(
-      handleClose,
-      IDLE_MENU_CONFIG.voiceModalAutoCloseMs,
-    );
+    if (status !== "listening" || isMuted) return;
+    const timer = setTimeout(() => {
+      if (__DEV__) {
+        console.log(
+          `[VoiceListeningModal] Inactivity timeout (${kioskTimeoutConfig.voiceModalInactivitySeconds}s) reached without voice activity. Auto-closing modal.`,
+        );
+      }
+      handleClose();
+    }, kioskTimeoutConfig.voiceModalInactivityMs);
     return () => clearTimeout(timer);
-  }, [handleClose, status, voiceActivitySequence]);
+  }, [handleClose, isMuted, lastInteractionAt, status, voiceActivitySequence]);
 
-  // Session lifecycle and waveform loops
+  // Session lifecycle
   useEffect(() => {
     setVoiceActive(true);
     recordInteraction();
     void start(activation === "wake" ? "Tôi nghe đây" : undefined);
+
+    return () => {
+      void stop();
+      setVoiceActive(false);
+    };
+  }, [activation, recordInteraction, setVoiceActive, start, stop]);
+
+  // Waveform animation
+  useEffect(() => {
+    if (isMuted) {
+      bar1.setValue(8);
+      bar2.setValue(12);
+      bar3.setValue(10);
+      bar4.setValue(16);
+      bar5.setValue(10);
+      bar6.setValue(12);
+      bar7.setValue(8);
+      return;
+    }
 
     const animateBar = (
       val: Animated.Value,
@@ -355,9 +401,7 @@ function VoiceListeningModalInner({
     loops.forEach((loop) => loop.start());
 
     return () => {
-      void stop();
       loops.forEach((loop) => loop.stop());
-      setVoiceActive(false);
     };
   }, [
     bar1,
@@ -367,27 +411,27 @@ function VoiceListeningModalInner({
     bar5,
     bar6,
     bar7,
+    isMuted,
     layout.isNarrowHeight,
-    activation,
-    recordInteraction,
-    setVoiceActive,
-    start,
-    stop,
   ]);
 
-  const barColor = error ? colors.danger : colors.primary;
+  const barColor = isMuted
+    ? colors.subtext
+    : error
+      ? colors.danger
+      : colors.primary;
 
   // Conversations to display (with initial greeting if conversation array is empty)
   const displayConversation: VoiceConversationEntry[] =
     conversation.length > 0
       ? conversation
       : [
-          {
-            id: "initial-greeting",
-            speaker: "assistant",
-            text: DEFAULT_LIBOT_GREETING,
-          },
-        ];
+        {
+          id: "initial-greeting",
+          speaker: "assistant",
+          text: DEFAULT_LIBOT_GREETING,
+        },
+      ];
 
   // =========================================================================
   // Compact Viewport (< 600dp, e.g. Phone portrait)
@@ -440,10 +484,15 @@ function VoiceListeningModalInner({
               {/* Header */}
               <View style={styles.panelHeader}>
                 <View style={styles.headerTitleGroup}>
-                  <View style={styles.liveIndicatorDot} />
+                  <View
+                    style={[
+                      styles.liveIndicatorDot,
+                      isMuted && styles.liveIndicatorDotMuted,
+                    ]}
+                  />
                   <AppText
                     variant="subtitle"
-                    color={colors.primary}
+                    color={isMuted ? colors.subtext : colors.primary}
                     style={styles.panelHeading}
                   >
                     GIỌNG NÓI TRỰC TIẾP
@@ -516,12 +565,60 @@ function VoiceListeningModalInner({
                 </AppText>
                 <AppText
                   variant="body"
-                  color={error ? colors.danger : colors.textSecondary}
+                  color={
+                    isMuted
+                      ? colors.warning
+                      : error
+                        ? colors.danger
+                        : colors.textSecondary
+                  }
                   style={styles.voiceDescription}
                   numberOfLines={2}
                 >
                   {statusCopy.description}
                 </AppText>
+
+                <Pressable
+                  onPress={handleToggleMute}
+                  style={({ pressed }) => [
+                    styles.mutePillButton,
+                    isMuted
+                      ? styles.mutePillButtonMuted
+                      : styles.mutePillButtonActive,
+                    pressed && styles.mutePillButtonPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isMuted ? "Bật micro để nói" : "Tắt micro tạm thời"
+                  }
+                >
+                  {isMuted ? (
+                    <MicOff
+                      color={colors.danger}
+                      size={18}
+                      strokeWidth={2.2}
+                    />
+                  ) : (
+                    <Mic
+                      color={colors.primary}
+                      size={18}
+                      strokeWidth={2.2}
+                    />
+                  )}
+                  <AppText
+                    variant="caption"
+                    style={[
+                      styles.mutePillText,
+                      isMuted
+                        ? styles.mutePillTextMuted
+                        : styles.mutePillTextActive,
+                    ]}
+                  >
+                    {isMuted
+                      ? "Micro đang tắt"
+                      : "Tạm dừng nghe"}
+                  </AppText>
+                </Pressable>
               </View>
 
               {/* Bottom Transcript */}
@@ -532,8 +629,12 @@ function VoiceListeningModalInner({
                   numberOfLines={2}
                 >
                   <AppText style={styles.liveTranscriptPrefix}>Bạn: </AppText>
-                  &quot;{transcript || "Tôi muốn tìm sách…"}&quot;
-                  {status === "listening" ? (
+                  &quot;
+                  {isMuted
+                    ? "Micro đang tắt…"
+                    : transcript || "Tôi muốn tìm sách…"}
+                  &quot;
+                  {status === "listening" && !isMuted ? (
                     <AppText color={colors.primary} style={styles.cursorText}>
                       {" "}
                       |
@@ -705,10 +806,15 @@ function VoiceListeningModalInner({
           {/* Header */}
           <View style={styles.panelHeader}>
             <View style={styles.headerTitleGroup}>
-              <View style={styles.liveIndicatorDot} />
+              <View
+                style={[
+                  styles.liveIndicatorDot,
+                  isMuted && styles.liveIndicatorDotMuted,
+                ]}
+              />
               <AppText
                 variant="subtitle"
-                color={colors.primary}
+                color={isMuted ? colors.subtext : colors.primary}
                 style={styles.panelHeading}
               >
                 GIỌNG NÓI TRỰC TIẾP
@@ -788,12 +894,60 @@ function VoiceListeningModalInner({
             </AppText>
             <AppText
               variant="body"
-              color={error ? colors.danger : colors.textSecondary}
+              color={
+                isMuted
+                  ? colors.warning
+                  : error
+                    ? colors.danger
+                    : colors.textSecondary
+              }
               style={styles.voiceDescription}
               numberOfLines={2}
             >
               {statusCopy.description}
             </AppText>
+
+            <Pressable
+              onPress={handleToggleMute}
+              style={({ pressed }) => [
+                styles.mutePillButton,
+                isMuted
+                  ? styles.mutePillButtonMuted
+                  : styles.mutePillButtonActive,
+                pressed && styles.mutePillButtonPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isMuted ? "Bật micro để nói" : "Tắt micro tạm thời"
+              }
+            >
+              {isMuted ? (
+                <MicOff
+                  color={colors.danger}
+                  size={18}
+                  strokeWidth={2.2}
+                />
+              ) : (
+                <Mic
+                  color={colors.primary}
+                  size={18}
+                  strokeWidth={2.2}
+                />
+              )}
+              <AppText
+                variant="caption"
+                style={[
+                  styles.mutePillText,
+                  isMuted
+                    ? styles.mutePillTextMuted
+                    : styles.mutePillTextActive,
+                ]}
+              >
+                {isMuted
+                  ? "Micro đang tắt"
+                  : "Tạm dừng nghe"}
+              </AppText>
+            </Pressable>
           </View>
 
           {/* Bottom Transcript */}
@@ -804,8 +958,12 @@ function VoiceListeningModalInner({
               numberOfLines={2}
             >
               <AppText style={styles.liveTranscriptPrefix}>Bạn: </AppText>
-              &quot;{transcript || "Tôi muốn tìm sách…"}&quot;
-              {status === "listening" ? (
+              &quot;
+              {isMuted
+                ? "Micro đang tắt…"
+                : transcript || "Tôi muốn tìm sách…"}
+              &quot;
+              {status === "listening" && !isMuted ? (
                 <AppText color={colors.primary} style={styles.cursorText}>
                   {" "}
                   |
@@ -1004,6 +1162,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primary,
   },
+  liveIndicatorDotMuted: {
+    backgroundColor: colors.subtext,
+  },
   panelHeading: {
     fontWeight: "700",
     letterSpacing: 0.6,
@@ -1028,6 +1189,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerIconButtonMuted: {
+    backgroundColor: "#FEE2E2",
   },
 
   // Live content
@@ -1060,6 +1224,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
     maxWidth: 320,
+  },
+  mutePillButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 24,
+    marginTop: spacing.md,
+    borderWidth: 1.5,
+  },
+  mutePillButtonActive: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.primary,
+  },
+  mutePillButtonMuted: {
+    backgroundColor: "#FEE2E2",
+    borderColor: colors.danger,
+  },
+  mutePillButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  mutePillText: {
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  mutePillTextActive: {
+    color: colors.primary,
+  },
+  mutePillTextMuted: {
+    color: colors.danger,
   },
 
   // Live Transcript

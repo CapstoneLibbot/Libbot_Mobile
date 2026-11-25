@@ -61,8 +61,20 @@ class XiaozhiAudioModule : Module() {
       session.speakGreeting(text)
       promise.resolve(null)
     }
+    AsyncFunction("speakAnnouncement") { text: String, promise: Promise ->
+      session.speakAnnouncement(text)
+      promise.resolve(null)
+    }
+    AsyncFunction("stopSpeaking") { promise: Promise ->
+      session.stopSpeaking()
+      promise.resolve(null)
+    }
     AsyncFunction("resumeCapture") { promise: Promise ->
       session.resumeCapture()
+      promise.resolve(null)
+    }
+    AsyncFunction("pauseCapture") { promise: Promise ->
+      session.pauseCapture()
       promise.resolve(null)
     }
     AsyncFunction("abort") { promise: Promise ->
@@ -74,7 +86,7 @@ class XiaozhiAudioModule : Module() {
       // JS uses this as the ownership hand-off barrier before restarting Vosk.
       session.endSession { promise.resolve(null) }
     }
-    OnDestroy { session.disconnect() }
+    OnDestroy { session.destroy() }
   }
 
   private fun emitEvent(event: Map<String, Any?>) {
@@ -98,6 +110,12 @@ private class XiaozhiAudioSession(
   @Volatile private var textToSpeech: TextToSpeech? = null
   @Volatile private var textToSpeechReady = false
   @Volatile private var socketReady = false
+  @Volatile private var userMuted = false
+  private val retryCaptureRunnable = Runnable {
+    if (!userMuted && !intentionallyClosed && webSocket != null) {
+      startCapture()
+    }
+  }
   private val queuedTtsText = ArrayDeque<String>()
   private val activeUtterances = mutableSetOf<String>()
   private var activeTtsUtteranceId: String? = null
@@ -105,6 +123,7 @@ private class XiaozhiAudioSession(
   private var serverTtsStopped = false
   private var pendingGreetingText: String? = null
   private var greetingUtteranceId: String? = null
+  private var pendingAnnouncementText: String? = null
   private var pendingConnect: Promise? = null
   private var connectedUrl: String? = null
   private var connectedDeviceId: String? = null
@@ -118,9 +137,11 @@ private class XiaozhiAudioSession(
     disconnect()
     intentionallyClosed = false
     socketReady = false
+    userMuted = false
     connectedUrl = url
     connectedDeviceId = deviceId
     prepareNativeTts()
+    warmUpSpeechRecognizer()
     pendingConnect = promise
     val request = Request.Builder()
       .url(url)
@@ -175,6 +196,7 @@ private class XiaozhiAudioSession(
 
   fun disconnect() {
     intentionallyClosed = true
+    mainHandler.removeCallbacks(retryCaptureRunnable)
     pendingConnect?.resolve(null)
     pendingConnect = null
     // Clear the reference before close(): callbacks are asynchronous and must
@@ -188,9 +210,19 @@ private class XiaozhiAudioSession(
     releaseAudio()
   }
 
+  fun destroy() {
+    disconnect()
+    mainHandler.post {
+      textToSpeech?.stop()
+      textToSpeech?.shutdown()
+      textToSpeech = null
+      textToSpeechReady = false
+    }
+  }
+
   /**
    * Ends a reader's session. `onReleased` runs on the main thread only after
-   * SpeechRecognizer and TextToSpeech have both been stopped and shut down.
+   * SpeechRecognizer and audio capture resources are released.
    */
   fun endSession(onReleased: () -> Unit) {
     abort()
@@ -211,6 +243,7 @@ private class XiaozhiAudioSession(
   }
 
   fun abort() {
+    stopCapture(destroyRecognizer = false)
     webSocket?.send("{\"type\":\"abort\"}")
     mainHandler.post {
       textToSpeech?.stop()
@@ -219,11 +252,65 @@ private class XiaozhiAudioSession(
       serverTtsStopped = false
       pendingGreetingText = null
       greetingUtteranceId = null
+      pendingAnnouncementText = null
+    }
+  }
+
+  fun stopSpeaking() {
+    mainHandler.post {
+      textToSpeech?.stop()
+      queuedTtsText.clear()
+      activeUtterances.clear()
+      activeTtsUtteranceId = null
+      pendingAnnouncementText = null
+    }
+  }
+
+  fun speakAnnouncement(rawText: String) {
+    val text = rawText.trim()
+    if (text.isBlank()) return
+    mainHandler.post {
+      stopCapture()
+      if (!textToSpeechReady) {
+        pendingAnnouncementText = text
+        prepareNativeTts()
+        return@post
+      }
+      speakAnnouncementText(text)
+    }
+  }
+
+  private fun speakAnnouncementText(text: String) {
+    val engine = textToSpeech
+    if (engine == null || !textToSpeechReady) {
+      pendingAnnouncementText = text
+      prepareNativeTts()
+      return
+    }
+    stopCapture()
+    val utteranceId = "libot-announcement-${++utteranceSequence}"
+    activeUtterances.add(utteranceId)
+    if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
+      activeUtterances.remove(utteranceId)
+      if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_QUEUE_FAILED", "text" to "Không thể phát thông báo tiếng Việt."))
     }
   }
 
   fun resumeCapture() {
-    if (!intentionallyClosed && webSocket != null) startCapture()
+    userMuted = false
+    mainHandler.removeCallbacks(retryCaptureRunnable)
+    if (!intentionallyClosed && webSocket != null) {
+      startCapture()
+      emit(mapOf("type" to "listening"))
+    }
+  }
+
+  fun pauseCapture() {
+    userMuted = true
+    captureRunning = false
+    mainHandler.removeCallbacks(retryCaptureRunnable)
+    stopCapture(destroyRecognizer = true)
+    emit(mapOf("type" to "listening_paused"))
   }
 
   fun speakGreeting(rawText: String) {
@@ -356,10 +443,80 @@ private class XiaozhiAudioSession(
     }
   }
 
-  private fun startCapture() {
-    if (captureRunning) return
+  private fun getOrCreateSpeechRecognizer(context: Context): SpeechRecognizer {
+    val existing = speechRecognizer
+    if (existing != null) return existing
+    val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    recognizer.setRecognitionListener(object : RecognitionListener {
+      override fun onReadyForSpeech(params: Bundle?) {
+        if (captureRunning && !userMuted) emit(mapOf("type" to "listening"))
+      }
+      override fun onBeginningOfSpeech() {
+        if (userMuted || !captureRunning) return
+        // A reader has started a turn even before Google can provide a
+        // partial transcript. Let React Native reset its idle timer now;
+        // otherwise a slow recognizer can close the modal mid-sentence.
+        emit(mapOf("type" to "speech_started"))
+      }
+      override fun onRmsChanged(rmsdB: Float) = Unit
+      override fun onBufferReceived(buffer: ByteArray?) = Unit
+      override fun onEndOfSpeech() {
+        if (captureRunning && !userMuted) emit(mapOf("type" to "thinking"))
+      }
+      override fun onPartialResults(results: Bundle?) {
+        val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
+        if (!text.isNullOrBlank() && captureRunning && !submittedSpeechTurn && !userMuted) {
+          emit(mapOf("type" to "stt_partial", "text" to text))
+        }
+      }
+      override fun onResults(results: Bundle?) {
+        if (userMuted || !captureRunning || submittedSpeechTurn) return
+        val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+        submitSpeechTurn(text.orEmpty())
+      }
+      override fun onError(error: Int) {
+        if (submittedSpeechTurn || intentionallyClosed || userMuted) {
+          Log.i(LOG_TAG, "speech_recognizer_error ignored code=$error (muted=$userMuted, submitted=$submittedSpeechTurn)")
+          return
+        }
+        Log.w(LOG_TAG, "speech_recognizer_error code=$error")
+        if (error == SpeechRecognizer.ERROR_NO_MATCH ||
+            error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+            error == SpeechRecognizer.ERROR_CLIENT ||
+            error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
+          stopCapture(destroyRecognizer = true)
+          if (!userMuted && !intentionallyClosed && webSocket != null) {
+            mainHandler.removeCallbacks(retryCaptureRunnable)
+            mainHandler.postDelayed(retryCaptureRunnable, 250)
+          }
+        } else {
+          stopCapture(destroyRecognizer = true)
+          emit(mapOf("type" to "error", "code" to "SPEECH_RECOGNITION_$error", "text" to "Không thể nhận diện giọng nói. Vui lòng kiểm tra mạng và Speech Services by Google."))
+        }
+      }
+      override fun onEvent(eventType: Int, params: Bundle?) = Unit
+    })
+    speechRecognizer = recognizer
+    return recognizer
+  }
+
+  private fun warmUpSpeechRecognizer() {
     mainHandler.post {
-      if (captureRunning || intentionallyClosed || webSocket == null) return@post
+      if (intentionallyClosed || webSocket == null) return@post
+      val context = contextProvider() ?: return@post
+      if (!SpeechRecognizer.isRecognitionAvailable(context)) return@post
+      try {
+        getOrCreateSpeechRecognizer(context)
+      } catch (error: Exception) {
+        Log.w(LOG_TAG, "warmup_speech_recognizer_failed: ${error.message}")
+      }
+    }
+  }
+
+  private fun startCapture() {
+    if (captureRunning || userMuted || intentionallyClosed || webSocket == null) return
+    mainHandler.post {
+      if (captureRunning || userMuted || intentionallyClosed || webSocket == null) return@post
       val context = contextProvider()
       if (context == null) {
         emit(mapOf("type" to "error", "code" to "SPEECH_CONTEXT_UNAVAILABLE", "text" to "Không thể khởi tạo nhận diện giọng nói."))
@@ -370,46 +527,10 @@ private class XiaozhiAudioSession(
         return@post
       }
       try {
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizer = recognizer
+        val recognizer = getOrCreateSpeechRecognizer(context)
         captureRunning = true
         submittedSpeechTurn = false
         emit(mapOf("type" to "listening"))
-        recognizer.setRecognitionListener(object : RecognitionListener {
-          override fun onReadyForSpeech(params: Bundle?) = Unit
-          override fun onBeginningOfSpeech() {
-            // A reader has started a turn even before Google can provide a
-            // partial transcript. Let React Native reset its idle timer now;
-            // otherwise a slow recognizer can close the modal mid-sentence.
-            emit(mapOf("type" to "speech_started"))
-          }
-          override fun onRmsChanged(rmsdB: Float) = Unit
-          override fun onBufferReceived(buffer: ByteArray?) = Unit
-          override fun onEndOfSpeech() {
-            if (captureRunning) emit(mapOf("type" to "thinking"))
-          }
-          override fun onPartialResults(results: Bundle?) {
-            val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
-            if (!text.isNullOrBlank() && captureRunning && !submittedSpeechTurn) {
-              emit(mapOf("type" to "stt_partial", "text" to text))
-            }
-          }
-          override fun onResults(results: Bundle?) {
-            val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-            submitSpeechTurn(text.orEmpty())
-          }
-          override fun onError(error: Int) {
-            if (submittedSpeechTurn || intentionallyClosed) return
-            Log.w(LOG_TAG, "speech_recognizer_error code=$error")
-            stopCapture()
-            if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-              startCapture()
-            } else {
-              emit(mapOf("type" to "error", "code" to "SPEECH_RECOGNITION_$error", "text" to "Không thể nhận diện giọng nói. Vui lòng kiểm tra mạng và Speech Services by Google."))
-            }
-          }
-          override fun onEvent(eventType: Int, params: Bundle?) = Unit
-        })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
           .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
           .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
@@ -420,24 +541,23 @@ private class XiaozhiAudioSession(
         Log.i(LOG_TAG, "speech_recognizer_listening language=vi-VN")
       } catch (error: Exception) {
         captureRunning = false
-        speechRecognizer?.runCatching { destroy() }
-        speechRecognizer = null
-        if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "SPEECH_START_FAILED", "text" to (error.message ?: "Không thể khởi tạo nhận diện giọng nói.")))
+        stopCapture(destroyRecognizer = true)
+        if (!intentionallyClosed && !userMuted) emit(mapOf("type" to "error", "code" to "SPEECH_START_FAILED", "text" to (error.message ?: "Không thể khởi tạo nhận diện giọng nói.")))
       }
     }
   }
 
   private fun submitSpeechTurn(rawText: String) {
     val text = rawText.trim()
-    if (text.isBlank() || submittedSpeechTurn || !captureRunning) return
+    if (text.isBlank() || submittedSpeechTurn || !captureRunning || userMuted) return
     if (INTERNAL_TOOL_TEXT.matches(text)) {
       Log.w(LOG_TAG, "ignored_internal_tool_transcript")
-      stopCapture()
+      stopCapture(destroyRecognizer = false)
       startCapture()
       return
     }
     submittedSpeechTurn = true
-    stopCapture()
+    stopCapture(destroyRecognizer = false)
     Log.i(LOG_TAG, "speech_recognizer_final chars=${text.length}")
     emit(mapOf("type" to "stt", "text" to text))
     webSocket?.send(JSONObject().put("type", "listen").put("state", "detect").put("text", text).toString())
@@ -456,14 +576,20 @@ private class XiaozhiAudioSession(
     return text
   }
 
-  private fun stopCapture() {
+  private fun stopCapture(destroyRecognizer: Boolean = false) {
     captureRunning = false
     val recognizer = speechRecognizer
-    speechRecognizer = null
+    if (destroyRecognizer) {
+      speechRecognizer = null
+    }
     // SpeechRecognizer must be cancelled and destroyed on Android's main
     // thread. WebSocket close callbacks can arrive on an OkHttp thread.
     mainHandler.post {
-      recognizer?.runCatching { cancel(); destroy() }
+      if (destroyRecognizer) {
+        recognizer?.runCatching { cancel(); destroy() }
+      } else {
+        recognizer?.runCatching { cancel() }
+      }
     }
   }
 
@@ -502,10 +628,13 @@ private class XiaozhiAudioSession(
         override fun onDone(utteranceId: String) {
           mainHandler.post {
             activeUtterances.remove(utteranceId)
+            if (utteranceId.startsWith("libot-announcement-")) {
+              return@post
+            }
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
               drainQueuedTts()
-              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null) startCapture()
+              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null && !userMuted) startCapture()
               return@post
             }
             if (utteranceId == activeTtsUtteranceId) {
@@ -519,11 +648,14 @@ private class XiaozhiAudioSession(
         override fun onError(utteranceId: String) {
           mainHandler.post {
             activeUtterances.remove(utteranceId)
+            if (utteranceId.startsWith("libot-announcement-")) {
+              return@post
+            }
             if (!intentionallyClosed) emit(mapOf("type" to "error", "code" to "ANDROID_TTS_PLAYBACK_FAILED", "text" to "Không thể phát giọng nói tiếng Việt."))
             if (utteranceId == greetingUtteranceId) {
               greetingUtteranceId = null
               drainQueuedTts()
-              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null) startCapture()
+              if (activeTtsUtteranceId == null && !intentionallyClosed && webSocket != null && !userMuted) startCapture()
               return@post
             }
             if (utteranceId == activeTtsUtteranceId) {
@@ -580,6 +712,10 @@ private class XiaozhiAudioSession(
       pendingGreetingText = null
       speakGreetingText(text)
     }
+    pendingAnnouncementText?.let { text ->
+      pendingAnnouncementText = null
+      speakAnnouncementText(text)
+    }
     drainQueuedTts()
   }
 
@@ -610,25 +746,25 @@ private class XiaozhiAudioSession(
 
   private fun resumeWhenTtsFinished() {
     if (!serverTtsStopped || activeUtterances.isNotEmpty() || queuedTtsText.isNotEmpty() || activeTtsUtteranceId != null) return
-    if (!intentionallyClosed && webSocket != null) {
+    if (!intentionallyClosed && webSocket != null && !userMuted) {
       startCapture()
       emit(mapOf("type" to "listening"))
     }
   }
 
   private fun releaseAudio(onReleased: (() -> Unit)? = null) {
-    stopCapture()
+    userMuted = false
+    mainHandler.removeCallbacks(retryCaptureRunnable)
+    stopCapture(destroyRecognizer = true)
     mainHandler.post {
       textToSpeech?.stop()
-      textToSpeech?.shutdown()
-      textToSpeech = null
-      textToSpeechReady = false
       queuedTtsText.clear()
       activeUtterances.clear()
       activeTtsUtteranceId = null
       serverTtsStopped = false
       pendingGreetingText = null
       greetingUtteranceId = null
+      pendingAnnouncementText = null
       onReleased?.invoke()
     }
   }

@@ -14,6 +14,23 @@ export class SignalRClient {
   private connection: signalR.HubConnection | null = null;
   private listeners: Map<string, Set<(raw: unknown) => void>> = new Map();
   private runtimeGroups = new Set<string>();
+  private customHubUrl: string | null = null;
+
+  setHubUrl(url: string | null): void {
+    this.customHubUrl = url;
+  }
+
+  async reconnectWithUrl(newUrl: string): Promise<void> {
+    this.customHubUrl = newUrl;
+    if (this.connection) {
+      try {
+        await this.disconnect();
+      } catch {
+        // ignore disconnect error during reconnect
+      }
+    }
+    await this.connect();
+  }
 
   setConnectionForTesting(conn: signalR.HubConnection | null): void {
     this.connection = conn;
@@ -130,7 +147,7 @@ export class SignalRClient {
   }
 
   private getHubUrl(): string {
-    const configured = env.signalRUrl ?? env.apiBaseUrl!;
+    const configured = this.customHubUrl ?? env.signalRUrl ?? env.apiBaseUrl!;
     const url = new URL(configured);
     const path = url.pathname.replace(/\/$/, "");
     if (/\/robotHub$/i.test(path)) return url.toString().replace(/\/$/, "");

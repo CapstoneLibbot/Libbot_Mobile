@@ -6,7 +6,7 @@ import {
 
 describe("OpenWakeWordPipeline - createWakeWordDetector", () => {
   it("does not trigger when confidence score is below threshold", () => {
-    const detector = createWakeWordDetector(0.5, 2, "Hey Siri");
+    const detector = createWakeWordDetector(0.5, 2, "Hey Bot");
 
     const result1 = detector.processScore(0.3);
     expect(result1.isDetected).toBe(false);
@@ -18,7 +18,7 @@ describe("OpenWakeWordPipeline - createWakeWordDetector", () => {
   });
 
   it("requires consecutive hits to trigger wake word, preventing false triggers", () => {
-    const detector = createWakeWordDetector(0.5, 2, "Hey Siri");
+    const detector = createWakeWordDetector(0.5, 2, "Hey Bot");
 
     // Frame 1: score = 0.8 (vượt ngưỡng nhưng mới là 1 frame)
     const result1 = detector.processScore(0.8);
@@ -28,12 +28,12 @@ describe("OpenWakeWordPipeline - createWakeWordDetector", () => {
     // Frame 2: score = 0.85 (đủ 2 frame liên tiếp -> kích hoạt!)
     const result2 = detector.processScore(0.85);
     expect(result2.isDetected).toBe(true);
-    expect(result2.keyword).toBe("Hey Siri");
+    expect(result2.keyword).toBe("Hey Bot");
     expect(detector.getConsecutiveHits()).toBe(0); // Tự động reset sau khi kích hoạt
   });
 
   it("resets consecutive counter when a frame falls below threshold", () => {
-    const detector = createWakeWordDetector(0.5, 2, "Hey Siri");
+    const detector = createWakeWordDetector(0.5, 2, "Hey Bot");
 
     // Frame 1: vượt ngưỡng
     detector.processScore(0.75);
@@ -51,7 +51,7 @@ describe("OpenWakeWordPipeline - createWakeWordDetector", () => {
   });
 
   it("allows manual reset of detector state", () => {
-    const detector = createWakeWordDetector(0.5, 2, "Hey Siri");
+    const detector = createWakeWordDetector(0.5, 2, "Hey Bot");
     detector.processScore(0.7);
     expect(detector.getConsecutiveHits()).toBe(1);
 

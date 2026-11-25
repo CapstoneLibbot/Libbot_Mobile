@@ -9,6 +9,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { ReactNode, useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useSettingsStore } from "@/features/settings/state/useSettingsStore";
 import { QueryProvider } from "./QueryProvider";
 
 void SplashScreen.preventAutoHideAsync();
@@ -27,6 +28,10 @@ export function AppProviders({
     InterBold: Inter_700Bold,
     InterExtraBold: Inter_800ExtraBold,
   });
+
+  useEffect(() => {
+    void useSettingsStore.getState().init();
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

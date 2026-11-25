@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
+import { kioskTimeoutConfig } from "@/core/config";
 import {
   AppButton,
   AppCard,
@@ -41,12 +42,31 @@ export function FeedbackScreen({
   const { isCompact, isNarrowHeight, insets } = useResponsiveLayout();
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const resetKioskSession = useKioskStore((state) => state.resetKioskSession);
+  const lastInteractionAt = useKioskStore((state) => state.lastInteractionAt);
 
   const [selectedRating, setSelectedRating] = useState<number>(5);
   const [comment, setComment] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const submitFeedbackMutation = useSubmitFeedback();
+
+  // Inactivity timeout: If user doesn't touch anything on feedback screen, auto-return to idle
+  // Resets timer whenever user interacts (rates, types, scrolls) and does not fire after submission
+  useEffect(() => {
+    if (isSuccess) return;
+
+    const timer = setTimeout(() => {
+      if (__DEV__) {
+        console.log(
+          `[FeedbackScreen] Inactivity timeout (${kioskTimeoutConfig.feedbackIdleSeconds}s) reached without feedback interaction. Returning to idle.`,
+        );
+      }
+      resetKioskSession();
+      onSkip();
+    }, kioskTimeoutConfig.feedbackIdleMs);
+    return () => clearTimeout(timer);
+  }, [isSuccess, lastInteractionAt, onSkip, resetKioskSession]);
 
   const handleSelectRating = (rating: number) => {
     recordInteraction();
@@ -59,16 +79,23 @@ export function FeedbackScreen({
 
     try {
       await submitFeedbackMutation.mutateAsync({
-        jobId: jobId ?? "unknown-job",
+        jobId: jobId || "mock-guidance-job",
         guidanceKind,
         terminalStatus,
         rating: selectedRating,
         comment: comment.trim() || undefined,
       });
 
-      // reset session & redirect to attract screen
-      resetKioskSession();
-      onComplete();
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (__DEV__) {
+          console.log(
+            `[FeedbackScreen] Feedback submitted successfully. Redirecting after ${kioskTimeoutConfig.feedbackSuccessDelayMs}ms delay.`,
+          );
+        }
+        resetKioskSession();
+        onComplete();
+      }, kioskTimeoutConfig.feedbackSuccessDelayMs);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Không thể gửi phản hồi.";
@@ -87,8 +114,6 @@ export function FeedbackScreen({
       <AppHeader
         title="Đánh giá chuyến đi cùng robot"
         subtitle="Ý kiến của bạn giúp chúng tôi cải thiện dịch vụ robot thư viện"
-        rightActionLabel="Bỏ qua"
-        onRightAction={handleSkip}
       />
 
       <ScrollView
@@ -169,24 +194,35 @@ export function FeedbackScreen({
             </View>
           ) : null}
 
+          {isSuccess ? (
+            <View style={styles.successBox}>
+              <AppText variant="subtitle" color={colors.success} style={styles.successText}>
+                ✓ Cảm ơn bạn đã gửi đánh giá! Đang trở về màn hình chính…
+              </AppText>
+            </View>
+          ) : null}
+
           {/* Action buttons */}
           <View style={styles.actions}>
             <AppButton
               title={
                 submitFeedbackMutation.isPending
                   ? "Đang gửi đánh giá..."
-                  : "Gửi đánh giá & Hoàn tất"
+                  : isSuccess
+                    ? "Đã ghi nhận ✓"
+                    : "Đánh giá"
               }
               variant="primary"
               size="lg"
               loading={submitFeedbackMutation.isPending}
-              disabled={submitFeedbackMutation.isPending}
+              disabled={submitFeedbackMutation.isPending || isSuccess}
               onPress={handleSubmit}
             />
             <AppButton
-              title="Bỏ qua đánh giá và trở về màn hình chính"
+              title="Bỏ qua"
               variant="secondary"
               size="md"
+              disabled={isSuccess}
               onPress={handleSkip}
             />
           </View>
@@ -298,6 +334,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
     padding: spacing.md,
     borderRadius: 10,
+  },
+  successBox: {
+    backgroundColor: colors.successSoft,
+    padding: spacing.md,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  successText: {
+    textAlign: "center",
+    fontWeight: "700",
   },
   actions: {
     gap: spacing.md,

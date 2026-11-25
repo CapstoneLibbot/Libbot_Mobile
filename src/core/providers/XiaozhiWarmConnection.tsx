@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { env } from "@/config";
+import { useSettingsStore } from "@/features/settings/state/useSettingsStore";
 import { useNetworkStatus } from "@/platform/network";
 import XiaozhiAudio, { addXiaozhiEventListener } from "xiaozhi-audio";
 
@@ -15,10 +16,12 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
 export function XiaozhiWarmConnection(): null {
   const { isConnected } = useNetworkStatus();
   const retryAttemptRef = useRef(0);
+  const xiaozhiWsUrl = useSettingsStore((s) => s.settings.xiaozhiWsUrl) || env.xiaozhiWsUrl;
+  const voiceKioskId = useSettingsStore((s) => s.settings.voiceKioskId) || env.voiceKioskId;
 
   useEffect(() => {
     const audio = XiaozhiAudio;
-    if (!audio || !env.xiaozhiWsUrl || !env.voiceKioskId || !isConnected) {
+    if (!audio || !xiaozhiWsUrl || !voiceKioskId || !isConnected) {
       return;
     }
 
@@ -28,7 +31,7 @@ export function XiaozhiWarmConnection(): null {
     const warm = () => {
       if (disposed) return;
       void audio
-        .connect(env.xiaozhiWsUrl!, env.voiceKioskId!)
+        .connect(xiaozhiWsUrl, voiceKioskId)
         .then(() => {
           retryAttemptRef.current = 0;
         })
@@ -61,7 +64,7 @@ export function XiaozhiWarmConnection(): null {
       subscription?.remove();
       void audio.disconnect();
     };
-  }, [isConnected]);
+  }, [isConnected, xiaozhiWsUrl, voiceKioskId]);
 
   return null;
 }

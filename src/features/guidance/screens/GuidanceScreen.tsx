@@ -1,5 +1,4 @@
 import {
-  Shield,
   Zap,
 } from "lucide-react-native";
 import React, {
@@ -21,11 +20,11 @@ import { AppHeader, AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { GazeboMap2D } from "../components/GazeboMap2D";
-import { bookGuidanceApi, type BookGuidanceExecution, type NavigationEndpoint } from "../api/bookGuidance.api";
-import { facilityGuidanceApi } from "@/features/facilities/api/facilityGuidance.api";
+import { bookGuidanceApi, type NavigationEndpoint } from "../api/bookGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
 import { useRobotMapOverlays } from "../hooks/useRobotMapOverlays";
 import { useGuidanceAnnouncer } from "../hooks/useGuidanceAnnouncer";
+import { useGuidanceExecutionTracking } from "../hooks/useGuidanceExecutionTracking";
 import type { GuidanceSession, RobotPose } from "../types/guidance.types";
 
 export interface GuidanceScreenProps {
@@ -37,45 +36,6 @@ export interface GuidanceScreenProps {
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Không thể kết nối với robot. Hãy kiểm tra mạng và thử lại.";
-}
-
-function getWorkflowFailureDetails(execution?: BookGuidanceExecution | null): {
-  step?: string;
-  code?: string;
-  message?: string;
-} {
-  const results = execution?.result?.results ?? [];
-  const failedStep =
-    execution?.result?.failed_step ?? execution?.currentStep ?? undefined;
-  const failedStepResult =
-    results.find((item) => item.step === failedStep) ??
-    results.find((item) =>
-      ["error", "failed", "timeout"].includes(
-        item.result?.status?.toLowerCase() ?? "",
-      ),
-    );
-  return {
-    step: failedStep ?? undefined,
-    code: failedStepResult?.result?.nav2_result_code ?? undefined,
-    message:
-      failedStepResult?.result?.message ??
-      execution?.error ??
-      execution?.message ??
-      undefined,
-  };
-}
-
-function formatWorkflowFailure(execution: BookGuidanceExecution): string {
-  const details = getWorkflowFailureDetails(execution);
-  return (
-    [
-      details.step ? `Bước ${details.step}` : undefined,
-      details.code,
-      details.message,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "BookGuidance workflow thất bại."
-  );
 }
 
 export function GuidanceScreen({
@@ -102,15 +62,20 @@ export function GuidanceScreen({
   const mapRotationDeg = 0;
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const pollInFlight = useRef(false);
-  const completionPosted = useRef(false);
-  const feedbackNavigated = useRef(false);
 
-  const { runtime, refreshRuntime } = useRobotRuntimeTelemetry(runtimeId);
+  const { runtime } = useRobotRuntimeTelemetry(runtimeId);
 
   const activeSession = session?.destinationId === endpointId ? session : null;
   const announcer = useGuidanceAnnouncer({
     activeJobId: activeSession?.jobId,
+  });
+
+  const { resetTracking } = useGuidanceExecutionTracking({
+    activeSession,
+    setSession,
+    announcer,
+    onGoToFeedback,
+    onErrorMessage: setErrorMessage,
   });
   const {
     mapMetadata: savedRobotMap,
@@ -156,6 +121,7 @@ export function GuidanceScreen({
   const showHeaderStatus = !isCompactWidth;
 
   useEffect(() => {
+    if (!endpointId) return;
     let mounted = true;
     void bookGuidanceApi.getEndpoint(endpointId)
       .then((value) => {
@@ -194,98 +160,9 @@ export function GuidanceScreen({
     };
   }, [runtimeId]);
 
-  const postCompletion = useCallback(
-    async (jobId: string, succeeded: boolean, message?: string) => {
-      if (completionPosted.current) return;
-      completionPosted.current = true;
-      try {
-        if (activeSession?.guidanceKind === "LOCATION_GUIDANCE") {
-          await facilityGuidanceApi.complete(jobId, succeeded, message);
-        } else {
-          await bookGuidanceApi.complete(jobId, succeeded, message);
-        }
-      } catch {
-        /* Workflow state remains authoritative in the UI. */
-      }
-    },
-    [activeSession],
-  );
+  const autoStartTriggered = useRef(false);
 
-  useEffect(() => {
-    if (!activeSession || activeSession.terminalStatus) return;
-    let mounted = true;
-    const tick = async () => {
-      if (!mounted || pollInFlight.current) return;
-      pollInFlight.current = true;
-      try {
-        const state = activeSession.guidanceKind === "LOCATION_GUIDANCE"
-          ? await facilityGuidanceApi.getExecution(activeSession.executionId)
-          : await bookGuidanceApi.getExecution(activeSession.executionId);
-        if (!mounted) return;
-
-        if (state.status.toLowerCase() === "completed") {
-          setSession({ ...activeSession, terminalStatus: "COMPLETED" });
-          await postCompletion(activeSession.jobId, true);
-          if (mounted && !feedbackNavigated.current) {
-            feedbackNavigated.current = true;
-            announcer.announceArrival(() => {
-              if (mounted) onGoToFeedback(activeSession.jobId);
-            });
-          }
-        } else if (["failed", "cancelled"].includes(state.status.toLowerCase())) {
-          const failureMessage = formatWorkflowFailure(state);
-          setSession({ ...activeSession, terminalStatus: state.status.toLowerCase() === "cancelled" ? "CANCELLED" : "FAILED" });
-          await postCompletion(
-            activeSession.jobId,
-            false,
-            failureMessage,
-          );
-          if (mounted && !feedbackNavigated.current) {
-            feedbackNavigated.current = true;
-            announcer.announceError(() => {
-              if (mounted) onGoToFeedback(activeSession.jobId);
-            });
-          }
-        }
-      } catch (error: unknown) {
-        if (mounted) setErrorMessage(getErrorMessage(error));
-      } finally {
-        pollInFlight.current = false;
-      }
-    };
-    void tick();
-    const timer = setInterval(() => {
-      void tick();
-    }, 1200);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, [
-    activeSession,
-    runtime?.telemetry?.navigationState,
-    setSession,
-    postCompletion,
-    onGoToFeedback,
-    announcer,
-  ]);
-
-  const handleArm = async () => {
-    recordInteraction();
-    setBusy(true);
-    setErrorMessage(null);
-    try {
-      const lease = await bookGuidanceApi.arm(runtimeId);
-      setArmLeaseId(lease.leaseId);
-      await refreshRuntime();
-    } catch (error: unknown) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleStart = async () => {
+  const handleStart = useCallback(async () => {
     recordInteraction();
     if (!endpoint || !destination) {
       setErrorMessage("Đích dẫn đường không còn hợp lệ.");
@@ -303,18 +180,26 @@ export function GuidanceScreen({
       );
       return;
     }
-    if (!armLeaseId) {
-      setErrorMessage("Hãy ARM robot thật trước khi bắt đầu dẫn đường.");
-      return;
-    }
 
     setBusy(true);
     setErrorMessage(null);
     try {
+      let leaseId = armLeaseId;
+      if (!leaseId) {
+        try {
+          const lease = await bookGuidanceApi.arm(runtimeId);
+          leaseId = lease.leaseId;
+          setArmLeaseId(lease.leaseId);
+        } catch {
+          // Backend will auto-arm if already initialized
+        }
+      }
+
       const started = await bookGuidanceApi.start({
         runtimeId,
         endpointId: endpoint.id,
-        armLeaseId,
+        armLeaseId: leaseId ?? undefined,
+        query: endpoint.name,
       });
       const next: GuidanceSession = {
         jobId: started.jobId,
@@ -325,22 +210,55 @@ export function GuidanceScreen({
         guidanceKind: "BOOK_GUIDANCE",
         startStatus: "ACCEPTED",
       };
-      completionPosted.current = false;
-      feedbackNavigated.current = false;
+      resetTracking();
       setSession(next);
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error));
     } finally {
       setBusy(false);
     }
-  };
+  }, [
+    armLeaseId,
+    destination,
+    endpoint,
+    recordInteraction,
+    resetTracking,
+    runtimeId,
+    runtimeReady,
+    setSession,
+  ]);
+
+  // Auto-start guidance automatically as soon as destination & robot are ready (no manual ARM button needed)
+  useEffect(() => {
+    if (
+      activeSession ||
+      busy ||
+      !endpointLoaded ||
+      !endpoint ||
+      !destination ||
+      !runtimeReady ||
+      env.isMock
+    ) {
+      return;
+    }
+    if (autoStartTriggered.current) return;
+    autoStartTriggered.current = true;
+    void handleStart();
+  }, [
+    activeSession,
+    busy,
+    destination,
+    endpoint,
+    endpointLoaded,
+    handleStart,
+    runtimeReady,
+  ]);
 
   const handleStopTracking = () => {
     recordInteraction();
     announcer.reset();
     setSession(null);
-    completionPosted.current = false;
-    feedbackNavigated.current = false;
+    resetTracking();
   };
 
   const handleBack = () => {
@@ -361,14 +279,6 @@ export function GuidanceScreen({
       ? { backgroundColor: colors.warningSoft, color: colors.warning }
       : { backgroundColor: colors.dangerSoft, color: colors.danger };
 
-  const armDisabled = Boolean(
-    activeSession ||
-      busy ||
-      !runtimeMatchesSelection ||
-      !runtime?.connected ||
-      runtime.stale ||
-      armLeaseId,
-  );
   const startDisabled = Boolean(
     busy ||
       activeSession ||
@@ -376,7 +286,6 @@ export function GuidanceScreen({
       !endpoint ||
       !destination ||
       !runtimeReady ||
-      !armLeaseId ||
       env.isMock,
   );
 
@@ -497,29 +406,6 @@ export function GuidanceScreen({
 
           <View style={isLandscape ? styles.sideActionsContainer : styles.bottomActionsContainer}>
             <Pressable
-              disabled={armDisabled}
-              onPress={handleArm}
-              style={[
-                styles.armButton,
-                isLandscape && styles.armButtonLandscape,
-                armDisabled && styles.buttonDisabled,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={
-                armLeaseId ? "Robot đã ARM" : "ARM robot thật (bắt buộc)"
-              }
-            >
-              {busy && !armLeaseId ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : (
-                <Shield size={18} color={colors.primary} />
-              )}
-              <AppText variant="subtitle" color={colors.primary} style={styles.actionButtonText}>
-                {armLeaseId ? "Robot đã ARM" : "ARM robot thật"}
-              </AppText>
-            </Pressable>
-
-            <Pressable
               disabled={startDisabled}
               onPress={handleStart}
               style={[
@@ -543,8 +429,8 @@ export function GuidanceScreen({
                     : activeSession
                       ? "Đang dẫn đường…"
                       : busy
-                        ? "Đang gửi…"
-                        : "Dẫn đường"}
+                        ? "Đang khởi động robot…"
+                        : "Bắt đầu dẫn đường"}
               </AppText>
             </Pressable>
           </View>
@@ -669,23 +555,6 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontWeight: "700",
-  },
-  armButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  armButtonLandscape: {
-    flex: 0,
-    width: "100%",
   },
   primaryButton: {
     flex: 1,

@@ -1,4 +1,5 @@
 export * from "./types/catalog.types";
+export * from "./components";
 export * from "./api/catalog.dto";
 export * from "./api/catalog.mapper";
 export * from "./api/catalog.api";

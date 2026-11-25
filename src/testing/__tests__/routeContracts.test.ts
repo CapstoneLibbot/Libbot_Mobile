@@ -83,6 +83,9 @@ export function createIdleRouteHandlers(router: MockRouter) {
     onNavigateToFacilities: () => {
       router.push("/(kiosk)/facilities");
     },
+    onNavigateToSettings: () => {
+      router.push("/(kiosk)/settings");
+    },
   };
 }
 
@@ -209,6 +212,13 @@ describe("Route Adapter Contract Specifications", () => {
       const handlers = createIdleRouteHandlers(router);
       handlers.onNavigateToFacilities();
       expect(router.push).toHaveBeenCalledWith("/(kiosk)/facilities");
+    });
+
+    it("navigates to settings on settings action", () => {
+      const router = createMockRouter();
+      const handlers = createIdleRouteHandlers(router);
+      handlers.onNavigateToSettings();
+      expect(router.push).toHaveBeenCalledWith("/(kiosk)/settings");
     });
   });
 });

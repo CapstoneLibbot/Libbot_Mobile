@@ -174,6 +174,32 @@ describe("Idle Attract Navigation & Gaze Logic", () => {
       expect(recordInteraction).toHaveBeenCalledTimes(1);
     });
 
+    it("ensures 'Cài đặt' action closes menu, records interaction, and triggers navigation to settings route", () => {
+      let isNavigating = false;
+      let isOpen = true;
+      const onNavigate = vi.fn();
+      const recordInteraction = vi.fn();
+      const resetKioskSession = vi.fn();
+
+      const handleSettingsSelect = () => {
+        if (isNavigating) return;
+        isNavigating = true;
+        isOpen = false;
+        resetKioskSession();
+        recordInteraction();
+        onNavigate("/(kiosk)/settings");
+      };
+
+      handleSettingsSelect();
+      handleSettingsSelect();
+
+      expect(isOpen).toBe(false);
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+      expect(onNavigate).toHaveBeenCalledWith("/(kiosk)/settings");
+      expect(resetKioskSession).toHaveBeenCalledTimes(1);
+      expect(recordInteraction).toHaveBeenCalledTimes(1);
+    });
+
     it("handles Voice FAB: opens modal, sets isVoiceActive in kiosk store, and clears it on close", () => {
       const store = useKioskStore.getState();
       expect(store.isVoiceActive).toBe(false);

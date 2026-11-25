@@ -3,5 +3,6 @@ export * from "./hooks/useCreateGuidanceJob";
 export * from "./hooks/useGuidanceJob";
 export * from "./hooks/useGuidanceDemoViewModel";
 export * from "./hooks/useGuidanceAnnouncer";
+export * from "./hooks/useGuidanceExecutionTracking";
 export * from "./components/GuidanceDemoSwitcher";
 export * from "./screens/GuidanceScreen";

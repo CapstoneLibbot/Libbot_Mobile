@@ -50,7 +50,11 @@ yarn-error.*
 /ios
 /android
 
-# Build artifacts of the local Xiaozhi Expo module
-/modules/xiaozhi-audio/android/.cxx/
-/modules/xiaozhi-audio/android/.gradle/
-/modules/xiaozhi-audio/android/build/
+# Gradle & Android native build artifacts
+.gradle/
+.cxx/
+build/
+**/build/
+**/.gradle/
+**/.cxx/
+

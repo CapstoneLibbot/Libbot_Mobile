@@ -11,7 +11,7 @@ export default function FeedbackRoute(): React.ReactElement {
     <FeedbackScreen
       jobId={session?.jobId ?? jobId ?? ""}
       guidanceKind={session?.guidanceKind ?? "BOOK_GUIDANCE"}
-      terminalStatus={session?.terminalStatus ?? "FAILED"}
+      terminalStatus={session?.terminalStatus ?? "COMPLETED"}
       destinationName={session?.destinationName ?? "địa điểm đã chọn"}
       onComplete={() => {
         router.replace("/(kiosk)/idle");

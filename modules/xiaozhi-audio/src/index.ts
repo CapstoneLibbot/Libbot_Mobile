@@ -11,6 +11,7 @@ export type XiaozhiNativeEvent = {
     | "thinking"
     | "tts"
     | "listening"
+    | "listening_paused"
     | "tool_result"
     | "guidance_started"
     | "session_ended";
@@ -55,7 +56,10 @@ export interface XiaozhiAudioNativeModule {
   connect(url: string, deviceId: string): Promise<void>;
   disconnect(): Promise<void>;
   speakGreeting(text: string): Promise<void>;
+  speakAnnouncement(text: string): Promise<void>;
+  stopSpeaking(): Promise<void>;
   resumeCapture(): Promise<void>;
+  pauseCapture(): Promise<void>;
   abort(): Promise<void>;
   endSession(): Promise<void>;
 }
@@ -68,6 +72,20 @@ export function addXiaozhiEventListener(
 ): { remove(): void } | undefined {
   if (!XiaozhiAudio) return undefined;
   return XiaozhiAudio.addListener("onXiaozhiEvent", listener);
+}
+
+export function speakAnnouncement(text: string): Promise<void> {
+  if (!XiaozhiAudio?.speakAnnouncement) {
+    return Promise.resolve();
+  }
+  return XiaozhiAudio.speakAnnouncement(text);
+}
+
+export function stopSpeaking(): Promise<void> {
+  if (!XiaozhiAudio?.stopSpeaking) {
+    return Promise.resolve();
+  }
+  return XiaozhiAudio.stopSpeaking();
 }
 
 export default XiaozhiAudio;

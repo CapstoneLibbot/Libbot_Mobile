@@ -1,7 +1,7 @@
 /**
  * Cấu hình từ khóa và tham số suy luận cho openWakeWord.
  */
-export const ACTIVE_WAKE_WORD_KEYWORD = "Hey Siri";
+export const ACTIVE_WAKE_WORD_KEYWORD = "Hây Bót"; // wakeword is 'hey bot' and i show 'hây bót' for vietname pronounce correct in vietnamese accent
 
 export const WAKE_WORD_CONFIG = {
   keyword: ACTIVE_WAKE_WORD_KEYWORD,
@@ -12,7 +12,7 @@ export const WAKE_WORD_CONFIG = {
   models: {
     melspectrogram: "melspectrogram.onnx",
     embedding: "embedding_model.onnx",
-    classifier: "hey_siri.onnx",
+    classifier: "hey_bot.onnx",
   },
 } as const;
 

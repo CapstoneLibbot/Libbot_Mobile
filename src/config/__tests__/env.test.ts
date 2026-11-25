@@ -94,4 +94,17 @@ describe("env configuration and validation (src/config/env.ts)", () => {
       parseEnv({ EXPO_PUBLIC_XIAOZHI_WS_URL: "ws://localhost:8000" }),
     ).toThrow(/localhost/);
   });
+
+  it("loads adminPin from EXPO_PUBLIC_ADMIN_PIN or falls back to '1234'", () => {
+    const defaultPinEnv = parseEnv({
+      NODE_ENV: "development",
+    });
+    expect(defaultPinEnv.adminPin).toBe("1234");
+
+    const customPinEnv = parseEnv({
+      NODE_ENV: "development",
+      EXPO_PUBLIC_ADMIN_PIN: "9876",
+    });
+    expect(customPinEnv.adminPin).toBe("9876");
+  });
 });

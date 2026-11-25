@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PermissionsAndroid, Platform } from "react-native";
 import { env } from "@/config";
+import { kioskTimeoutConfig } from "@/core/config";
 import XiaozhiAudio, {
   addXiaozhiEventListener,
   type XiaozhiNativeEvent,
@@ -35,9 +36,7 @@ export interface VoiceGuidanceStart {
 }
 
 const MAX_RECONNECT_ATTEMPTS = 3;
-const RESPONSE_TIMEOUT_MS = 30_000;
-const OPENING_GREETING =
-  "Xin chào! Tôi là robot thư viện. Tôi có thể giúp bạn tìm sách hoặc khu vực trong thư viện.";
+const OPENING_GREETING = "Xin chào! Tôi có thể giúp gì cho bạn?";
 let conversationSequence = 0;
 
 function createConversationId(): string {
@@ -48,6 +47,12 @@ function createConversationId(): string {
 async function requestMicrophonePermission(): Promise<void> {
   if (Platform.OS !== "android") {
     throw new Error("Xiaozhi voice hiện chỉ hỗ trợ Android kiosk.");
+  }
+  const hasPermission = await PermissionsAndroid.check(
+    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  );
+  if (hasPermission) {
+    return;
   }
   const permission = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
@@ -68,6 +73,7 @@ export function useXiaozhiVoiceSession() {
     [],
   );
   const [guidanceStart, setGuidanceStart] = useState<VoiceGuidanceStart | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
   const wantsSessionRef = useRef(false);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,10 +103,15 @@ export function useXiaozhiVoiceSession() {
     clearResponseTimer();
     responseTimerRef.current = setTimeout(() => {
       if (!wantsSessionRef.current) return;
+      if (__DEV__) {
+        console.warn(
+          `[useXiaozhiVoiceSession] Voice response timeout (${kioskTimeoutConfig.voiceResponseTimeoutSeconds}s) exceeded without answer from AI backend.`,
+        );
+      }
       setError("Robot chưa phản hồi. Bạn có thể nói lại câu hỏi.");
       setStatus("listening");
       void XiaozhiAudio?.resumeCapture();
-    }, RESPONSE_TIMEOUT_MS);
+    }, kioskTimeoutConfig.voiceResponseMs);
   }, [clearResponseTimer]);
 
   const connect = useCallback(async () => {
@@ -179,7 +190,12 @@ export function useXiaozhiVoiceSession() {
             greetingInProgressRef.current = false;
           }
           clearResponseTimer();
+          setIsMuted(false);
           setStatus("listening");
+          return;
+        case "listening_paused":
+          clearResponseTimer();
+          setIsMuted(true);
           return;
         case "stt":
           if (event.text?.trim()) {
@@ -296,6 +312,7 @@ export function useXiaozhiVoiceSession() {
     greetingInProgressRef.current = false;
     greetingRef.current = OPENING_GREETING;
     pendingAssistantIdRef.current = null;
+    setIsMuted(false);
     setStatus("idle");
     setTranscript(null);
     setAssistantText(null);
@@ -303,6 +320,17 @@ export function useXiaozhiVoiceSession() {
     setConversation([]);
     setGuidanceStart(null);
   }, [clearReconnectTimer, clearResponseTimer]);
+
+  const toggleMute = useCallback(async (): Promise<void> => {
+    recordVoiceActivity();
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (nextMuted) {
+      await XiaozhiAudio?.pauseCapture();
+    } else {
+      await XiaozhiAudio?.resumeCapture();
+    }
+  }, [isMuted, recordVoiceActivity]);
 
   const stop = useCallback(async (): Promise<void> => {
     resetLocalSession();
@@ -359,6 +387,8 @@ export function useXiaozhiVoiceSession() {
     voiceActivitySequence,
     conversation,
     guidanceStart,
+    isMuted,
+    toggleMute,
     start,
     stop,
   };

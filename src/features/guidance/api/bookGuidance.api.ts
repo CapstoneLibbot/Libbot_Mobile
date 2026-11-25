@@ -50,6 +50,7 @@ export interface BookGuidanceStartRequest {
   runtimeId: string;
   endpointId: string;
   armLeaseId?: string;
+  query?: string;
 }
 
 export interface BookGuidanceStartResponse {

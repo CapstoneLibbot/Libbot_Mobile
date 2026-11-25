@@ -22,7 +22,7 @@ class WakeWordModule : Module() {
   private var workerThread: Thread? = null
   @Volatile private var isRunning = false
 
-  private var currentKeyword = "Hey Siri"
+  private var currentKeyword = "Hey Bot"
   private var currentThreshold = 0.5f
   private var consecutiveHits = 0
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -40,7 +40,7 @@ class WakeWordModule : Module() {
         if (engine == null) {
           engine = OpenWakeWordEngine(context)
         }
-        val targetClassifier = classifierAsset ?: "wakeword/hey_siri.onnx"
+        val targetClassifier = classifierAsset ?: "wakeword/hey_bot.onnx"
         engine?.load(classifierAsset = targetClassifier)
         promise.resolve(true)
       } catch (e: Exception) {
@@ -54,9 +54,9 @@ class WakeWordModule : Module() {
         return@AsyncFunction
       }
 
-      val keyword = (options?.get("keyword") as? String) ?: "Hey Siri"
+      val keyword = (options?.get("keyword") as? String) ?: "Hey Bot"
       val threshold = ((options?.get("threshold") as? Number)?.toFloat()) ?: 0.5f
-      val classifierAsset = (options?.get("classifierAsset") as? String) ?: "wakeword/hey_siri.onnx"
+      val classifierAsset = (options?.get("classifierAsset") as? String) ?: "wakeword/hey_bot.onnx"
 
       currentKeyword = keyword
       currentThreshold = threshold

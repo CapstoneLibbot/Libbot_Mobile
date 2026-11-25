@@ -1,13 +1,13 @@
 import {
-  CreateMissionRequest,
-  GuidanceMission,
+  CreateJobRequest,
+  GuidanceJob,
   GuidanceRepository,
 } from "@/features/guidance/types/guidance.types";
 import { booksFixture } from "../fixtures/books.fixture";
-import { sampleMissionTemplate } from "../fixtures/missions.fixture";
+import { sampleJobTemplate } from "../fixtures/jobs.fixture";
 
 export class MockGuidanceRepository implements GuidanceRepository {
-  private missions: Map<string, GuidanceMission> = new Map();
+  private jobs: Map<string, GuidanceJob> = new Map();
   private delayMs: number;
 
   constructor(delayMs = 200) {
@@ -19,7 +19,7 @@ export class MockGuidanceRepository implements GuidanceRepository {
     return new Promise((resolve) => setTimeout(resolve, this.delayMs));
   }
 
-  async createMission(req: CreateMissionRequest): Promise<GuidanceMission> {
+  async createJob(req: CreateJobRequest): Promise<GuidanceJob> {
     await this.sleep();
 
     const book = booksFixture.find((b) => b.id === req.bookId);
@@ -35,63 +35,63 @@ export class MockGuidanceRepository implements GuidanceRepository {
       );
     }
 
-    const missionId = `mission-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const now = new Date().toISOString();
 
-    const newMission: GuidanceMission = {
-      id: missionId,
+    const newJob: GuidanceJob = {
+      id: jobId,
       bookId: book.id,
       bookTitle: book.title,
       shelf: req.targetShelf ?? book.shelf,
-      robotId: sampleMissionTemplate.robotId,
+      robotId: sampleJobTemplate.robotId,
       status: "active",
       progress: 15,
-      currentPose: sampleMissionTemplate.currentPose,
-      destination: sampleMissionTemplate.destination,
-      path: sampleMissionTemplate.path,
-      mapVersion: sampleMissionTemplate.mapVersion,
-      routeRevision: sampleMissionTemplate.routeRevision,
+      currentPose: sampleJobTemplate.currentPose,
+      destination: sampleJobTemplate.destination,
+      path: sampleJobTemplate.path,
+      mapVersion: sampleJobTemplate.mapVersion,
+      routeRevision: sampleJobTemplate.routeRevision,
       createdAt: now,
       updatedAt: now,
     };
 
-    this.missions.set(missionId, newMission);
-    return newMission;
+    this.jobs.set(jobId, newJob);
+    return newJob;
   }
 
-  async getMission(missionId: string): Promise<GuidanceMission | null> {
+  async getJob(jobId: string): Promise<GuidanceJob | null> {
     await this.sleep();
-    return this.missions.get(missionId) ?? null;
+    return this.jobs.get(jobId) ?? null;
   }
 
-  async cancelMission(missionId: string): Promise<GuidanceMission> {
+  async cancelJob(jobId: string): Promise<GuidanceJob> {
     await this.sleep();
-    const mission = this.missions.get(missionId);
-    if (!mission) {
-      throw new Error(`Không tìm thấy chuyến hướng dẫn với mã ${missionId}`);
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error(`Không tìm thấy chuyến hướng dẫn với mã ${jobId}`);
     }
-    const updated: GuidanceMission = {
-      ...mission,
+    const updated: GuidanceJob = {
+      ...job,
       status: "cancelled",
       updatedAt: new Date().toISOString(),
     };
-    this.missions.set(missionId, updated);
+    this.jobs.set(jobId, updated);
     return updated;
   }
 
-  async completeMission(missionId: string): Promise<GuidanceMission> {
+  async completeJob(jobId: string): Promise<GuidanceJob> {
     await this.sleep();
-    const mission = this.missions.get(missionId);
-    if (!mission) {
-      throw new Error(`Không tìm thấy chuyến hướng dẫn với mã ${missionId}`);
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error(`Không tìm thấy chuyến hướng dẫn với mã ${jobId}`);
     }
-    const updated: GuidanceMission = {
-      ...mission,
+    const updated: GuidanceJob = {
+      ...job,
       status: "completed",
       progress: 100,
       updatedAt: new Date().toISOString(),
     };
-    this.missions.set(missionId, updated);
+    this.jobs.set(jobId, updated);
     return updated;
   }
 }

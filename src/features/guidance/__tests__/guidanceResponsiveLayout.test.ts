@@ -5,11 +5,11 @@ import {
 } from "@/shared/lib";
 import { getResponsiveBreakpoint } from "@/shared/layout/responsive";
 import { computeGuidanceDemoPresentation } from "../hooks/useGuidanceDemoViewModel";
-import { GuidanceMission } from "../types/guidance.types";
+import { GuidanceJob } from "../types/guidance.types";
 
-describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => {
-  const sampleMission: GuidanceMission = {
-    id: "mission-resp-01",
+describe("Guidance Responsive Layout & Job State Hierarchy Contract", () => {
+  const sampleJob: GuidanceJob = {
+    id: "job-resp-01",
     bookId: "bk-1001",
     bookTitle: "Clean Architecture",
     shelf: "A-12",
@@ -105,12 +105,12 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
     });
   });
 
-  describe("Mission State Behavior & Copy Contract", () => {
+  describe("Job State Behavior & Copy Contract", () => {
     it("handles navigating state with primary guidance and cancel action affordance", () => {
       const state = computeGuidanceDemoPresentation({
         demoState: "navigating",
         routeRevision: 1,
-        mission: sampleMission,
+        job: sampleJob,
       });
 
       expect(state.isNavigating).toBe(true);
@@ -125,7 +125,7 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       const state = computeGuidanceDemoPresentation({
         demoState: "replanning",
         routeRevision: 2,
-        mission: sampleMission,
+        job: sampleJob,
       });
 
       expect(state.isReplanning).toBe(true);
@@ -140,7 +140,7 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       const state = computeGuidanceDemoPresentation({
         demoState: "arrived",
         routeRevision: 1,
-        mission: sampleMission,
+        job: sampleJob,
       });
 
       expect(state.isArrived).toBe(true);
@@ -157,7 +157,7 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
       const state = computeGuidanceDemoPresentation({
         demoState: "cancelled",
         routeRevision: 1,
-        mission: sampleMission,
+        job: sampleJob,
       });
 
       expect(state.isCancelled).toBe(true);
@@ -177,7 +177,7 @@ describe("Guidance Responsive Layout & Mission State Hierarchy Contract", () => 
         const presentation = computeGuidanceDemoPresentation({
           demoState: st,
           routeRevision: 1,
-          mission: sampleMission,
+          job: sampleJob,
         });
 
         const followView = calculateIndoorMapViewport({

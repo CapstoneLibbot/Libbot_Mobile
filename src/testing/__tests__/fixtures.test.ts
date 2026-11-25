@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { booksFixture } from "../fixtures/books.fixture";
 import { facilitiesFixture } from "../fixtures/facilities.fixture";
 import {
-  sampleMissionAlternativePath,
-  sampleMissionPrimaryPath,
-  sampleMissionTemplate,
-} from "../fixtures/missions.fixture";
+  sampleJobAlternativePath,
+  sampleJobPrimaryPath,
+  sampleJobTemplate,
+} from "../fixtures/jobs.fixture";
 
 describe("Testing Fixtures Contract Validation", () => {
   it("validates all booksFixture items have required non-empty fields", () => {
@@ -34,23 +34,23 @@ describe("Testing Fixtures Contract Validation", () => {
     }
   });
 
-  it("validates missionsFixture primary and alternative paths have valid robot poses", () => {
-    expect(sampleMissionPrimaryPath.length).toBeGreaterThan(0);
-    for (const pose of sampleMissionPrimaryPath) {
+  it("validates jobsFixture primary and alternative paths have valid robot poses", () => {
+    expect(sampleJobPrimaryPath.length).toBeGreaterThan(0);
+    for (const pose of sampleJobPrimaryPath) {
       expect(pose.x).toBeGreaterThan(0);
       expect(pose.y).toBeGreaterThan(0);
       expect(typeof pose.yaw).toBe("number");
     }
 
-    expect(sampleMissionAlternativePath.length).toBeGreaterThan(0);
-    for (const pose of sampleMissionAlternativePath) {
+    expect(sampleJobAlternativePath.length).toBeGreaterThan(0);
+    for (const pose of sampleJobAlternativePath) {
       expect(pose.x).toBeGreaterThan(0);
       expect(pose.y).toBeGreaterThan(0);
       expect(typeof pose.yaw).toBe("number");
     }
 
-    expect(sampleMissionTemplate.robotId).toBe("LiBot-01");
-    expect(sampleMissionTemplate.currentPose).toBeDefined();
-    expect(sampleMissionTemplate.destination).toBeDefined();
+    expect(sampleJobTemplate.robotId).toBe("LiBot-01");
+    expect(sampleJobTemplate.currentPose).toBeDefined();
+    expect(sampleJobTemplate.destination).toBeDefined();
   });
 });

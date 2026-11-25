@@ -13,6 +13,6 @@ export const queryKeys = {
   },
   guidance: {
     all: ["guidance"] as const,
-    detail: (missionId: string) => ["guidance", "detail", missionId] as const,
+    detail: (jobId: string) => ["guidance", "detail", jobId] as const,
   },
 } as const;

@@ -3,22 +3,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getGuidanceRepository } from "@/core/composition";
 import { queryKeys } from "@/core/state";
 import { signalRClient } from "@/platform/realtime";
-import { GuidanceMission } from "../types/guidance.types";
+import { GuidanceJob } from "../types/guidance.types";
 
-export const useGuidanceMission = (missionId: string) => {
+export const useGuidanceJob = (jobId: string) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!missionId) return;
+    if (!jobId) return;
 
     void signalRClient.connect().catch(() => {});
 
     const unsubscribeStatus = signalRClient.on(
-      "MissionStatusChanged",
+      "JobStatusChanged",
       (payload) => {
-        if (payload.missionId === missionId) {
-          queryClient.setQueryData<GuidanceMission | null>(
-            queryKeys.guidance.detail(missionId),
+        if (payload.jobId === jobId) {
+          queryClient.setQueryData<GuidanceJob | null>(
+            queryKeys.guidance.detail(jobId),
             (prev) =>
               prev
                 ? {
@@ -32,10 +32,10 @@ export const useGuidanceMission = (missionId: string) => {
       },
     );
 
-    const unsubscribeStep = signalRClient.on("MissionStepChanged", (payload) => {
-      if (payload.missionId === missionId) {
-        queryClient.setQueryData<GuidanceMission | null>(
-          queryKeys.guidance.detail(missionId),
+    const unsubscribeStep = signalRClient.on("JobStepChanged", (payload) => {
+      if (payload.jobId === jobId) {
+        queryClient.setQueryData<GuidanceJob | null>(
+          queryKeys.guidance.detail(jobId),
           (prev) =>
             prev
               ? {
@@ -51,12 +51,12 @@ export const useGuidanceMission = (missionId: string) => {
       unsubscribeStatus();
       unsubscribeStep();
     };
-  }, [missionId, queryClient]);
+  }, [jobId, queryClient]);
 
-  return useQuery<GuidanceMission | null, Error>({
-    queryKey: queryKeys.guidance.detail(missionId),
-    queryFn: () => getGuidanceRepository().getMission(missionId),
-    enabled: Boolean(missionId),
+  return useQuery<GuidanceJob | null, Error>({
+    queryKey: queryKeys.guidance.detail(jobId),
+    queryFn: () => getGuidanceRepository().getJob(jobId),
+    enabled: Boolean(jobId),
     refetchInterval: 3000,
   });
 };

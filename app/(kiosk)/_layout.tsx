@@ -12,7 +12,7 @@ export default function KioskLayout(): React.ReactElement {
 
   const pathname = usePathname();
 
-  // Reset session and return to idle when kiosk is inactive and no mission is active
+  // Reset session and return to idle when kiosk is inactive and no job is active
   useIdleTimeout({
     onTimeout: () => {
       if (pathname && !pathname.endsWith("/idle") && pathname !== "/") {

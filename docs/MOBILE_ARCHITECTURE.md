@@ -21,7 +21,7 @@ The codebase is mid-transition from mock-first adapters to feature-owned backend
   - `src/shared/layout/`: Responsive width classes (compact `<600dp`, medium `600–839dp`, expanded `≥840dp`), layout tokens, and `useResponsiveLayout`.
   - `src/shared/lib/`: Generic math, date, string formatting, and coordinate projection utilities (`indoorMapTransform`, `dateUtils`, `formatUtils`, `mapUtils`, `useDebounce`).
   - `src/shared/types/`: Domain-neutral TypeScript contracts.
-- `src/testing/`: Testing fixtures (`booksFixture`, `facilitiesFixture`, `missionsFixture`), fake repositories (`mock*Repository`), and route contract test suites. Production code is strictly blocked by ESLint boundary rules from importing anything in `src/testing`.
+- `src/testing/`: Testing fixtures (`booksFixture`, `facilitiesFixture`, `jobsFixture`), fake repositories (`mock*Repository`), and route contract test suites. Production code is strictly blocked by ESLint boundary rules from importing anything in `src/testing`.
 
 Feature screens call feature hooks; hooks call a feature API module or repository interface; feature API modules use `src/services`. Shared/services/platform modules never import feature screens or routes. Production code never imports test fixtures.
 
@@ -31,7 +31,7 @@ Catalog reads `EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_SIGNALR_URL`; both are
 
 Catalog uses `GET /book-guidance/search`, `GET /book-guidance/books/{id}`, and `GET /book-categories`. It maps backend DTOs before they reach UI components and displays normalized Vietnamese error messages. Existing `src/core/config` and `src/platform/http` still use the old environment-variable scheme and are legacy modules pending migration; they must not be used for new API integrations.
 
-The new SignalR service connects only when configured and currently subscribes to `ReceiveHeartbeat` from `/robotHub`. Guidance mission progress, robot pose, and route data are not yet integrated because the current backend hub does not publish those events. See [INTEGRATION.md](INTEGRATION.md) for the active routes and next integration order.
+The new SignalR service connects only when configured and currently subscribes to `ReceiveHeartbeat` from `/robotHub`. Guidance job progress, robot pose, and route data are not yet integrated because the current backend hub does not publish those events. See [INTEGRATION.md](INTEGRATION.md) for the active routes and next integration order.
 
 ## Responsive kiosk policy
 

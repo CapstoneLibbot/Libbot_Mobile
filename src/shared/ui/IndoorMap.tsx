@@ -41,7 +41,7 @@ export interface IndoorMapProps {
   robotPose?: IndoorMapPose;
   destinationPose?: IndoorMapPose;
   path?: IndoorMapPose[];
-  missionStatus?:
+  jobstatus?:
     "navigating" | "replanning" | "arrived" | "cancelled" | string;
   routeRevision?: number;
   showLegend?: boolean;
@@ -59,7 +59,7 @@ export function IndoorMap({
   robotPose = { x: 5.5, y: 4.5, yaw: 0.0 },
   destinationPose = { x: 9.8, y: 7.6, yaw: 1.57, label: "Kệ A-12" },
   path = [],
-  missionStatus = "navigating",
+  jobstatus = "navigating",
   routeRevision = 1,
   showLegend = true,
   aspectRatio,
@@ -129,9 +129,9 @@ export function IndoorMap({
   }, [path, bounds]);
 
   // Route styling depending on status
-  const isReplanning = missionStatus === "replanning";
-  const isCancelled = missionStatus === "cancelled";
-  const isArrived = missionStatus === "arrived";
+  const isReplanning = jobstatus === "replanning";
+  const isCancelled = jobstatus === "cancelled";
+  const isArrived = jobstatus === "arrived";
   const isNavigation = detailLevel === "navigation";
 
   // Distance between robot and destination to avoid label collision

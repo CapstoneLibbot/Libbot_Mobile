@@ -1,6 +1,6 @@
 # LiBot Mobile
 
-LiBot Mobile is an Expo/React Native kiosk client for a library robot. Visitors can search books or facilities, view locations, start a guidance mission, and submit feedback. It is a public reader experience; robot control and librarian workflows belong to backend/admin systems.
+LiBot Mobile is an Expo/React Native kiosk client for a library robot. Visitors can search books or facilities, view locations, start a guidance job, and submit feedback. It is a public reader experience; robot control and librarian workflows belong to backend/admin systems.
 
 ## Current structure
 

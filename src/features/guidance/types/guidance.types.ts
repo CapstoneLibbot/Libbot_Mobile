@@ -1,4 +1,4 @@
-export type GuidanceMissionStatus =
+export type GuidanceJobStatus =
   "creating" | "active" | "completed" | "cancelled" | "failed";
 
 export interface RobotPose {
@@ -33,14 +33,14 @@ export interface GuidanceMapZone {
   isActive: boolean;
 }
 
-export interface GuidanceMission {
+export interface GuidanceJob {
   id: string;
   bookId: string;
   bookTitle?: string;
   shelf?: string;
   targetFacilityId?: string;
   robotId: string;
-  status: GuidanceMissionStatus;
+  status: GuidanceJobStatus;
   progress: number;
   currentPose?: RobotPose;
   destination?: RobotPose;
@@ -70,7 +70,7 @@ export type GuidanceTerminalStatus = "COMPLETED" | "FAILED" | "CANCELLED";
 export type GuidanceDemoState =
   "navigating" | "replanning" | "arrived" | "cancelled";
 
-export interface CreateMissionRequest {
+export interface CreateJobRequest {
   bookId: string;
   kioskSessionId: string;
   bookItemId?: string;
@@ -79,9 +79,9 @@ export interface CreateMissionRequest {
 }
 
 export interface GuidanceRepository {
-  createMission(req: CreateMissionRequest): Promise<GuidanceMission>;
-  getMission(missionId: string): Promise<GuidanceMission | null>;
-  cancelMission(missionId: string): Promise<GuidanceMission>;
-  completeMission(missionId: string): Promise<GuidanceMission>;
+  createJob(req: CreateJobRequest): Promise<GuidanceJob>;
+  getJob(jobId: string): Promise<GuidanceJob | null>;
+  cancelJob(jobId: string): Promise<GuidanceJob>;
+  completeJob(jobId: string): Promise<GuidanceJob>;
 }
 

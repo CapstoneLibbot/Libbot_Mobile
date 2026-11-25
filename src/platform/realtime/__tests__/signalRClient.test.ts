@@ -19,8 +19,8 @@ describe("SignalR Client and Specific Cleanup Subscriptions (src/platform)", () 
     const callback2 = vi.fn();
 
     // Subscribe two distinct listeners to the same event
-    const unsubscribe1 = client.on("MissionStatusChanged", callback1);
-    const unsubscribe2 = client.on("MissionStatusChanged", callback2);
+    const unsubscribe1 = client.on("JobStatusChanged", callback1);
+    const unsubscribe2 = client.on("JobStatusChanged", callback2);
 
     expect(typeof unsubscribe1).toBe("function");
     expect(typeof unsubscribe2).toBe("function");

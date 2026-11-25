@@ -11,8 +11,8 @@ export function createSearchRouteHandlers(router: MockRouter) {
     onSelectBook: (bookId: string) => {
       router.push(`/(kiosk)/catalog/${bookId}`);
     },
-    onStartGuidance: (missionId: string) => {
-      router.push(`/(kiosk)/guidance/${missionId}`);
+    onStartGuidance: (jobId: string) => {
+      router.push(`/(kiosk)/guidance/${jobId}`);
     },
     onBackToIdle: () => {
       router.replace("/(kiosk)/idle");
@@ -28,8 +28,8 @@ export function createCatalogDetailRouteHandlers(router: MockRouter) {
     onOpenFacility: (facilityId: string) => {
       router.push(`/(kiosk)/facilities/${facilityId}`);
     },
-    onStartGuidance: (missionId: string) => {
-      router.push(`/(kiosk)/guidance/${missionId}`);
+    onStartGuidance: (jobId: string) => {
+      router.push(`/(kiosk)/guidance/${jobId}`);
     },
   };
 }
@@ -55,8 +55,8 @@ export function createFacilityDetailRouteHandlers(router: MockRouter) {
 
 export function createGuidanceRouteHandlers(router: MockRouter) {
   return {
-    onGoToFeedback: (missionId: string) => {
-      router.push(`/(kiosk)/feedback/${missionId}`);
+    onGoToFeedback: (jobId: string) => {
+      router.push(`/(kiosk)/feedback/${jobId}`);
     },
     onBackToSearch: () => {
       router.replace("/(kiosk)/search");
@@ -101,11 +101,11 @@ describe("Route Adapter Contract Specifications", () => {
       expect(router.push).toHaveBeenCalledWith("/(kiosk)/catalog/b-clean-arch");
     });
 
-    it("navigates directly to guidance when quick mission starts", () => {
+    it("navigates directly to guidance when quick job starts", () => {
       const router = createMockRouter();
       const handlers = createSearchRouteHandlers(router);
-      handlers.onStartGuidance("mission-123");
-      expect(router.push).toHaveBeenCalledWith("/(kiosk)/guidance/mission-123");
+      handlers.onStartGuidance("job-123");
+      expect(router.push).toHaveBeenCalledWith("/(kiosk)/guidance/job-123");
     });
 
     it("replaces route with idle on back button", () => {
@@ -131,7 +131,7 @@ describe("Route Adapter Contract Specifications", () => {
       expect(router.push).toHaveBeenCalledWith("/(kiosk)/facilities/fac-shelf-a");
     });
 
-    it("navigates to guidance route with created mission ID", () => {
+    it("navigates to guidance route with created job ID", () => {
       const router = createMockRouter();
       const handlers = createCatalogDetailRouteHandlers(router);
       handlers.onStartGuidance("m-456");
@@ -165,7 +165,7 @@ describe("Route Adapter Contract Specifications", () => {
   });
 
   describe("Guidance Route Contract", () => {
-    it("navigates to feedback with missionId parameter", () => {
+    it("navigates to feedback with jobId parameter", () => {
       const router = createMockRouter();
       const handlers = createGuidanceRouteHandlers(router);
       handlers.onGoToFeedback("m-arrival-789");

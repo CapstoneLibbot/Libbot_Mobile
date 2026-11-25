@@ -77,7 +77,7 @@ export function useGuidanceAnnouncer({
     }
   }, [clearTimer]);
 
-  // Execute Start side-effect (speech) once per mission
+  // Execute Start side-effect (speech) once per job
   useEffect(() => {
     if (!enabled || !activeJobId) {
       if (!activeJobId) {

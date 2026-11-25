@@ -54,9 +54,9 @@ Xiaozhi chỉ được phép gọi các MCP tool sau:
 | Tool | Input | Kết quả |
 | --- | --- | --- |
 | `search_books` | `query` | Tối đa 3 sách: bookId, title, author, canGuide, totalMatches |
-| `start_book_guidance` | `bookId`, `query?` | Bắt đầu mission dẫn đường cho sách người dùng đã chọn và xác nhận |
+| `start_book_guidance` | `bookId`, `query?` | Bắt đầu job dẫn đường cho sách người dùng đã chọn và xác nhận |
 | `search_locations` | `query` | Tối đa 3 Endpoint: endpointId, name, canGuide, totalMatches |
-| `start_location_guidance` | `endpointId`, `query?` | Bắt đầu mission dẫn đường tới Endpoint người dùng đã chọn và xác nhận |
+| `start_location_guidance` | `endpointId`, `query?` | Bắt đầu job dẫn đường tới Endpoint người dùng đã chọn và xác nhận |
 
 `search_books` dùng `IBookGuidanceService.SearchTitlesAsync`, chỉ tìm theo tên sách. Để Mobile mở trang chi
 tiết sau khi người dùng chạm thẻ kết quả, tool trả `bookId`. Không trả ảnh,
@@ -68,7 +68,7 @@ presentation-safe. Message này không chứa secret, tọa độ, robot state h
 điều khiển robot; Mobile dùng nó để hiển thị thẻ trong nhật ký hội thoại trước
 khi Android TTS đọc phản hồi.
 
-Ngoài `start_book_guidance` và `start_location_guidance` đã được xác nhận, không có tool robot, mission,
+Ngoài `start_book_guidance` và `start_location_guidance` đã được xác nhận, không có tool robot, job,
 navigation, status robot, web search, weather, news, music hoặc bất kỳ tool mặc
 định nào khác. Prompt chỉ được khẳng định dữ liệu do tool trả về, đọc tối đa ba
 kết quả và nói “không tìm thấy” khi không có kết quả.
@@ -101,7 +101,7 @@ Không dùng `localhost` trên thiết bị thật.
 ## Kiểm thử nghiệm thu
 
 - Backend: thiếu token MCP trả `401`; `tools/list` chỉ có hai tool; cả hai
-  `tools/call` trả schema đã định; không có endpoint nào tạo mission hay gọi
+  `tools/call` trả schema đã định; không có endpoint nào tạo job hay gọi
   robot.
 - Mobile: partial transcript cập nhật khi nói; final transcript khóa mic;
   trạng thái chuyển thinking rồi speaking; TTS đọc được câu trả lời; xong tự

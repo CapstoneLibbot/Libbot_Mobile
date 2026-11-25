@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { computeGuidanceDemoPresentation } from "../hooks/useGuidanceDemoViewModel";
 import {
-  sampleMissionAlternativePath,
-  sampleMissionPrimaryPath,
-} from "@/testing/fixtures/missions.fixture";
-import { GuidanceMission } from "../types/guidance.types";
+  sampleJobAlternativePath,
+  sampleJobPrimaryPath,
+} from "@/testing/fixtures/jobs.fixture";
+import { GuidanceJob } from "../types/guidance.types";
 
 describe("Guidance Demo Presentation View Model", () => {
-  const mockMission: GuidanceMission = {
-    id: "mission-test-01",
+  const mockJob: GuidanceJob = {
+    id: "job-test-01",
     bookId: "bk-1001",
     bookTitle: "Clean Architecture",
     shelf: "A-12",
@@ -17,7 +17,7 @@ describe("Guidance Demo Presentation View Model", () => {
     progress: 45,
     currentPose: { x: 5.5, y: 4.5, yaw: 0.0 },
     destination: { x: 9.8, y: 7.6, yaw: 1.57 },
-    path: sampleMissionPrimaryPath,
+    path: sampleJobPrimaryPath,
     mapVersion: "library-l1-v1",
     routeRevision: 1,
     createdAt: "2026-10-01T00:00:00Z",
@@ -29,7 +29,7 @@ describe("Guidance Demo Presentation View Model", () => {
       const result = computeGuidanceDemoPresentation({
         demoState: "navigating",
         routeRevision: 1,
-        mission: mockMission,
+        job: mockJob,
       });
 
       expect(result.isNavigating).toBe(true);
@@ -40,7 +40,7 @@ describe("Guidance Demo Presentation View Model", () => {
       expect(result.statusLabel).toBe("Đang dẫn đường đến kệ sách");
       expect(result.statusTone).toBe("info");
       expect(result.progress).toBe(45);
-      expect(result.path).toEqual(sampleMissionPrimaryPath);
+      expect(result.path).toEqual(sampleJobPrimaryPath);
       expect(result.mapVersion).toBe("library-l1-v1");
 
       expect(result.instructionTitle).toContain("Vui lòng đi cùng robot");
@@ -56,7 +56,7 @@ describe("Guidance Demo Presentation View Model", () => {
       const result = computeGuidanceDemoPresentation({
         demoState: "replanning",
         routeRevision: 2,
-        mission: mockMission,
+        job: mockJob,
       });
 
       expect(result.isReplanning).toBe(true);
@@ -64,8 +64,8 @@ describe("Guidance Demo Presentation View Model", () => {
       expect(result.statusTone).toBe("warning");
 
       // Switches to detour path around obstacle
-      expect(result.path).toEqual(sampleMissionAlternativePath);
-      expect(result.path).not.toEqual(sampleMissionPrimaryPath);
+      expect(result.path).toEqual(sampleJobAlternativePath);
+      expect(result.path).not.toEqual(sampleJobPrimaryPath);
 
       // Verifies route revision is shown in copy
       expect(result.routeRevision).toBe(2);
@@ -79,7 +79,7 @@ describe("Guidance Demo Presentation View Model", () => {
       const result = computeGuidanceDemoPresentation({
         demoState: "arrived",
         routeRevision: 1,
-        mission: mockMission,
+        job: mockJob,
       });
 
       expect(result.isArrived).toBe(true);
@@ -98,11 +98,11 @@ describe("Guidance Demo Presentation View Model", () => {
   });
 
   describe("State 4: cancelled (Đã hủy)", () => {
-    it("sets cancelled status, tone, and end-of-mission guidance notice", () => {
+    it("sets cancelled status, tone, and end-of-job guidance notice", () => {
       const result = computeGuidanceDemoPresentation({
         demoState: "cancelled",
         routeRevision: 1,
-        mission: mockMission,
+        job: mockJob,
       });
 
       expect(result.isCancelled).toBe(true);
@@ -116,12 +116,12 @@ describe("Guidance Demo Presentation View Model", () => {
     });
   });
 
-  describe("Fallback behavior without initial mission", () => {
-    it("provides sensible defaults when mission is null", () => {
+  describe("Fallback behavior without initial job", () => {
+    it("provides sensible defaults when job is null", () => {
       const result = computeGuidanceDemoPresentation({
         demoState: "navigating",
         routeRevision: 1,
-        mission: null,
+        job: null,
       });
 
       expect(result.mapVersion).toBe("library-l1-v1");

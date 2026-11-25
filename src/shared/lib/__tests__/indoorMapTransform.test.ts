@@ -11,7 +11,7 @@ import {
   RosPoint,
 } from "../indoorMapTransform";
 
-const sampleMissionPrimaryPath: RosPoint[] = [
+const sampleJobPrimaryPath: RosPoint[] = [
   { x: 2.2, y: 1.8, yaw: 1.57 },
   { x: 2.2, y: 4.5, yaw: 0.0 },
   { x: 5.5, y: 4.5, yaw: 0.0 },
@@ -19,7 +19,7 @@ const sampleMissionPrimaryPath: RosPoint[] = [
   { x: 9.8, y: 7.6, yaw: 1.57 },
 ];
 
-const sampleMissionAlternativePath: RosPoint[] = [
+const sampleJobAlternativePath: RosPoint[] = [
   { x: 2.2, y: 1.8, yaw: 1.57 },
   { x: 2.2, y: 4.5, yaw: 0.0 },
   { x: 5.5, y: 4.5, yaw: -1.57 },
@@ -29,13 +29,13 @@ const sampleMissionAlternativePath: RosPoint[] = [
   { x: 9.8, y: 7.6, yaw: 1.57 },
 ];
 
-const sampleMissionTemplate = {
+const sampleJobTemplate = {
   robotId: "LiBot-01",
   status: "active",
   progress: 45,
   currentPose: { x: 5.5, y: 4.5, yaw: 0.0 },
   destination: { x: 9.8, y: 7.6, yaw: 1.57 },
-  path: sampleMissionPrimaryPath,
+  path: sampleJobPrimaryPath,
   mapVersion: "library-l1-v1",
   routeRevision: 1,
 };
@@ -112,27 +112,27 @@ describe("Indoor Map Coordinate Transformation", () => {
   });
 
   describe("Mock poses and paths bounds verification", () => {
-    it("verifies sampleMissionTemplate currentPose is strictly within map bounds", () => {
-      expect(sampleMissionTemplate.currentPose).toBeDefined();
-      if (sampleMissionTemplate.currentPose) {
-        expect(isPoseWithinBounds(sampleMissionTemplate.currentPose)).toBe(
+    it("verifies sampleJobTemplate currentPose is strictly within map bounds", () => {
+      expect(sampleJobTemplate.currentPose).toBeDefined();
+      if (sampleJobTemplate.currentPose) {
+        expect(isPoseWithinBounds(sampleJobTemplate.currentPose)).toBe(
           true,
         );
       }
     });
 
-    it("verifies sampleMissionTemplate destination is strictly within map bounds", () => {
-      expect(sampleMissionTemplate.destination).toBeDefined();
-      if (sampleMissionTemplate.destination) {
-        expect(isPoseWithinBounds(sampleMissionTemplate.destination)).toBe(
+    it("verifies sampleJobTemplate destination is strictly within map bounds", () => {
+      expect(sampleJobTemplate.destination).toBeDefined();
+      if (sampleJobTemplate.destination) {
+        expect(isPoseWithinBounds(sampleJobTemplate.destination)).toBe(
           true,
         );
       }
     });
 
     it("verifies all points in primary route path are within map bounds", () => {
-      expect(sampleMissionPrimaryPath.length).toBeGreaterThan(0);
-      for (const pt of sampleMissionPrimaryPath) {
+      expect(sampleJobPrimaryPath.length).toBeGreaterThan(0);
+      for (const pt of sampleJobPrimaryPath) {
         expect(isPoseWithinBounds(pt)).toBe(true);
         const svg = projectRosToSvg(pt);
         expect(svg.x).toBeGreaterThanOrEqual(0);
@@ -143,8 +143,8 @@ describe("Indoor Map Coordinate Transformation", () => {
     });
 
     it("verifies all points in alternative replanning path are within map bounds", () => {
-      expect(sampleMissionAlternativePath.length).toBeGreaterThan(0);
-      for (const pt of sampleMissionAlternativePath) {
+      expect(sampleJobAlternativePath.length).toBeGreaterThan(0);
+      for (const pt of sampleJobAlternativePath) {
         expect(isPoseWithinBounds(pt)).toBe(true);
         const svg = projectRosToSvg(pt);
         expect(svg.x).toBeGreaterThanOrEqual(0);
@@ -304,11 +304,11 @@ describe("Indoor Map Coordinate Transformation", () => {
     });
 
     it("keeps follow viewBox strictly within map bounds across all points on primary path", () => {
-      for (const pt of sampleMissionPrimaryPath) {
+      for (const pt of sampleJobPrimaryPath) {
         const view = calculateIndoorMapViewport({
           viewportMode: "follow",
           robotPose: pt,
-          path: sampleMissionPrimaryPath,
+          path: sampleJobPrimaryPath,
         });
 
         expect(view.x).toBeGreaterThanOrEqual(0);
@@ -323,11 +323,11 @@ describe("Indoor Map Coordinate Transformation", () => {
     });
 
     it("keeps follow viewBox strictly within map bounds across all points on alternative replanning path", () => {
-      for (const pt of sampleMissionAlternativePath) {
+      for (const pt of sampleJobAlternativePath) {
         const view = calculateIndoorMapViewport({
           viewportMode: "follow",
           robotPose: pt,
-          path: sampleMissionAlternativePath,
+          path: sampleJobAlternativePath,
         });
 
         expect(view.x).toBeGreaterThanOrEqual(0);

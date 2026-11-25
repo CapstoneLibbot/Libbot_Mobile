@@ -21,7 +21,7 @@ describe("Kiosk Zustand Store (src/core/state)", () => {
     expect(newState.lastInteractionAt).toBeGreaterThanOrEqual(previousTime);
   });
 
-  it("records interaction without changing active mission", () => {
+  it("records interaction without changing active job", () => {
     const store = useKioskStore.getState();
     store.setActiveJobId("job-keep-active");
     const initialTime = store.lastInteractionAt;
@@ -33,7 +33,7 @@ describe("Kiosk Zustand Store (src/core/state)", () => {
     expect(state.lastInteractionAt).toBeGreaterThanOrEqual(initialTime);
   });
 
-  it("resetKioskSession clears active mission, selected facility and generates a fresh session ID", () => {
+  it("resetKioskSession clears active job, selected facility and generates a fresh session ID", () => {
     const store = useKioskStore.getState();
     store.setActiveJobId("job-to-clear");
     store.setSelectedFacilityId("fac-reading-1");

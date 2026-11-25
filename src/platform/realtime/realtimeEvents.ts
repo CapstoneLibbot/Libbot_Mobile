@@ -22,14 +22,14 @@ export const robotConnectionPayloadSchema = z.object({
   connected: z.boolean(),
 });
 
-export const missionStatusPayloadSchema = z.object({
-  missionId: z.string(),
+export const jobstatusPayloadSchema = z.object({
+  jobId: z.string(),
   status: z.enum(["creating", "active", "completed", "cancelled", "failed"]),
   progress: z.number().min(0).max(100).optional(),
 });
 
-export const missionStepPayloadSchema = z.object({
-  missionId: z.string(),
+export const jobstepPayloadSchema = z.object({
+  jobId: z.string(),
   step: z.string(),
   progress: z.number().min(0).max(100).optional(),
 });
@@ -58,8 +58,8 @@ export type RealtimeEventName =
   | "RobotStatusChanged"
   | "RobotBatteryUpdated"
   | "RobotConnectionChanged"
-  | "MissionStatusChanged"
-  | "MissionStepChanged"
+  | "JobStatusChanged"
+  | "JobStepChanged"
   | "RobotTelemetryUpdated"
   | "RuntimeConnectionChanged";
 
@@ -68,8 +68,8 @@ export interface RealtimeEventMap {
   RobotStatusChanged: z.infer<typeof robotStatusPayloadSchema>;
   RobotBatteryUpdated: z.infer<typeof robotBatteryPayloadSchema>;
   RobotConnectionChanged: z.infer<typeof robotConnectionPayloadSchema>;
-  MissionStatusChanged: z.infer<typeof missionStatusPayloadSchema>;
-  MissionStepChanged: z.infer<typeof missionStepPayloadSchema>;
+  JobStatusChanged: z.infer<typeof jobstatusPayloadSchema>;
+  JobStepChanged: z.infer<typeof jobstepPayloadSchema>;
   RobotTelemetryUpdated: z.infer<typeof runtimeTelemetryPayloadSchema>;
   RuntimeConnectionChanged: z.infer<typeof runtimeTelemetryPayloadSchema>;
 }
@@ -79,8 +79,8 @@ export const realtimeEventSchemas = {
   RobotStatusChanged: robotStatusPayloadSchema,
   RobotBatteryUpdated: robotBatteryPayloadSchema,
   RobotConnectionChanged: robotConnectionPayloadSchema,
-  MissionStatusChanged: missionStatusPayloadSchema,
-  MissionStepChanged: missionStepPayloadSchema,
+  JobStatusChanged: jobstatusPayloadSchema,
+  JobStepChanged: jobstepPayloadSchema,
   RobotTelemetryUpdated: runtimeTelemetryPayloadSchema,
   RuntimeConnectionChanged: runtimeTelemetryPayloadSchema,
 };

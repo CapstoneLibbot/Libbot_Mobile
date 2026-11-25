@@ -1,5 +1,5 @@
 import {
-  GuidanceMission,
+  GuidanceJob,
   RobotPose,
 } from "@/features/guidance/types/guidance.types";
 
@@ -7,7 +7,7 @@ import {
  * Primary planned route for LiBot on library map (13.9m x 9.9m).
  * Kiosk / Entrance -> Central Corridor -> Shelf A-12
  */
-export const sampleMissionPrimaryPath: RobotPose[] = [
+export const sampleJobPrimaryPath: RobotPose[] = [
   { x: 2.2, y: 1.8, yaw: 1.57 }, // Kiosk start
   { x: 2.2, y: 4.5, yaw: 0.0 }, // Turn into main corridor
   { x: 5.5, y: 4.5, yaw: 0.0 }, // Current position in transit
@@ -19,7 +19,7 @@ export const sampleMissionPrimaryPath: RobotPose[] = [
  * Alternative detour route used when replanning around an obstacle
  * detected in the central corridor.
  */
-export const sampleMissionAlternativePath: RobotPose[] = [
+export const sampleJobAlternativePath: RobotPose[] = [
   { x: 2.2, y: 1.8, yaw: 1.57 }, // Kiosk start
   { x: 2.2, y: 4.5, yaw: 0.0 }, // Main corridor
   { x: 5.5, y: 4.5, yaw: -1.57 }, // Turn south to avoid corridor obstacle
@@ -29,8 +29,8 @@ export const sampleMissionAlternativePath: RobotPose[] = [
   { x: 9.8, y: 7.6, yaw: 1.57 }, // Destination: Shelf A-12
 ];
 
-export const sampleMissionTemplate: Omit<
-  GuidanceMission,
+export const sampleJobTemplate: Omit<
+  GuidanceJob,
   "id" | "bookId" | "createdAt" | "updatedAt"
 > = {
   robotId: "LiBot-01",
@@ -38,7 +38,7 @@ export const sampleMissionTemplate: Omit<
   progress: 45,
   currentPose: { x: 5.5, y: 4.5, yaw: 0.0 },
   destination: { x: 9.8, y: 7.6, yaw: 1.57 },
-  path: sampleMissionPrimaryPath,
+  path: sampleJobPrimaryPath,
   mapVersion: "library-l1-v1",
   routeRevision: 1,
 };

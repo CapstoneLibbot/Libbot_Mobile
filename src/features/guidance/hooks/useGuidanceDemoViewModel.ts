@@ -6,7 +6,7 @@ import {
 } from "../constants/guidanceDemoPaths";
 import {
   GuidanceDemoState,
-  GuidanceMission,
+  GuidanceJob,
   RobotPose,
 } from "../types/guidance.types";
 
@@ -31,21 +31,21 @@ export interface GuidanceDemoPresentation {
 export interface GuidanceDemoComputeInput {
   demoState: GuidanceDemoState;
   routeRevision: number;
-  mission?: GuidanceMission | null;
+  job?: GuidanceJob | null;
 }
 
 export function computeGuidanceDemoPresentation({
   demoState,
   routeRevision,
-  mission,
+  job,
 }: GuidanceDemoComputeInput): GuidanceDemoPresentation {
-  const mapVersion = mission?.mapVersion ?? "library-l1-v1";
+  const mapVersion = job?.mapVersion ?? "library-l1-v1";
 
   const destinationPose = {
-    x: mission?.destination?.x ?? 9.8,
-    y: mission?.destination?.y ?? 7.6,
-    yaw: mission?.destination?.yaw ?? 1.57,
-    label: mission?.shelf ? `Kệ ${mission.shelf}` : "Kệ A-12",
+    x: job?.destination?.x ?? 9.8,
+    y: job?.destination?.y ?? 7.6,
+    yaw: job?.destination?.yaw ?? 1.57,
+    label: job?.shelf ? `Kệ ${job.shelf}` : "Kệ A-12",
   };
 
   let currentPose: RobotPose;
@@ -65,15 +65,15 @@ export function computeGuidanceDemoPresentation({
       break;
     case "navigating":
     default:
-      currentPose = mission?.currentPose ?? { x: 5.5, y: 4.5, yaw: 0.0 };
+      currentPose = job?.currentPose ?? { x: 5.5, y: 4.5, yaw: 0.0 };
       break;
   }
 
   let path: RobotPose[];
   if (demoState === "replanning") {
     path = guidanceDemoAlternativePath;
-  } else if (mission?.path && mission.path.length > 0) {
-    path = mission.path;
+  } else if (job?.path && job.path.length > 0) {
+    path = job.path;
   } else {
     path = guidanceDemoPrimaryPath;
   }
@@ -89,7 +89,7 @@ export function computeGuidanceDemoPresentation({
       break;
     case "navigating":
     default:
-      progress = mission?.progress ?? 45;
+      progress = job?.progress ?? 45;
       break;
   }
 
@@ -115,7 +115,7 @@ export function computeGuidanceDemoPresentation({
       break;
   }
 
-  const shelfLabel = mission?.shelf ? `Kệ ${mission.shelf}` : "Kệ sách";
+  const shelfLabel = job?.shelf ? `Kệ ${job.shelf}` : "Kệ sách";
   let instructionTitle: string;
   let instructionMessage: string;
 
@@ -161,17 +161,17 @@ export function computeGuidanceDemoPresentation({
 
 export interface UseGuidanceDemoViewModelResult extends GuidanceDemoPresentation {
   setDemoState: (nextState: GuidanceDemoState) => void;
-  cancelLocalMission: () => void;
-  completeLocalMission: () => void;
+  cancelLocalJob: () => void;
+  completeLocalJob: () => void;
 }
 
 export function useGuidanceDemoViewModel(
-  mission?: GuidanceMission | null,
+  job?: GuidanceJob | null,
 ): UseGuidanceDemoViewModelResult {
   const [demoState, setDemoStateInternal] =
     useState<GuidanceDemoState>("navigating");
   const [routeRevision, setRouteRevision] = useState<number>(
-    mission?.routeRevision ?? 1,
+    job?.routeRevision ?? 1,
   );
 
   const presentation = useMemo(
@@ -179,9 +179,9 @@ export function useGuidanceDemoViewModel(
       computeGuidanceDemoPresentation({
         demoState,
         routeRevision,
-        mission,
+        job,
       }),
-    [demoState, routeRevision, mission],
+    [demoState, routeRevision, job],
   );
 
   const setDemoState = (nextState: GuidanceDemoState) => {
@@ -191,18 +191,18 @@ export function useGuidanceDemoViewModel(
     setDemoStateInternal(nextState);
   };
 
-  const cancelLocalMission = () => {
+  const cancelLocalJob = () => {
     setDemoStateInternal("cancelled");
   };
 
-  const completeLocalMission = () => {
+  const completeLocalJob = () => {
     setDemoStateInternal("arrived");
   };
 
   return {
     ...presentation,
     setDemoState,
-    cancelLocalMission,
-    completeLocalMission,
+    cancelLocalJob,
+    completeLocalJob,
   };
 }

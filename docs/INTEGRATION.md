@@ -80,9 +80,9 @@ Screens and hooks do not call Axios directly. New API work should follow the sam
 
 ## Current limitations and next steps
 
-- The backend SignalR hub currently publishes `ReceiveHeartbeat`; it does not provide mission progress, robot pose, or route events for mobile.
-- Guidance integration should first add feature-local DTO/API/mapper modules for `book-guidance/start`, execution polling, and `missions/{id}/cancel`, while keeping backend routes unchanged.
-- Facility and feedback integrations should follow after guidance has a stable mission context.
+- The backend SignalR hub currently publishes `ReceiveHeartbeat`; it does not provide job progress, robot pose, or route events for mobile.
+- Guidance integration should first add feature-local DTO/API/mapper modules for `book-guidance/start`, execution polling, and `jobs/{id}/cancel`, while keeping backend routes unchanged.
+- Facility and feedback integrations should follow after guidance has a stable job context.
 - Do not migrate old `src/platform/http` or `src/platform/realtime` consumers piecemeal without removing their duplicated configuration source in the same change.
 
 ## Verification

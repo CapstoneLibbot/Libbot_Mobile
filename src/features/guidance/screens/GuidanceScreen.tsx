@@ -14,32 +14,49 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { env } from "@/config/env";
-import { useKioskStore } from "@/core/state";
+import { queryKeys, useKioskStore } from "@/core/state";
+import { ApiError, getFriendlyErrorMessage } from "@/services/api/apiError";
 import { AppHeader, AppText } from "@/shared/ui";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, radius, shadows, spacing } from "@/shared/theme";
 import { GazeboMap2D } from "../components/GazeboMap2D";
-import { bookGuidanceApi, type NavigationEndpoint } from "../api/bookGuidance.api";
+import { bookGuidanceApi } from "../api/bookGuidance.api";
+import { facilityGuidanceApi } from "@/features/facilities/api/facilityGuidance.api";
 import { useRobotRuntimeTelemetry } from "../hooks/useRobotRuntimeTelemetry";
 import { useRobotMapOverlays } from "../hooks/useRobotMapOverlays";
 import { useGuidanceAnnouncer } from "../hooks/useGuidanceAnnouncer";
-import { useGuidanceExecutionTracking } from "../hooks/useGuidanceExecutionTracking";
-import type { GuidanceSession, RobotPose } from "../types/guidance.types";
+import {
+  formatExecutionStepLabel,
+  useGuidanceExecutionTracking,
+} from "../hooks/useGuidanceExecutionTracking";
+import type { GuidanceKind, GuidanceSession, RobotPose } from "../types/guidance.types";
 
 export interface GuidanceScreenProps {
   endpointId: string;
+  bookId?: string;
+  bookItemId?: string;
+  facilityId?: string;
+  initialQuery?: string;
+  guidanceKind?: GuidanceKind;
   onGoToFeedback: (jobId: string) => void;
   onBackToSearch: () => void;
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof ApiError) return error.friendlyMessage || error.message;
+  if (error instanceof Error) return getFriendlyErrorMessage(error);
   return "Không thể kết nối với robot. Hãy kiểm tra mạng và thử lại.";
 }
 
 export function GuidanceScreen({
   endpointId,
+  bookId,
+  bookItemId,
+  facilityId,
+  initialQuery,
+  guidanceKind,
   onGoToFeedback,
   onBackToSearch,
 }: GuidanceScreenProps): React.ReactElement {
@@ -48,41 +65,80 @@ export function GuidanceScreen({
   const session = useKioskStore((state) => state.activeGuidanceSession);
   const setSession = useKioskStore((state) => state.setActiveGuidanceSession);
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
-  const [endpoint, setEndpoint] = useState<NavigationEndpoint | null>(null);
-  const [loadedEndpointId, setLoadedEndpointId] = useState<string | null>(null);
-  const endpointLoaded = loadedEndpointId === endpointId;
   const [runtimeId, setRuntimeId] = useState(
     session?.destinationId === endpointId
       ? session.runtimeId
       : "real",
   );
-  const [armLeaseId, setArmLeaseId] = useState<string | null>(
-    null,
-  );
   const mapRotationDeg = 0;
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
+
+  const endpointQuery = useQuery({
+    queryKey: queryKeys.endpoints.detail(endpointId),
+    queryFn: () => bookGuidanceApi.getEndpoint(endpointId),
+    enabled: Boolean(endpointId),
+    staleTime: 5 * 60_000,
+  });
+  const endpoint = endpointQuery.data ?? null;
+  const endpointLoaded = Boolean(endpointId) && !endpointQuery.isPending;
+
+  const runtimesQuery = useQuery({
+    queryKey: queryKeys.runtimes.all,
+    queryFn: () => bookGuidanceApi.getRuntimes(),
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    const items = runtimesQuery.data;
+    if (!items) return;
+    const realRuntimes = items.filter(
+      (item) =>
+        item.kind?.toUpperCase() === "REAL" ||
+        item.id.toLowerCase() === "real",
+    );
+    const selected = realRuntimes.find((item) => item.id === runtimeId);
+    if (!selected && realRuntimes.length > 0) {
+      setRuntimeId(realRuntimes[0].id);
+    }
+  }, [runtimesQuery.data, runtimeId]);
+
+  const errorMessage =
+    actionErrorMessage ??
+    (endpointQuery.error
+      ? getErrorMessage(endpointQuery.error)
+      : runtimesQuery.error
+        ? getErrorMessage(runtimesQuery.error)
+        : null);
 
   const { runtime } = useRobotRuntimeTelemetry(runtimeId);
 
   const activeSession = session?.destinationId === endpointId ? session : null;
+  const effectiveKind: GuidanceKind =
+    activeSession?.guidanceKind ??
+    guidanceKind ??
+    (facilityId ? "LOCATION_GUIDANCE" : "BOOK_GUIDANCE");
   const announcer = useGuidanceAnnouncer({
     activeJobId: activeSession?.jobId,
   });
 
-  const { resetTracking } = useGuidanceExecutionTracking({
+  const { execution, resetTracking } = useGuidanceExecutionTracking({
     activeSession,
     setSession,
     announcer,
     onGoToFeedback,
-    onErrorMessage: setErrorMessage,
+    onErrorMessage: setActionErrorMessage,
   });
+  const stepStatusLabel = activeSession
+    ? formatExecutionStepLabel(execution)
+    : null;
   const {
     mapMetadata: savedRobotMap,
     mapEndpoints,
     endpointsError: mapEndpointsError,
   } = useRobotMapOverlays(endpoint?.id, endpoint?.mapId, {
     includeZones: false,
+    runtimeActiveMapId: runtime?.telemetry?.activeMapId ?? null,
   });
   const destination = useMemo<RobotPose | null>(
     () =>
@@ -120,107 +176,78 @@ export function GuidanceScreen({
   // Avoid crowding the header on compact phones.
   const showHeaderStatus = !isCompactWidth;
 
-  useEffect(() => {
-    if (!endpointId) return;
-    let mounted = true;
-    void bookGuidanceApi.getEndpoint(endpointId)
-      .then((value) => {
-        if (!mounted) return;
-        setEndpoint(value);
-        setLoadedEndpointId(endpointId);
-      })
-      .catch((error: unknown) => {
-        if (!mounted) return;
-        setErrorMessage(getErrorMessage(error));
-        setLoadedEndpointId(endpointId);
-      });
-    return () => { mounted = false; };
-  }, [endpointId]);
-
-  useEffect(() => {
-    let mounted = true;
-    void bookGuidanceApi
-      .getRuntimes()
-      .then((items) => {
-        if (!mounted) return;
-        const realRuntimes = items.filter(
-          (item) =>
-            item.kind?.toUpperCase() === "REAL" ||
-            item.id.toLowerCase() === "real",
-        );
-        const selected = realRuntimes.find((item) => item.id === runtimeId);
-        if (!selected && realRuntimes.length > 0)
-          setRuntimeId(realRuntimes[0].id);
-      })
-      .catch((error: unknown) => {
-        if (mounted) setErrorMessage(getErrorMessage(error));
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [runtimeId]);
-
   const autoStartTriggered = useRef(false);
 
   const handleStart = useCallback(async () => {
     recordInteraction();
     if (!endpoint || !destination) {
-      setErrorMessage("Đích dẫn đường không còn hợp lệ.");
+      setActionErrorMessage("Đích dẫn đường không còn hợp lệ.");
       return;
     }
     if (env.isMock) {
-      setErrorMessage(
+      setActionErrorMessage(
         "BookGuidance cần kết nối BE. Hãy cấu hình EXPO_PUBLIC_API_BASE_URL để bắt đầu.",
       );
       return;
     }
     if (!runtimeReady) {
-      setErrorMessage(
+      setActionErrorMessage(
         "Robot đang offline, telemetry cũ hoặc chưa định vị. Chưa thể bắt đầu dẫn đường.",
       );
       return;
     }
 
     setBusy(true);
-    setErrorMessage(null);
+    setActionErrorMessage(null);
     try {
-      let leaseId = armLeaseId;
-      if (!leaseId) {
-        try {
-          const lease = await bookGuidanceApi.arm(runtimeId);
-          leaseId = lease.leaseId;
-          setArmLeaseId(lease.leaseId);
-        } catch {
-          // Backend will auto-arm if already initialized
-        }
+      let leaseId: string | undefined;
+      try {
+        const lease = await bookGuidanceApi.arm(runtimeId);
+        leaseId = lease.leaseId;
+      } catch {
+        // Backend will auto-arm if already initialized
       }
 
-      const started = await bookGuidanceApi.start({
-        runtimeId,
-        endpointId: endpoint.id,
-        armLeaseId: leaseId ?? undefined,
-        query: endpoint.name,
-      });
+      const started =
+        effectiveKind === "LOCATION_GUIDANCE"
+          ? await facilityGuidanceApi.start({
+              query: initialQuery?.trim() || endpoint.name,
+              facilityId: facilityId || endpoint.id,
+              runtimeId,
+              armLeaseId: leaseId,
+            })
+          : await bookGuidanceApi.start({
+              runtimeId,
+              endpointId: endpoint.id,
+              bookId,
+              bookItemId,
+              armLeaseId: leaseId,
+              query: initialQuery?.trim() || endpoint.name,
+            });
       const next: GuidanceSession = {
         jobId: started.jobId,
         executionId: started.executionId,
         runtimeId: started.runtimeId || runtimeId,
         destinationId: endpoint.id,
-        destinationName: endpoint.name,
-        guidanceKind: "BOOK_GUIDANCE",
+        destinationName: initialQuery?.trim() || endpoint.name,
+        guidanceKind: effectiveKind,
         startStatus: "ACCEPTED",
       };
       resetTracking();
       setSession(next);
     } catch (error: unknown) {
-      setErrorMessage(getErrorMessage(error));
+      setActionErrorMessage(getErrorMessage(error));
     } finally {
       setBusy(false);
     }
   }, [
-    armLeaseId,
+    bookId,
+    bookItemId,
     destination,
+    effectiveKind,
     endpoint,
+    facilityId,
+    initialQuery,
     recordInteraction,
     resetTracking,
     runtimeId,
@@ -256,6 +283,9 @@ export function GuidanceScreen({
 
   const handleStopTracking = () => {
     recordInteraction();
+    if (activeSession && !activeSession.terminalStatus) {
+      void bookGuidanceApi.cancelJob(activeSession.jobId).catch(() => {});
+    }
     announcer.reset();
     setSession(null);
     resetTracking();
@@ -292,7 +322,11 @@ export function GuidanceScreen({
   return (
     <View style={styles.screen}>
       <AppHeader
-        title="Dẫn đường đến sách"
+        title={
+          effectiveKind === "LOCATION_GUIDANCE"
+            ? "Dẫn đường đến khu vực"
+            : "Dẫn đường đến sách"
+        }
         subtitle="Bản đồ Gazebo 2D • vị trí và lộ trình robot trực tiếp"
         onBack={handleBack}
         rightAccessory={
@@ -405,6 +439,13 @@ export function GuidanceScreen({
           )}
 
           <View style={isLandscape ? styles.sideActionsContainer : styles.bottomActionsContainer}>
+            {stepStatusLabel ? (
+              <View style={styles.stepStatusBanner} testID="guidance-step-status">
+                <AppText variant="caption" color={colors.primaryDark} numberOfLines={2}>
+                  {stepStatusLabel}
+                </AppText>
+              </View>
+            ) : null}
             <Pressable
               disabled={startDisabled}
               onPress={handleStart}
@@ -507,6 +548,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
     ...shadows.card,
+  },
+  stepStatusBanner: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   sidePanel: {
     width: 290,

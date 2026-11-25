@@ -2,7 +2,9 @@ import { apiClient } from "@/services/api/client";
 import type {
   FacilityDetail,
   FacilityEndpoint,
+  FacilitySearchFilter,
   FacilitySearchItem,
+  FacilitySearchPage,
   FacilityType,
 } from "../types/facility.types";
 
@@ -37,6 +39,10 @@ interface FacilityDetailDto {
 
 interface FacilitySearchResponseDto {
   facilities: FacilitySearchDto[];
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  totalPages?: number;
 }
 
 export interface FacilityGuidanceStartResponse {
@@ -80,11 +86,42 @@ function mapDetail(dto: FacilityDetailDto): FacilityDetail {
 }
 
 export const facilityGuidanceApi = {
-  async search(query?: string): Promise<FacilitySearchItem[]> {
+  async search(query?: string, mapId?: string): Promise<FacilitySearchItem[]> {
     const response = await apiClient.get<FacilitySearchResponseDto>("/facility-guidance/search", {
-      params: { ...(query?.trim() ? { query: query.trim() } : {}), matchMode: "FUZZY", page: 1, pageSize: 50 },
+      params: {
+        ...(query?.trim() ? { query: query.trim() } : {}),
+        ...(mapId ? { mapId } : {}),
+        matchMode: "FUZZY",
+        page: 1,
+        pageSize: 50,
+      },
     });
     return Array.isArray(response.data.facilities) ? response.data.facilities.map(mapSearchItem) : [];
+  },
+
+  async searchPage(
+    query?: string,
+    page = 1,
+    pageSize = 20,
+    mapId?: string,
+  ): Promise<FacilitySearchPage> {
+    const response = await apiClient.get<FacilitySearchResponseDto>("/facility-guidance/search", {
+      params: {
+        ...(query?.trim() ? { query: query.trim() } : {}),
+        ...(mapId ? { mapId } : {}),
+        matchMode: "FUZZY",
+        page,
+        pageSize,
+      },
+    });
+    const items = Array.isArray(response.data.facilities) ? response.data.facilities.map(mapSearchItem) : [];
+    return {
+      items,
+      page: response.data.page ?? page,
+      pageSize: response.data.pageSize ?? pageSize,
+      totalCount: response.data.totalCount ?? items.length,
+      totalPages: response.data.totalPages ?? 1,
+    };
   },
 
   async getById(facilityId: string): Promise<FacilityDetail | null> {
@@ -117,9 +154,23 @@ export const facilityGuidanceApi = {
 };
 
 export class HttpFacilitiesRepository {
-  async search(filter?: { query?: string; type?: FacilityType }): Promise<FacilitySearchItem[]> {
-    const items = await facilityGuidanceApi.search(filter?.query);
+  async search(filter?: FacilitySearchFilter): Promise<FacilitySearchItem[]> {
+    const items = await facilityGuidanceApi.search(filter?.query, filter?.mapId);
     return filter?.type ? items.filter((item) => item.type === filter.type) : items;
+  }
+
+  async searchPage(
+    filter?: FacilitySearchFilter & { page?: number; pageSize?: number },
+  ): Promise<FacilitySearchPage> {
+    const result = await facilityGuidanceApi.searchPage(
+      filter?.query,
+      filter?.page ?? 1,
+      filter?.pageSize ?? 20,
+      filter?.mapId,
+    );
+    return filter?.type
+      ? { ...result, items: result.items.filter((item) => item.type === filter.type) }
+      : result;
   }
 
   getById(facilityId: string): Promise<FacilityDetail | null> {

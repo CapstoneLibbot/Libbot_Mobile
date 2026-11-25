@@ -73,4 +73,43 @@ describe("SignalR Client and Specific Cleanup Subscriptions (src/platform)", () 
       yaw: 0.1,
     });
   });
+
+  it("accepts backend JobController JobStepChanged and JobStatusChanged payloads", () => {
+    const client = new SignalRClient();
+    const handlers: Record<string, (payload: unknown) => void> = {};
+
+    const mockConnection = {
+      on: (event: string, handler: (payload: unknown) => void) => {
+        handlers[event] = handler;
+      },
+      off: vi.fn(),
+    } as unknown as import("@microsoft/signalr").HubConnection;
+
+    client.setConnectionForTesting(mockConnection);
+
+    const stepListener = vi.fn();
+    const statusListener = vi.fn();
+    client.on("JobStepChanged", stepListener);
+    client.on("JobStatusChanged", statusListener);
+
+    handlers["JobStepChanged"]?.({
+      jobId: "job-1",
+      executionId: "job-1",
+      runtimeId: "real",
+      status: "STEP_COMPLETED",
+      currentStep: "S20",
+      currentStepType: "MOVE",
+      error: null,
+    });
+    handlers["JobStatusChanged"]?.({
+      jobId: "job-1",
+      status: "SUCCEEDED",
+    });
+
+    expect(stepListener).toHaveBeenCalledTimes(1);
+    expect(statusListener).toHaveBeenCalledWith({
+      jobId: "job-1",
+      status: "completed",
+    });
+  });
 });

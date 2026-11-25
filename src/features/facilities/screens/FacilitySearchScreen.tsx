@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
 import {
   AppEmptyState,
@@ -11,17 +11,20 @@ import {
 import { useDebounce } from "@/shared/lib";
 import { useResponsiveLayout } from "@/shared/layout";
 import { colors, spacing } from "@/shared/theme";
-import { useFacilities } from "../hooks/useFacilities";
+import { useRobotRuntimeTelemetry } from "@/features/guidance/hooks/useRobotRuntimeTelemetry";
+import { useInfiniteFacilities } from "../hooks/useFacilities";
 import { FacilityCardItem } from "../components/FacilityCardItem";
 import type { FacilitySearchItem } from "../types/facility.types";
 
 export interface FacilitySearchScreenProps {
   onSelectFacility: (facilityId: string) => void;
+  onStartGuidance?: (facilityId: string) => void;
   onBackToIdle: () => void;
 }
 
 export function FacilitySearchScreen({
   onSelectFacility,
+  onStartGuidance,
   onBackToIdle,
 }: FacilitySearchScreenProps): React.ReactElement {
   const { insets, isCompactWidth, isExpandedWidth, tokens } =
@@ -29,13 +32,25 @@ export function FacilitySearchScreen({
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const [searchInput, setSearchInput] = useState("");
   const query = useDebounce(searchInput, 300);
+  const { runtime } = useRobotRuntimeTelemetry("real");
+  const activeMapId =
+    runtime?.connected && !runtime.stale
+      ? (runtime.telemetry?.activeMapId ?? undefined)
+      : undefined;
   const {
-    data: facilities = [],
+    data,
     isLoading,
     isError,
     error,
     refetch,
-  } = useFacilities({ query });
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteFacilities({ query, mapId: activeMapId });
+  const facilities = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data?.pages],
+  );
 
   const renderFacility = ({ item }: { item: FacilitySearchItem }) => (
     <FacilityCardItem
@@ -44,6 +59,14 @@ export function FacilitySearchScreen({
         recordInteraction();
         onSelectFacility(id);
       }}
+      onQuickGuide={
+        onStartGuidance
+          ? (id: string) => {
+              recordInteraction();
+              onStartGuidance(id);
+            }
+          : undefined
+      }
       isCompactWidth={isCompactWidth}
       isExpandedWidth={isExpandedWidth}
     />
@@ -112,6 +135,17 @@ export function FacilitySearchScreen({
             renderItem={renderFacility}
             numColumns={isExpandedWidth ? 2 : 1}
             columnWrapperStyle={isExpandedWidth ? styles.columns : undefined}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                void fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <ActivityIndicator style={{ paddingVertical: spacing.md }} />
+              ) : null
+            }
             contentContainerStyle={[
               styles.list,
               {

@@ -20,8 +20,12 @@ export default function BookDetailRoute(): React.ReactElement {
           `/(kiosk)/facilities/${encodeURIComponent(facilityId)}${queryStr ? `?${queryStr}` : ""}` as any,
         );
       }}
-      onStartGuidance={(endpointId) => {
-        router.push(`/(kiosk)/guidance/map?endpointId=${encodeURIComponent(endpointId)}`);
+      onStartGuidance={(endpointId, params) => {
+        const searchParams = new URLSearchParams({ endpointId });
+        if (params?.bookId) searchParams.set("bookId", params.bookId);
+        if (params?.bookItemId) searchParams.set("bookItemId", params.bookItemId);
+        if (params?.query) searchParams.set("query", params.query);
+        router.push(`/(kiosk)/guidance/map?${searchParams.toString()}` as any);
       }}
     />
   );

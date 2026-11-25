@@ -9,6 +9,7 @@ import { getFacilityMeta } from "../utils/facilityMeta";
 export interface FacilityCardItemProps {
   item: FacilitySearchItem;
   onPress: (facilityId: string) => void;
+  onQuickGuide?: (facilityId: string) => void;
   isCompactWidth?: boolean;
   isExpandedWidth?: boolean;
 }
@@ -21,6 +22,7 @@ const FACILITY_ICONS = {
 export function FacilityCardItem({
   item,
   onPress,
+  onQuickGuide,
   isCompactWidth = false,
   isExpandedWidth = false,
 }: FacilityCardItemProps): React.ReactElement {
@@ -100,6 +102,29 @@ export function FacilityCardItem({
               strokeWidth={2.5}
             />
           </View>
+        ) : onQuickGuide ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Dẫn đường ngay đến ${item.name}`}
+            onPress={(event) => {
+              event.stopPropagation?.();
+              onQuickGuide(item.id);
+            }}
+            style={styles.actionPill}
+          >
+            <AppText
+              variant="caption"
+              color={colors.primary}
+              style={styles.actionText}
+            >
+              Dẫn đường
+            </AppText>
+            <ChevronRight
+              size={15}
+              color={colors.primary}
+              strokeWidth={2.5}
+            />
+          </Pressable>
         ) : (
           <View style={styles.actionPill}>
             <AppText

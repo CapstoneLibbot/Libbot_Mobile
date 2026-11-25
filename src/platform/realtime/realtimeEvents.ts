@@ -22,17 +22,57 @@ export const robotConnectionPayloadSchema = z.object({
   connected: z.boolean(),
 });
 
+const NORMALIZED_JOB_STATUS: Record<
+  string,
+  "creating" | "active" | "completed" | "cancelled" | "failed"
+> = {
+  creating: "creating",
+  queued: "creating",
+  active: "active",
+  running: "active",
+  completed: "completed",
+  succeeded: "completed",
+  cancelled: "cancelled",
+  failed: "failed",
+};
+
 export const jobstatusPayloadSchema = z.object({
   jobId: z.string(),
-  status: z.enum(["creating", "active", "completed", "cancelled", "failed"]),
+  status: z
+    .enum([
+      "creating",
+      "active",
+      "completed",
+      "cancelled",
+      "failed",
+      "QUEUED",
+      "RUNNING",
+      "SUCCEEDED",
+      "COMPLETED",
+      "FAILED",
+      "CANCELLED",
+    ])
+    .transform((val) => NORMALIZED_JOB_STATUS[val.toLowerCase()] ?? "active"),
   progress: z.number().min(0).max(100).optional(),
-});
+}).passthrough();
 
 export const jobstepPayloadSchema = z.object({
   jobId: z.string(),
-  step: z.string(),
+  step: z.string().optional(),
+  executionId: z.string().optional(),
+  runtimeId: z.string().optional(),
+  status: z.string().optional(),
+  currentStep: z.string().nullable().optional(),
+  currentStepName: z.string().nullable().optional(),
+  currentStepType: z.string().nullable().optional(),
+  expectedEventType: z.string().nullable().optional(),
+  allowedValues: z.array(z.string()).optional(),
+  error: z.string().nullable().optional(),
   progress: z.number().min(0).max(100).optional(),
-});
+}).passthrough().refine(
+  (payload) => typeof payload.step === "string" || typeof payload.status === "string",
+  { message: "JobStepChanged payload requires step or status." },
+);
 
 export const runtimeTelemetryPayloadSchema = z.object({
   id: z.string(),
@@ -50,6 +90,7 @@ export const runtimeTelemetryPayloadSchema = z.object({
     plannedPath: z.array(z.object({ x: z.number(), y: z.number() })).nullable().optional(),
     error: z.string().nullable().optional(),
     battery: z.number().nullable().optional(),
+    activeMapId: z.string().nullable().optional(),
   }).nullable(),
 }).passthrough();
 

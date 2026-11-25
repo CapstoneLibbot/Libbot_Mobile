@@ -264,6 +264,7 @@ function VoiceListeningModalInner({
   const [bar6] = useState(() => new Animated.Value(22));
   const [bar7] = useState(() => new Animated.Value(10));
   const closeInFlightRef = useRef(false);
+  const guidanceHandledJobRef = useRef<string | null>(null);
 
   const handleClose = useCallback(() => {
     if (closeInFlightRef.current) return Promise.resolve();
@@ -291,11 +292,15 @@ function VoiceListeningModalInner({
   );
 
   useEffect(() => {
-    if (!guidanceStart) return;
+    if (!guidanceStart || guidanceStart.startStatus !== "ACCEPTED") return;
+    if (guidanceHandledJobRef.current === guidanceStart.jobId) return;
+    guidanceHandledJobRef.current = guidanceStart.jobId;
     const sessionToStart = guidanceStart;
     setVoiceActive(false);
-    onClose();
-    void stop().finally(() => onGuidanceStarted(sessionToStart));
+    void stop().finally(() => {
+      onClose();
+      onGuidanceStarted(sessionToStart);
+    });
   }, [guidanceStart, onClose, onGuidanceStarted, setVoiceActive, stop]);
 
   const handleExpand = useCallback(() => {

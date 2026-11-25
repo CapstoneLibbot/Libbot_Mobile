@@ -101,4 +101,54 @@ describe("catalogApi and HttpCatalogRepository (src/features/catalog/api/catalog
 
     expect(book).toBeNull();
   });
+
+  it("calls /books/categories and unwraps BaseResponse category items", async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          { id: "cat-1", name: "Công nghệ thông tin" },
+          { id: "cat-2", name: "Văn học" },
+        ],
+      },
+    });
+
+    const repository = new HttpCatalogRepository();
+    await expect(repository.getCategories()).resolves.toEqual([
+      "All",
+      "Công nghệ thông tin",
+      "Văn học",
+    ]);
+    expect(mockGet).toHaveBeenCalledWith("/books/categories");
+  });
+
+  it("supports paginated book search via HttpCatalogRepository.searchPage", async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        books: [
+          {
+            bookId: "b-2",
+            isbn: "978",
+            title: "Clean Code",
+            author: "Robert",
+            availableCopies: 1,
+          },
+        ],
+        page: 2,
+        pageSize: 20,
+        totalCount: 30,
+        totalPages: 2,
+      },
+    });
+
+    const repository = new HttpCatalogRepository();
+    const page = await repository.searchPage({ query: "Clean", page: 2, pageSize: 20 });
+
+    expect(mockGet).toHaveBeenCalledWith("/book-guidance/search", {
+      params: { query: "Clean", matchMode: "FUZZY", page: 2, pageSize: 20 },
+    });
+    expect(page.totalCount).toBe(30);
+    expect(page.totalPages).toBe(2);
+    expect(page.books).toHaveLength(1);
+  });
 });

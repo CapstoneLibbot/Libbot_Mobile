@@ -52,7 +52,11 @@ export function FacilityDetailScreen({
     mapError,
     endpointsError,
     zonesError,
-  } = useRobotMapOverlays(facility?.location.endpoint.endpointId);
+  } = useRobotMapOverlays(
+    facility?.location.endpoint.endpointId,
+    facility?.location.mapId,
+    { runtimeActiveMapId: runtime?.telemetry?.activeMapId ?? null },
+  );
 
   const isLandscape = width > height;
   const isTwoColumn = Boolean(isTablet || (!isCompactWidth && isLandscape));
@@ -90,6 +94,11 @@ export function FacilityDetailScreen({
   }
 
   const destination = facility.location.endpoint;
+  const activeMapId =
+    robotConnected ? (runtime?.telemetry?.activeMapId ?? null) : null;
+  const wrongActiveMap = Boolean(
+    activeMapId && facility.location.mapId !== activeMapId,
+  );
   const canStartGuidance =
     facility.actions.length === 0 ||
     facility.actions.includes("START_GUIDANCE");
@@ -238,12 +247,18 @@ export function FacilityDetailScreen({
             <AppText variant="caption" color={colors.subtext}>
               Bản đồ: {facility.location.mapName}
             </AppText>
+            {wrongActiveMap ? (
+              <AppText variant="caption" color={colors.danger}>
+                Điểm đến thuộc bản đồ khác với bản đồ robot đang chạy.
+              </AppText>
+            ) : null}
           </AppCard>
 
           {canStartGuidance ? (
             <AppButton
-              title="Dẫn đường đến đây"
+              title={wrongActiveMap ? "Khác bản đồ robot" : "Dẫn đường đến đây"}
               size="lg"
+              disabled={wrongActiveMap}
               onPress={() => {
                 recordInteraction();
                 onStartGuidance(facility.id);

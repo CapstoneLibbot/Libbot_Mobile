@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatExecutionStepLabel,
   formatWorkflowFailure,
   getWorkflowFailureDetails,
 } from "../hooks/useGuidanceExecutionTracking";
@@ -61,5 +62,31 @@ describe("useGuidanceExecutionTracking Workflow Failure Formatters", () => {
     expect(details.step).toBeUndefined();
     expect(details.code).toBeUndefined();
     expect(details.message).toBeUndefined();
+  });
+
+  it("formats active workflow step progress labels in Vietnamese", () => {
+    expect(
+      formatExecutionStepLabel({
+        status: "RUNNING",
+        currentStep: "S20",
+        currentStepType: "MOVE",
+      }),
+    ).toBe("S20 · Robot đang dẫn đường đến vị trí…");
+
+    expect(
+      formatExecutionStepLabel({
+        status: "STEP_COMPLETED",
+        currentStep: "S40",
+        currentStepType: "SCAN",
+      }),
+    ).toBe("S40 · Đang quét xác nhận mã sách…");
+
+    expect(
+      formatExecutionStepLabel({
+        status: "STEP_FAILED",
+        currentStep: "S20",
+        error: "Blocked by obstacle",
+      }),
+    ).toBe("Blocked by obstacle");
   });
 });

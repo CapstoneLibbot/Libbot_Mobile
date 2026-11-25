@@ -3,6 +3,7 @@ export interface ProblemDetails {
   title?: string;
   status?: number;
   detail?: string;
+  message?: string;
   instance?: string;
   traceId?: string;
   code?: string;
@@ -44,6 +45,35 @@ export class ApiError extends Error {
     }
 
     Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
+export function getFriendlyMessageByCode(code?: string): string | undefined {
+  switch (code) {
+    case "WRONG_ACTIVE_MAP":
+      return "Điểm đến thuộc bản đồ khác với bản đồ robot đang chạy.";
+    case "NO_ACTIVE_MAP":
+      return "Robot chưa kích hoạt bản đồ dẫn đường. Hãy bật navigation trước.";
+    case "COPY_UNAVAILABLE":
+      return "Bản sách này hiện không còn sẵn sàng trên kệ.";
+    case "ENDPOINT_MISMATCH":
+      return "Vị trí điểm đến không khớp với bản sao sách đã chọn.";
+    case "INVALID_ENDPOINT":
+      return "Tọa độ điểm đến trên bản đồ không hợp lệ.";
+    case "ROBOT_OFFLINE":
+      return "Robot đang ngoại tuyến hoặc mất tín hiệu telemetry.";
+    case "NOT_LOCALIZED":
+      return "Robot chưa định vị xong vị trí trên bản đồ.";
+    case "NAV2_NOT_READY":
+      return "Hệ thống dẫn đường Nav2 chưa sẵn sàng.";
+    case "LEASE_MISMATCH":
+      return "Phiên điều khiển robot đã hết hạn. Vui lòng thử lại.";
+    case "ROBOT_REJECTED":
+      return "Robot chưa thể nhận lệnh dẫn đường lúc này (có thể đang chạy nhiệm vụ khác).";
+    case "SIM_USE_RUN_BUTTON":
+      return "Chế độ mô phỏng Gazebo cần chạy từ màn quản lý job.";
+    default:
+      return undefined;
   }
 }
 
@@ -100,7 +130,7 @@ export function toApiError(error: unknown): ApiError {
 
     if (typeof data === "object" && data !== null) {
       const problem = data as ProblemDetails;
-      message = problem.detail || problem.title || "";
+      message = problem.detail || problem.message || problem.title || "";
       traceId =
         problem.traceId ||
         (typeof problem.extensions?.traceId === "string"
@@ -122,7 +152,8 @@ export function toApiError(error: unknown): ApiError {
       message = axiosError.message || getFriendlyMessageByStatus(status);
     }
 
-    const friendlyMessage = getFriendlyMessageByStatus(status);
+    const friendlyMessage =
+      getFriendlyMessageByCode(code) ?? getFriendlyMessageByStatus(status);
 
     return new ApiError({
       message,

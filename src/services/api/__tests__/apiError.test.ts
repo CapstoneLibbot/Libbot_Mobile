@@ -94,4 +94,27 @@ describe("API Error normalization (src/services/api/apiError.ts)", () => {
       "Hệ thống robot hiện không khả dụng. Vui lòng thử lại sau.",
     );
   });
+
+  it("maps structured backend guidance error code and message to Vietnamese friendly copy", () => {
+    const axiosLikeError = {
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          code: "WRONG_ACTIVE_MAP",
+          message: "The selected destination is not on the robot's active map.",
+        },
+      },
+    };
+
+    const apiError = toApiError(axiosLikeError);
+    expect(apiError.status).toBe(409);
+    expect(apiError.code).toBe("WRONG_ACTIVE_MAP");
+    expect(apiError.message).toBe(
+      "The selected destination is not on the robot's active map.",
+    );
+    expect(getFriendlyErrorMessage(apiError)).toBe(
+      "Điểm đến thuộc bản đồ khác với bản đồ robot đang chạy.",
+    );
+  });
 });

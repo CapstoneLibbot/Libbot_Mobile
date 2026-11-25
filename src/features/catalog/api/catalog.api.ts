@@ -2,6 +2,7 @@ import { apiClient } from "@/services/api/client";
 import {
   Book,
   BookSearchFilter,
+  BookSearchPage,
   CatalogRepository,
 } from "../types/catalog.types";
 import {
@@ -70,10 +71,13 @@ export const catalogApi = {
 
   async getCategories(): Promise<BookCategoryDto[]> {
     try {
-      const response = await apiClient.get<BookCategoryDto[]>(
-        "/book-categories",
-      );
-      return response.data;
+      const response = await apiClient.get<
+        BookCategoryDto[] | { data?: BookCategoryDto[] }
+      >("/books/categories");
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return Array.isArray(response.data?.data) ? response.data.data : [];
     } catch {
       return [];
     }
@@ -90,6 +94,24 @@ export class HttpCatalogRepository implements CatalogRepository {
       category: filter?.category,
     });
     return mapSearchResponseToBooks(responseDto);
+  }
+
+  async searchPage(
+    filter?: BookSearchFilter & { page?: number; pageSize?: number },
+  ): Promise<BookSearchPage> {
+    const responseDto = await catalogApi.searchBooks({
+      query: filter?.query,
+      category: filter?.category,
+      page: filter?.page ?? 1,
+      pageSize: filter?.pageSize ?? 20,
+    });
+    return {
+      books: mapSearchResponseToBooks(responseDto),
+      page: responseDto.page,
+      pageSize: responseDto.pageSize,
+      totalCount: responseDto.totalCount,
+      totalPages: responseDto.totalPages,
+    };
   }
 
   async getById(bookId: string): Promise<Book | null> {

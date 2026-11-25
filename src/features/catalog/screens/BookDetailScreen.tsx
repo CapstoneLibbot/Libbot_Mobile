@@ -10,6 +10,8 @@ import {
 import React, { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useKioskStore } from "@/core/state";
+import { seedEndpointQueryCache } from "@/features/guidance/hooks/useRobotMapOverlays";
+import { useRobotRuntimeTelemetry } from "@/features/guidance/hooks/useRobotRuntimeTelemetry";
 import {
   AppEmptyState,
   AppErrorState,
@@ -28,7 +30,10 @@ export interface BookDetailScreenProps {
     facilityId: string,
     meta?: { bookTitle?: string; locationLabel?: string },
   ) => void;
-  onStartGuidance: (endpointId: string) => void;
+  onStartGuidance: (
+    endpointId: string,
+    params?: { bookId?: string; bookItemId?: string; query?: string },
+  ) => void;
 }
 
 export function BookDetailScreen({
@@ -42,6 +47,7 @@ export function BookDetailScreen({
   const recordInteraction = useKioskStore((state) => state.recordInteraction);
   const { data: book, isLoading, isError, error, refetch } =
     useBookDetail(bookId);
+  const { runtime } = useRobotRuntimeTelemetry("real");
   const [coverFailed, setCoverFailed] = useState(false);
 
   if (isLoading) {
@@ -75,9 +81,22 @@ export function BookDetailScreen({
     );
   }
 
-  const selectedCopy = book.copies?.[0] ?? null;
+  const selectedCopy =
+    book.copies?.find((copy) => copy.status === "Available" && copy.endpoint) ??
+    book.copies?.find((copy) => copy.status === "Available") ??
+    book.copies?.[0] ??
+    null;
   const endpoint = selectedCopy?.endpoint ?? null;
-  const canStartGuidance = Boolean(endpoint?.endpointId);
+  const runtimeActiveMapId =
+    runtime?.connected && !runtime.stale
+      ? (runtime.telemetry?.activeMapId ?? null)
+      : null;
+  const wrongActiveMap = Boolean(
+    runtimeActiveMapId && endpoint?.mapId && endpoint.mapId !== runtimeActiveMapId,
+  );
+  const canStartGuidance = Boolean(
+    selectedCopy?.status === "Available" && endpoint?.endpointId && !wrongActiveMap,
+  );
   const locationLabel = [
     selectedCopy?.aisle,
     selectedCopy?.shelf,
@@ -88,11 +107,7 @@ export function BookDetailScreen({
 
   // Desktop / kiosk landscape uses two-column layout (42% / 58%)
   const isTwoColumn = Boolean(isTablet || (!isCompactWidth && width > height));
-  const facilityId =
-    endpoint?.endpointId ||
-    (selectedCopy?.aisle?.toLowerCase().includes("b")
-      ? "fac-shelf-r"
-      : "fac-shelf-a");
+  const facilityId = endpoint?.endpointId ?? "";
 
   return (
     <View style={styles.screen}>
@@ -323,15 +338,18 @@ export function BookDetailScreen({
             >
               {canStartGuidance
                 ? locationLabel || endpoint?.name || "Vị trí bản sao"
-                : "Chưa có vị trí dẫn đường cho sách này"}
+                : wrongActiveMap
+                  ? "Sách nằm ở bản đồ khác với bản đồ robot đang chạy"
+                  : "Chưa có vị trí dẫn đường cho sách này"}
             </AppText>
           </View>
         </View>
 
         <View style={styles.actions}>
           <Pressable
-            disabled={!canStartGuidance && !facilityId}
+            disabled={!facilityId}
             onPress={() => {
+              if (!facilityId) return;
               recordInteraction();
               onOpenFacility(facilityId, {
                 bookTitle: book.title,
@@ -341,7 +359,7 @@ export function BookDetailScreen({
             style={[
               styles.mapButton,
               isCompactWidth && styles.mapButtonCompact,
-              !canStartGuidance && !facilityId && styles.disabled,
+              !facilityId && styles.disabled,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Xem sơ đồ vị trí"
@@ -355,9 +373,14 @@ export function BookDetailScreen({
           <Pressable
             disabled={!canStartGuidance}
             onPress={() => {
-              if (!endpoint) return;
+              if (!endpoint || !selectedCopy) return;
               recordInteraction();
-              onStartGuidance(endpoint.endpointId);
+              seedEndpointQueryCache(endpoint);
+              onStartGuidance(endpoint.endpointId, {
+                bookId: book.id,
+                bookItemId: selectedCopy.id,
+                query: book.title,
+              });
             }}
             style={[
               styles.guideButton,

@@ -49,8 +49,19 @@ export interface BookSearchFilter {
   category?: string;
 }
 
+export interface BookSearchPage {
+  books: Book[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface CatalogRepository {
   search(filter?: BookSearchFilter): Promise<Book[]>;
+  searchPage?(
+    filter?: BookSearchFilter & { page?: number; pageSize?: number },
+  ): Promise<BookSearchPage>;
   getById(bookId: string): Promise<Book | null>;
   getCategories(): Promise<string[]>;
 }

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { bookGuidanceApi, RobotRuntime } from "../api/bookGuidance.api";
 import { signalRClient } from "@/platform/realtime";
 
+const DISCONNECTED_POLL_MS = 2_000;
+const CONNECTED_FALLBACK_POLL_MS = 15_000;
+
 export function useRobotRuntimeTelemetry(runtimeId: string): {
   runtime: RobotRuntime | null;
   realtimeConnected: boolean;
@@ -11,10 +14,12 @@ export function useRobotRuntimeTelemetry(runtimeId: string): {
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const polling = useRef(false);
   const subscribing = useRef(false);
+  const lastRestRefreshAt = useRef(0);
 
   const refreshRuntime = useCallback(async (): Promise<RobotRuntime | null> => {
     if (polling.current) return null;
     polling.current = true;
+    lastRestRefreshAt.current = Date.now();
     try {
       const latest = await bookGuidanceApi.getRuntime(runtimeId);
       if (latest.id === runtimeId) setRuntime(latest);
@@ -54,15 +59,19 @@ export function useRobotRuntimeTelemetry(runtimeId: string): {
       if (!mounted) return;
       const connected = signalRClient.getConnection()?.state === "Connected";
       setRealtimeConnected(connected);
-      if (!connected) void subscribe();
-      void refreshRuntime();
+      if (!connected) {
+        void subscribe();
+        void refreshRuntime();
+      } else if (Date.now() - lastRestRefreshAt.current >= CONNECTED_FALLBACK_POLL_MS) {
+        void refreshRuntime();
+      }
     };
 
     const initialRefresh = setTimeout(() => {
       void refreshRuntime();
       void subscribe();
     }, 0);
-    const timer = setInterval(refresh, 2000);
+    const timer = setInterval(refresh, DISCONNECTED_POLL_MS);
     return () => {
       mounted = false;
       clearTimeout(initialRefresh);

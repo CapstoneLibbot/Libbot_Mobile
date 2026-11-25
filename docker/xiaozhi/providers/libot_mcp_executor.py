@@ -108,7 +108,7 @@ class ServerMCPExecutor(ToolExecutor):
         return {}
 
     def _format_libot_result(self, name: str, result: Any) -> Optional[str]:
-        if name not in {"search_books", "start_book_guidance", "start_location_guidance"}:
+        if name not in {"search_books", "search_locations", "start_book_guidance", "start_location_guidance"}:
             return None
         payload = self._payload(result)
         error_code = payload.get("errorCode")
@@ -224,6 +224,12 @@ class ServerMCPExecutor(ToolExecutor):
             destination_name = "điểm đến đã chọn"
 
         error_code = payload.get("errorCode")
+        if error_code:
+            logger.bind(tag=TAG).info(
+                f"Guidance start event skipped due to errorCode={error_code}"
+            )
+            return
+
         logger.bind(tag=TAG).info(
             f"Emitting guidance_started: jobId={job_id}, destinationName={destination_name}, runtimeId={runtime_id}"
         )
@@ -232,7 +238,7 @@ class ServerMCPExecutor(ToolExecutor):
             "jobId": job_id,
             "executionId": execution_id,
             "guidanceKind": "BOOK_GUIDANCE" if is_book else "LOCATION_GUIDANCE",
-            "startStatus": "ACCEPTED" if not error_code else "FAILED",
+            "startStatus": "ACCEPTED",
             "destinationId": destination_id,
             "destinationName": destination_name,
             "runtimeId": runtime_id,

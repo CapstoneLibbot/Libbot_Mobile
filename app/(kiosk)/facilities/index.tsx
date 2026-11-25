@@ -8,6 +8,9 @@ export default function FacilitiesSearchRoute(): React.ReactElement {
       onSelectFacility={(facilityId) => {
         router.push(`/(kiosk)/facilities/${facilityId}`);
       }}
+      onStartGuidance={(facilityId) => {
+        router.push(`/(kiosk)/facilities/${encodeURIComponent(facilityId)}/guidance`);
+      }}
       onBackToIdle={() => {
         router.replace("/(kiosk)/idle");
       }}

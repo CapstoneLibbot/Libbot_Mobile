@@ -5,11 +5,13 @@ import { bookGuidanceApi } from "../bookGuidance.api";
 vi.mock("@/services/api/client", () => ({
   apiClient: {
     get: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
 describe("bookGuidanceApi", () => {
   const mockGet = vi.mocked(apiClient.get);
+  const mockPost = vi.mocked(apiClient.post);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,5 +63,12 @@ describe("bookGuidanceApi", () => {
 
     await expect(bookGuidanceApi.getExecution("execution-1")).resolves.toEqual(execution);
     expect(mockGet).toHaveBeenCalledWith("/book-guidance/executions/execution-1");
+  });
+
+  it("cancels an active guidance job via /jobs/{id}/cancel", async () => {
+    mockPost.mockResolvedValueOnce({ data: undefined });
+
+    await bookGuidanceApi.cancelJob("job-123");
+    expect(mockPost).toHaveBeenCalledWith("/jobs/job-123/cancel");
   });
 });

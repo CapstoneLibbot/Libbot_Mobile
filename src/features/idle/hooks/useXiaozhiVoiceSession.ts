@@ -284,6 +284,10 @@ export function useXiaozhiVoiceSession() {
             (guidanceKind !== "BOOK_GUIDANCE" && guidanceKind !== "LOCATION_GUIDANCE") ||
             (startStatus !== "ACCEPTED" && startStatus !== "FAILED")) return;
           clearResponseTimer();
+          if (startStatus === "FAILED") {
+            setError("Robot chưa sẵn sàng để dẫn đường lúc này.");
+            return;
+          }
           setGuidanceStart({ jobId, executionId, guidanceKind, startStatus, destinationId, destinationName, runtimeId });
           return;
         }

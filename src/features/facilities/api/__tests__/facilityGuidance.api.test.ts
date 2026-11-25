@@ -38,4 +38,41 @@ describe("facilityGuidanceApi", () => {
     get.mockResolvedValueOnce({ data: { facilities: [{ facilityId: "a", name: "Bàn thủ thư", type: "ENDPOINT", mapId: "m", mapName: "Map" }] } });
     await expect(new HttpFacilitiesRepository().search({ type: "ENDPOINT" })).resolves.toHaveLength(1);
   });
+
+  it("supports paginated facility search with totalPages metadata", async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        facilities: [{ facilityId: "f-2", name: "Kệ B", type: "ENDPOINT", mapId: "m", mapName: "Map" }],
+        page: 2,
+        pageSize: 20,
+        totalCount: 25,
+        totalPages: 2,
+      },
+    });
+
+    const page = await new HttpFacilitiesRepository().searchPage({ query: "Kệ", page: 2, pageSize: 20 });
+    expect(get).toHaveBeenCalledWith("/facility-guidance/search", {
+      params: { query: "Kệ", matchMode: "FUZZY", page: 2, pageSize: 20 },
+    });
+    expect(page.totalCount).toBe(25);
+    expect(page.totalPages).toBe(2);
+    expect(page.items).toHaveLength(1);
+  });
+
+  it("forwards mapId filter when searching facilities on robot active map", async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        facilities: [{ facilityId: "f-3", name: "Kệ Công nghệ A", type: "ENDPOINT", mapId: "map-v4", mapName: "LiBotmapV4" }],
+        page: 1,
+        pageSize: 20,
+        totalCount: 1,
+        totalPages: 1,
+      },
+    });
+
+    await new HttpFacilitiesRepository().searchPage({ query: "Kệ", mapId: "map-v4", page: 1, pageSize: 20 });
+    expect(get).toHaveBeenCalledWith("/facility-guidance/search", {
+      params: { query: "Kệ", mapId: "map-v4", matchMode: "FUZZY", page: 1, pageSize: 20 },
+    });
+  });
 });

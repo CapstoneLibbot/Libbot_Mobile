@@ -1,8 +1,10 @@
 import { LayoutGrid, List } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { getCatalogRepository } from "@/core/composition";
-import { useKioskStore } from "@/core/state";
+import { appQueryClient } from "@/core/providers/QueryProvider";
+import { queryKeys, useKioskStore } from "@/core/state";
+import { seedEndpointQueryCache } from "@/features/guidance/hooks/useRobotMapOverlays";
 import { getFriendlyErrorMessage } from "@/services/api/apiError";
 import { useResponsiveLayout } from "@/shared/layout";
 import { useDebounce } from "@/shared/lib";
@@ -21,13 +23,19 @@ import {
   CatalogSearchBar,
   SortByOption,
 } from "../components";
-import { useBookSearch } from "../hooks/useBookSearch";
+import { useInfiniteBookSearch } from "../hooks/useBookSearch";
 import { useCategories } from "../hooks/useCategories";
 import { Book } from "../types/catalog.types";
 
+export interface BookGuidanceNavigationParams {
+  bookId?: string;
+  bookItemId?: string;
+  query?: string;
+}
+
 export interface CatalogSearchScreenProps {
   onSelectBook: (bookId: string) => void;
-  onStartGuidance: (endpointId: string) => void;
+  onStartGuidance: (endpointId: string, params?: BookGuidanceNavigationParams) => void;
   onBackToIdle: () => void;
 }
 
@@ -54,15 +62,22 @@ export function CatalogSearchScreen({
 
   const { data: categories = ["All"] } = useCategories();
   const {
-    data: rawBooks = [],
+    data,
     isLoading,
     isError,
     error,
     refetch,
-  } = useBookSearch({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteBookSearch({
     query: debouncedQuery,
     category: selectedCategory,
   });
+  const rawBooks = useMemo(
+    () => data?.pages.flatMap((page) => page.books) ?? [],
+    [data?.pages],
+  );
 
   const handleSearchChange = (text: string) => {
     recordInteraction();
@@ -92,7 +107,10 @@ export function CatalogSearchScreen({
     }
 
     try {
-      const detail = await getCatalogRepository().getById(book.id);
+      const detail = await appQueryClient.ensureQueryData({
+        queryKey: queryKeys.catalog.detail(book.id),
+        queryFn: () => getCatalogRepository().getById(book.id),
+      });
       const firstLocatedCopy = detail?.copies?.find(
         (copy) => copy.status === "Available" && copy.endpoint,
       );
@@ -100,7 +118,12 @@ export function CatalogSearchScreen({
         handleViewDetail(book.id);
         return;
       }
-      onStartGuidance(firstLocatedCopy.endpoint!.endpointId);
+      seedEndpointQueryCache(firstLocatedCopy.endpoint);
+      onStartGuidance(firstLocatedCopy.endpoint!.endpointId, {
+        bookId: detail.id,
+        bookItemId: firstLocatedCopy.id,
+        query: detail.title,
+      });
     } catch {
       handleViewDetail(book.id);
     }
@@ -124,9 +147,7 @@ export function CatalogSearchScreen({
   }, [rawBooks, onlyAvailable, sortBy]);
 
   // Total count for "All" category pill
-  const totalCount = useMemo(() => {
-    return rawBooks.length;
-  }, [rawBooks.length]);
+  const totalCount = data?.pages[0]?.totalCount ?? rawBooks.length;
 
   return (
     <View style={styles.container}>
@@ -269,6 +290,17 @@ export function CatalogSearchScreen({
                 paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl),
               },
             ]}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                void fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <ActivityIndicator style={{ paddingVertical: spacing.md }} />
+              ) : null
+            }
             showsVerticalScrollIndicator={false}
           />
         )}

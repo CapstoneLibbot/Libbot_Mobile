@@ -23,6 +23,7 @@ export interface RobotRuntimeTelemetry {
   plannedPath?: { x: number; y: number }[] | null;
   error?: string | null;
   battery?: number | null;
+  activeMapId?: string | null;
 }
 
 export interface NavigationEndpoint {
@@ -49,6 +50,8 @@ export interface RobotRuntime {
 export interface BookGuidanceStartRequest {
   runtimeId: string;
   endpointId: string;
+  bookId?: string;
+  bookItemId?: string;
   armLeaseId?: string;
   query?: string;
 }
@@ -232,5 +235,9 @@ export const bookGuidanceApi = {
       status: succeeded ? "SUCCEEDED" : "FAILED",
       message,
     });
+  },
+
+  async cancelJob(jobId: string): Promise<void> {
+    await apiClient.post(`/jobs/${encodeURIComponent(jobId)}/cancel`);
   },
 };

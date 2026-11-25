@@ -12,12 +12,14 @@ export interface LiBotActionMenuProps {
   onSearchSelect: () => void;
   onFacilitySelect: () => void;
   onSettingsSelect?: () => void;
+  onOpenPinModal?: () => void;
 }
 
 export function LiBotActionMenu({
   onSearchSelect,
   onFacilitySelect,
   onSettingsSelect,
+  onOpenPinModal,
 }: LiBotActionMenuProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
@@ -63,9 +65,10 @@ export function LiBotActionMenu({
     recordInteraction();
     setIsOpen(false);
     if (onSettingsSelect) {
+      onOpenPinModal?.();
       setIsPinModalVisible(true);
     }
-  }, [onSettingsSelect, recordInteraction]);
+  }, [onOpenPinModal, onSettingsSelect, recordInteraction]);
 
   const handlePinSuccess = useCallback(() => {
     setIsPinModalVisible(false);

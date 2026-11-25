@@ -34,10 +34,22 @@ export interface FacilityDetail {
 export interface FacilitySearchFilter {
   query?: string;
   type?: FacilityType;
+  mapId?: string;
+}
+
+export interface FacilitySearchPage {
+  items: FacilitySearchItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export interface FacilitiesRepository {
   search(filter?: FacilitySearchFilter): Promise<FacilitySearchItem[]>;
+  searchPage?(
+    filter?: FacilitySearchFilter & { page?: number; pageSize?: number },
+  ): Promise<FacilitySearchPage>;
   getById(facilityId: string): Promise<FacilityDetail | null>;
 }
 

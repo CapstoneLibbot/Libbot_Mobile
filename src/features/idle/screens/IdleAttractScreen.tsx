@@ -1,6 +1,6 @@
 import { Mic } from "lucide-react-native";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Svg, {
   Defs,
@@ -47,9 +47,28 @@ export function IdleAttractScreen({
   const isNavigatingRef = useRef(false);
 
   // Mở khóa chuyển màn hình mỗi khi quay lại màn hình Idle
+  // Voice Coordinator: điều phối nhả/nhận mic giữa Vosk và Xiaozhi có buffer an toàn
+  const voice = useKioskVoiceCoordinator({
+    isConnected,
+    onRecordInteraction: recordInteraction,
+  });
+
+  // Giữ ref ổn định cho closeVoice để không kích hoạt re-render hoặc hủy session
+  // trong suốt quá trình người dùng trò chuyện và chuyển đổi các trạng thái AI (listening <-> thinking <-> speaking)
+  const closeVoiceRef = useRef(voice.closeVoice);
+  useEffect(() => {
+    closeVoiceRef.current = voice.closeVoice;
+  }, [voice.closeVoice]);
+
+  // Cleanup an toàn KHI RỜI MÀN HÌNH (Un-focus / chuyển trang như sang Settings/Search):
+  // Dependency [] đảm bảo cleanup chỉ chạy DUY NHẤT khi screen unmount hoặc blur sang screen khác,
+  // hoàn toàn không can thiệp hay làm chậm các state transition giọng nói đang diễn ra.
   useFocusEffect(
     useCallback(() => {
       isNavigatingRef.current = false;
+      return () => {
+        closeVoiceRef.current();
+      };
     }, []),
   );
 
@@ -63,6 +82,7 @@ export function IdleAttractScreen({
       isNavigatingRef.current = false;
     }, 1000);
 
+    closeVoiceRef.current();
     resetKioskSession();
     recordInteraction();
     onNavigateToSearch();
@@ -78,6 +98,7 @@ export function IdleAttractScreen({
       isNavigatingRef.current = false;
     }, 1000);
 
+    closeVoiceRef.current();
     resetKioskSession();
     recordInteraction();
     onNavigateToFacilities();
@@ -93,22 +114,45 @@ export function IdleAttractScreen({
       isNavigatingRef.current = false;
     }, 1000);
 
+    closeVoiceRef.current();
     resetKioskSession();
     recordInteraction();
     onNavigateToSettings?.();
   }, [onNavigateToSettings, recordInteraction, resetKioskSession]);
-
-  // Voice Coordinator: điều phối nhả/nhận mic giữa Vosk và Xiaozhi có buffer an toàn
-  const voice = useKioskVoiceCoordinator({
-    isConnected,
-    onRecordInteraction: recordInteraction,
-  });
 
   // Touching the robot face triggers the playful eye reaction without navigating
   const handleFaceTouch = useCallback(() => {
     recordInteraction();
     robotFaceRef.current?.triggerTouchReaction();
   }, [recordInteraction]);
+
+  const handleCloseVoice = useCallback(() => {
+    closeVoiceRef.current();
+  }, []);
+
+  const handleSelectBook = useCallback(
+    (bookId: string) => {
+      closeVoiceRef.current();
+      onNavigateToBook(bookId);
+    },
+    [onNavigateToBook],
+  );
+
+  const handleSelectLocation = useCallback(
+    (endpointId: string) => {
+      closeVoiceRef.current();
+      onNavigateToLocation(endpointId);
+    },
+    [onNavigateToLocation],
+  );
+
+  const handleGuidanceStarted = useCallback(
+    (guidance: VoiceGuidanceStart) => {
+      closeVoiceRef.current();
+      onGuidanceStarted(guidance);
+    },
+    [onGuidanceStarted],
+  );
 
   const voiceFabBottom = Math.max(insets.bottom, spacing.md);
   const voiceFabRight = Math.max(insets.right, spacing.lg);
@@ -137,6 +181,7 @@ export function IdleAttractScreen({
         onSearchSelect={handleNavigateToSearch}
         onFacilitySelect={handleNavigateToFacilities}
         onSettingsSelect={onNavigateToSettings ? handleNavigateToSettings : undefined}
+        onOpenPinModal={handleCloseVoice}
       />
 
       {/* Independent Voice FAB (Bottom-Right, Safe Area aware) */}
@@ -165,12 +210,9 @@ export function IdleAttractScreen({
         visible={voice.isVoiceModalOpen}
         activation={voice.voiceActivation}
         onClose={voice.closeVoice}
-        onSelectBook={onNavigateToBook}
-        onSelectLocation={onNavigateToLocation}
-        onGuidanceStarted={(guidance) => {
-          voice.closeVoice();
-          onGuidanceStarted(guidance);
-        }}
+        onSelectBook={handleSelectBook}
+        onSelectLocation={handleSelectLocation}
+        onGuidanceStarted={handleGuidanceStarted}
       />
 
       <View

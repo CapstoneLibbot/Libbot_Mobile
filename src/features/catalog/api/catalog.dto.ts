@@ -24,6 +24,7 @@ export interface BookSearchResponseDto {
 
 export interface NavigationEndpointDto {
   endpointId: string;
+  mapId?: string;
   name: string;
   x: number;
   y: number;
